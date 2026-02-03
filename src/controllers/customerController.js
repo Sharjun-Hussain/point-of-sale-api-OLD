@@ -3,6 +3,8 @@ const { Customer, Transaction, Account, Sale } = db;
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
 const { Sequelize } = require('sequelize');
+const auditService = require('../services/auditService');
+const accountingService = require('../services/accountingService');
 
 /**
  * Customer Controller
@@ -47,7 +49,23 @@ const getCustomerLedger = async (req, res, next) => {
             return errorResponse(res, 'Customer not found', 404);
         }
 
-        const where = { customer_id: id };
+        // Get the AR Account
+        const arAccount = await Account.findOne({
+            where: {
+                organization_id: req.user.organization_id,
+                code: '1100' // Accounts Receivable
+            }
+        });
+
+        if (!arAccount) {
+            return errorResponse(res, 'Accounts Receivable account not found. Please set up your chart of accounts.', 500);
+        }
+
+        // Build where clause for AR transactions only
+        const where = {
+            customer_id: id,
+            account_id: arAccount.id  // CRITICAL FIX: Only AR transactions
+        };
         if (from_date && to_date) {
             where.transaction_date = {
                 [Sequelize.Op.between]: [new Date(from_date), new Date(to_date)]
@@ -60,12 +78,12 @@ const getCustomerLedger = async (req, res, next) => {
             order: [['transaction_date', 'ASC']]
         });
 
-        // Calculate running balance
+        // Calculate running balance (what customer owes)
         let balance = 0;
         const ledger = transactions.map(t => {
-            if (t.type === 'debit') { // 'debit' usually means they owe us (Sale)
+            if (t.type === 'debit') { // Sale or charge - customer owes MORE
                 balance += parseFloat(t.amount);
-            } else { // 'credit' means they paid us
+            } else { // Payment - customer owes LESS
                 balance -= parseFloat(t.amount);
             }
             return {
@@ -98,6 +116,19 @@ const createCustomer = async (req, res, next) => {
     try {
         const organization_id = req.user.organization_id;
         const customer = await Customer.create({ ...req.body, organization_id });
+
+        // Log customer creation
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logCreate(
+            organization_id,
+            req.user.id,
+            'Customer',
+            customer.id,
+            { name: customer.name, email: customer.email, phone: customer.phone },
+            ipAddress,
+            userAgent
+        );
+
         return successResponse(res, customer, 'Customer created successfully', 201);
     } catch (error) { next(error); }
 };
@@ -108,7 +139,23 @@ const updateCustomer = async (req, res, next) => {
             where: { id: req.params.id, organization_id: req.user.organization_id }
         });
         if (!customer) return errorResponse(res, 'Customer not found', 404);
+
+        const oldValues = { name: customer.name, email: customer.email, phone: customer.phone };
         await customer.update(req.body);
+
+        // Log customer update
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logUpdate(
+            req.user.organization_id,
+            req.user.id,
+            'Customer',
+            customer.id,
+            oldValues,
+            req.body,
+            ipAddress,
+            userAgent
+        );
+
         return successResponse(res, customer, 'Customer updated successfully');
     } catch (error) { next(error); }
 };
@@ -119,6 +166,19 @@ const deleteCustomer = async (req, res, next) => {
             where: { id: req.params.id, organization_id: req.user.organization_id }
         });
         if (!customer) return errorResponse(res, 'Customer not found', 404);
+
+        // Log customer deletion
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logDelete(
+            req.user.organization_id,
+            req.user.id,
+            'Customer',
+            customer.id,
+            { name: customer.name, email: customer.email },
+            ipAddress,
+            userAgent
+        );
+
         await customer.destroy();
         return successResponse(res, null, 'Customer deleted successfully');
     } catch (error) { next(error); }
@@ -170,7 +230,7 @@ const createCustomerPayment = async (req, res, next) => {
         });
 
         // 3. Record CREDIT in AR (decreases asset)
-        const creditTransaction = await Transaction.create({
+        const creditTransaction = await accountingService.recordTransaction({
             organization_id,
             branch_id,
             account_id: arAccount.id,
@@ -181,10 +241,10 @@ const createCustomerPayment = async (req, res, next) => {
             reference_id: reference_number || null,
             transaction_date: transaction_date || new Date(),
             description: description || `Payment from ${customer.name}`
-        }, { transaction: t });
+        }, t);
 
         // 4. Record DEBIT in Cash/Bank/Cheque (increases asset)
-        await Transaction.create({
+        await accountingService.recordTransaction({
             organization_id,
             branch_id,
             account_id: paymentAccount.id,
@@ -195,7 +255,7 @@ const createCustomerPayment = async (req, res, next) => {
             reference_id: creditTransaction.id,
             transaction_date: transaction_date || new Date(),
             description: `Payment from ${customer.name} via ${payment_method}`
-        }, { transaction: t });
+        }, t);
 
         // Create Cheque record if needed
         if (payment_method === 'cheque' && cheque_details) {
@@ -216,10 +276,17 @@ const createCustomerPayment = async (req, res, next) => {
             }, { transaction: t });
         }
 
-        // Update account balances
-        // Debit increases asset, Credit decreases asset
-        await arAccount.decrement('balance', { by: amount, transaction: t });
-        await paymentAccount.increment('balance', { by: amount, transaction: t });
+        // Log payment
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logCustom(
+            organization_id,
+            req.user.id,
+            'CUSTOMER_PAYMENT',
+            `Payment of ${amount} recorded for customer ${customer.name} via ${payment_method}`,
+            ipAddress,
+            userAgent,
+            { customer_id, amount, payment_method, reference_number }
+        );
 
         await t.commit();
         return successResponse(res, creditTransaction, 'Payment recorded successfully', 201);

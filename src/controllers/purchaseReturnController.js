@@ -1,8 +1,9 @@
 const db = require('../models');
-const { PurchaseReturn, PurchaseReturnItem, Supplier, Branch, User, Product, ProductVariant, Stock, ProductBatch, Account, Transaction, PurchaseOrder, GRN } = db;
+const { PurchaseReturn, PurchaseReturnItem, Supplier, Branch, User, Product, ProductVariant, Stock, ProductBatch, Account, Transaction, PurchaseOrder, GRN, AuditLog, PurchaseOrderItem } = db;
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
 const { Sequelize } = require('sequelize');
+const accountingService = require('../services/accountingService');
 
 /**
  * Get All Purchase Returns
@@ -57,7 +58,8 @@ const getPurchaseReturnById = async (req, res, next) => {
                     as: 'items',
                     include: [
                         { model: Product, as: 'product', attributes: ['name', 'code'] },
-                        { model: ProductVariant, as: 'variant', attributes: ['name', 'sku'] }
+                        { model: ProductVariant, as: 'variant', attributes: ['name', 'sku'] },
+                        { model: ProductBatch, as: 'batch', attributes: ['batch_number', 'expiry_date'] }
                     ]
                 }
             ]
@@ -113,11 +115,38 @@ const createPurchaseReturn = async (req, res, next) => {
 
         // 2. Process Items (Create Items, Deduct Stock, Adjust Batches)
         for (const item of processedItems) {
+            const product = await Product.findByPk(item.product_id, { transaction: t });
+            const productName = product ? product.name : item.product_id;
+
+            let product_batch_id = null;
+            // B. Deduct from Batch (if batch_number provided)
+            if (item.batch_number) {
+                const batch = await ProductBatch.findOne({
+                    where: {
+                        branch_id,
+                        product_id: item.product_id,
+                        product_variant_id: item.product_variant_id || null,
+                        batch_number: item.batch_number
+                    },
+                    transaction: t
+                });
+                if (batch) {
+                    if (parseFloat(batch.quantity) < parseFloat(item.quantity)) {
+                        throw new Error(`Insufficient stock in Batch "${item.batch_number}" for product "${productName}". Available: ${batch.quantity}, Returning: ${item.quantity}`);
+                    }
+                    await batch.decrement('quantity', { by: item.quantity, transaction: t });
+                    product_batch_id = batch.id;
+                } else {
+                    throw new Error(`Batch "${item.batch_number}" not found for product "${productName}" in this branch.`);
+                }
+            }
+
             await PurchaseReturnItem.create({
                 purchase_return_id: purchaseReturn.id,
                 product_id: item.product_id,
                 product_variant_id: item.product_variant_id || null,
                 batch_number: item.batch_number || null,
+                product_batch_id,
                 quantity: item.quantity,
                 unit_cost: item.unit_cost,
                 total_amount: item.total_amount,
@@ -137,26 +166,53 @@ const createPurchaseReturn = async (req, res, next) => {
             if (stock) {
                 // Ensure sufficient stock
                 if (parseFloat(stock.quantity) < parseFloat(item.quantity)) {
-                    throw new Error(`Insufficient stock for product ${item.product_name || item.product_id}`);
+                    throw new Error(`Insufficient global stock for product "${productName}". Available: ${stock.quantity}, Returning: ${item.quantity}`);
                 }
                 await stock.decrement('quantity', { by: item.quantity, transaction: t });
             } else {
-                throw new Error(`Stock record not found for product ${item.product_name || item.product_id}`);
+                throw new Error(`Stock record not found for product "${productName}" in the selected branch.`);
             }
 
-            // B. Deduct from Batch (if batch_number provided)
-            if (item.batch_number) {
-                const batch = await ProductBatch.findOne({
+            // C. Adjust Purchase Order Item if linked (Net Received Qty)
+            if (purchase_order_id) {
+                const poItem = await PurchaseOrderItem.findOne({
                     where: {
-                        branch_id,
+                        purchase_order_id,
                         product_id: item.product_id,
-                        product_variant_id: item.product_variant_id || null,
-                        batch_number: item.batch_number
+                        product_variant_id: item.product_variant_id || null
                     },
                     transaction: t
                 });
-                if (batch) {
-                    await batch.decrement('quantity', { by: item.quantity, transaction: t });
+                if (poItem) {
+                    await poItem.decrement('quantity_received', { by: item.quantity, transaction: t });
+                }
+            }
+        }
+
+        // Update Purchase Order status if linked (Re-evaluate status)
+        if (purchase_order_id) {
+            const po = await PurchaseOrder.findByPk(purchase_order_id, {
+                include: [{ model: PurchaseOrderItem, as: 'items' }],
+                transaction: t
+            });
+            if (po) {
+                let allReceived = true;
+                let partiallyReceived = false;
+
+                for (const poItem of po.items) {
+                    const received = parseFloat(poItem.quantity_received);
+                    const ordered = parseFloat(poItem.quantity);
+                    if (received < ordered) {
+                        allReceived = false;
+                    }
+                    if (received > 0) {
+                        partiallyReceived = true;
+                    }
+                }
+
+                const newStatus = allReceived ? 'received' : (partiallyReceived ? 'partially_received' : 'ordered');
+                if (po.status !== newStatus) {
+                    await po.update({ status: newStatus }, { transaction: t });
                 }
             }
         }
@@ -179,7 +235,7 @@ const createPurchaseReturn = async (req, res, next) => {
         });
 
         // Debit AP (Reduce Liability)
-        await Transaction.create({
+        await accountingService.recordTransaction({
             organization_id,
             branch_id,
             account_id: apAccount.id,
@@ -190,10 +246,10 @@ const createPurchaseReturn = async (req, res, next) => {
             reference_id: purchaseReturn.id,
             transaction_date: return_date || new Date(),
             description: `Purchase Return: ${return_number}`
-        }, { transaction: t });
+        }, t);
 
         // Credit Inventory (Reduce Asset)
-        await Transaction.create({
+        await accountingService.recordTransaction({
             organization_id,
             branch_id,
             account_id: inventoryAccount.id,
@@ -204,11 +260,31 @@ const createPurchaseReturn = async (req, res, next) => {
             reference_id: purchaseReturn.id,
             transaction_date: return_date || new Date(),
             description: `Inventory reduction for Return: ${return_number}`
+        }, t);
+
+        // 4. Create Audit Log
+        await AuditLog.create({
+            organization_id,
+            user_id,
+            action: 'CREATE',
+            entity_type: 'PurchaseReturn',
+            entity_id: purchaseReturn.id,
+            description: `Purchase Return created: ${return_number}. Total: ${total_amount}. Stock deducted from branch.`,
+            metadata: { supplier_id, total_amount, items_count: items.length }
         }, { transaction: t });
 
-        // Update Account Balances
-        await apAccount.decrement('balance', { by: total_amount, transaction: t });
-        await inventoryAccount.decrement('balance', { by: total_amount, transaction: t });
+        // Add to Purchase Order timeline if linked
+        if (purchase_order_id) {
+            await AuditLog.create({
+                organization_id,
+                user_id,
+                action: 'UPDATE',
+                entity_type: 'PurchaseOrder',
+                entity_id: purchase_order_id,
+                description: `Items returned to supplier. Return: ${return_number}. ${items.length} items returned.`,
+                metadata: { return_id: purchaseReturn.id, return_number, total_amount, items_count: items.length }
+            }, { transaction: t });
+        }
 
         await t.commit();
         return successResponse(res, purchaseReturn, 'Purchase Return created successfully', 201);

@@ -3,6 +3,7 @@ const { Account, Transaction, Customer, Supplier } = db;
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
 const { Sequelize } = require('sequelize');
+const accountingService = require('../services/accountingService');
 
 /**
  * Account Controller
@@ -142,19 +143,26 @@ const setOpeningBalance = async (req, res, next) => {
         }
 
         // 1. Create a transaction for opening balance
-        await Transaction.create({
+        // Determine correct type based on account type and balance sign
+        let transactionType;
+        if (balance >= 0) {
+            // Positive balance
+            transactionType = (['asset', 'expense'].includes(account.type)) ? 'debit' : 'credit';
+        } else {
+            // Negative balance (rare but possible)
+            transactionType = (['asset', 'expense'].includes(account.type)) ? 'credit' : 'debit';
+        }
+
+        await accountingService.recordTransaction({
             organization_id,
             branch_id,
             account_id: account.id,
-            amount: balance,
-            type: 'debit', // Usually debit to increase balance for Assets
+            amount: Math.abs(balance), // Use absolute value
+            type: transactionType,
             reference_type: 'Opening Balance',
             transaction_date: date || new Date(),
             description: `Opening Balance for ${account.name}`
-        }, { transaction: t });
-
-        // 2. Update account balance
-        await account.update({ balance }, { transaction: t });
+        }, t);
 
         await t.commit();
         return successResponse(res, account, 'Opening balance set successfully');
@@ -188,7 +196,7 @@ const transferFunds = async (req, res, next) => {
         // 1. Credit Source Account (Decrease Asset/Equity/Revenue or Increase Liability/Expense)
         // Usually Transfers are between Assets (Bank/Cash).
         // Credit Asset -> Decrease
-        await Transaction.create({
+        await accountingService.recordTransaction({
             organization_id,
             branch_id,
             account_id: fromAccount.id,
@@ -197,13 +205,11 @@ const transferFunds = async (req, res, next) => {
             reference_type: 'Transfer',
             transaction_date: date || new Date(),
             description: description || `Transfer to ${toAccount.name}`
-        }, { transaction: t });
-
-        await fromAccount.decrement('balance', { by: amount, transaction: t });
+        }, t);
 
         // 2. Debit Destination Account (Increase Asset/Equity/Revenue or Decrease Liability/Expense)
         // Debit Asset -> Increase
-        await Transaction.create({
+        await accountingService.recordTransaction({
             organization_id,
             branch_id,
             account_id: toAccount.id,
@@ -212,9 +218,7 @@ const transferFunds = async (req, res, next) => {
             reference_type: 'Transfer',
             transaction_date: date || new Date(),
             description: description || `Transfer from ${fromAccount.name}`
-        }, { transaction: t });
-
-        await toAccount.increment('balance', { by: amount, transaction: t });
+        }, t);
 
         await t.commit();
         return successResponse(res, null, 'Funds transferred successfully');
@@ -250,43 +254,12 @@ const createJournalEntry = async (req, res, next) => {
             return errorResponse(res, `Journal does not balance. Total Debit: ${totalDebit.toFixed(2)}, Total Credit: ${totalCredit.toFixed(2)}`, 400);
         }
 
-        // 2. Record transactions and update balances
-        for (const entry of entries) {
-            const { account_id, amount, type } = entry;
-
-            const account = await Account.findOne({ where: { id: account_id, organization_id }, transaction: t });
-            if (!account) {
-                throw new Error(`Account with ID ${account_id} not found`);
-            }
-
-            await Transaction.create({
-                organization_id,
-                branch_id,
-                account_id,
-                amount,
-                type,
-                reference_type: 'Journal Entry',
-                transaction_date: date || new Date(),
-                description: description || 'Manual Journal Entry'
-            }, { transaction: t });
-
-            // Update balance based on account type and transaction type
-            // Assets: Debit (+), Credit (-)
-            // Liabilities/Equity: Credit (+), Debit (-)
-            // Revenue: Credit (+), Debit (-)
-            // Expense: Debit (+), Credit (-)
-
-            const isIncrease = (
-                (['asset', 'expense'].includes(account.type) && type === 'debit') ||
-                (['liability', 'equity', 'revenue'].includes(account.type) && type === 'credit')
-            );
-
-            if (isIncrease) {
-                await account.increment('balance', { by: amount, transaction: t });
-            } else {
-                await account.decrement('balance', { by: amount, transaction: t });
-            }
-        }
+        // 2. Record transactions and update balances using AccountingService
+        await accountingService.createDoubleEntry(organization_id, branch_id, entries, {
+            date,
+            description: description || 'Manual Journal Entry',
+            reference_type: 'Journal Entry'
+        }, t);
 
         await t.commit();
         return successResponse(res, null, 'Journal entry recorded successfully');

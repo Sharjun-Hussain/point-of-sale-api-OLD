@@ -3,6 +3,9 @@ const { Supplier, Transaction, Account, GRN, GRNItem, Product, ProductVariant, P
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
 const { Sequelize } = require('sequelize');
+const { format } = require('date-fns');
+const auditService = require('../services/auditService');
+const accountingService = require('../services/accountingService');
 
 /**
  * Supplier Controller
@@ -47,7 +50,23 @@ const getSupplierLedger = async (req, res, next) => {
             return errorResponse(res, 'Supplier not found', 404);
         }
 
-        const where = { supplier_id: id };
+        // Get the AP Account
+        const apAccount = await Account.findOne({
+            where: {
+                organization_id: req.user.organization_id,
+                code: '2100' // Accounts Payable
+            }
+        });
+
+        if (!apAccount) {
+            return errorResponse(res, 'Accounts Payable account not found. Please set up your chart of accounts.', 500);
+        }
+
+        // Build where clause for AP transactions only
+        const where = {
+            supplier_id: id,
+            account_id: apAccount.id  // CRITICAL FIX: Only AP transactions
+        };
         if (from_date && to_date) {
             where.transaction_date = {
                 [Sequelize.Op.between]: [new Date(from_date), new Date(to_date)]
@@ -60,12 +79,12 @@ const getSupplierLedger = async (req, res, next) => {
             order: [['transaction_date', 'ASC']]
         });
 
-        // Calculate running balance
+        // Calculate running balance (what we owe supplier)
         let balance = 0;
         const ledger = transactions.map(t => {
-            if (t.type === 'credit') { // 'credit' usually means we owe them (GRN)
+            if (t.type === 'credit') { // GRN or charge - we owe MORE
                 balance += parseFloat(t.amount);
-            } else { // 'debit' means we paid them
+            } else { // Payment - we owe LESS
                 balance -= parseFloat(t.amount);
             }
             return {
@@ -223,6 +242,21 @@ const createGRN = async (req, res, next) => {
                     { where: { id: item.product_id || item.productId }, transaction: t }
                 );
             }
+
+            // 5. Update Purchase Order Item if linked
+            if (purchase_order_id) {
+                const poItem = await db.PurchaseOrderItem.findOne({
+                    where: {
+                        purchase_order_id,
+                        product_id: item.product_id || item.productId,
+                        product_variant_id: item.product_variant_id || item.productVariantId || null
+                    },
+                    transaction: t
+                });
+                if (poItem) {
+                    await poItem.increment('quantity_received', { by: qtyReceived, transaction: t });
+                }
+            }
         }
 
         // Create Transaction for Ledger
@@ -239,7 +273,7 @@ const createGRN = async (req, res, next) => {
         });
 
         // 1. Credit AP (Increase Liability)
-        await Transaction.create({
+        await accountingService.recordTransaction({
             organization_id,
             branch_id,
             account_id: apAccount.id,
@@ -250,10 +284,7 @@ const createGRN = async (req, res, next) => {
             reference_id: grn.id,
             transaction_date: received_date || new Date(),
             description: `Goods Received: ${grn_number} (Ref: ${invoice_number || 'N/A'})`
-        }, { transaction: t });
-        // UPDATE BALANCE: Liability (Credit) -> Increase Balance
-        await apAccount.increment('balance', { by: total_amount, transaction: t });
-
+        }, t);
 
         // 2. Debit Inventory (Increase Asset)
         const [inventoryAccount] = await Account.findOrCreate({
@@ -262,7 +293,7 @@ const createGRN = async (req, res, next) => {
             transaction: t
         });
 
-        await Transaction.create({
+        await accountingService.recordTransaction({
             organization_id,
             branch_id,
             account_id: inventoryAccount.id,
@@ -272,15 +303,42 @@ const createGRN = async (req, res, next) => {
             reference_id: grn.id,
             transaction_date: received_date || new Date(),
             description: `Inventory Addition: ${grn_number}`
-        }, { transaction: t });
-        // UPDATE BALANCE: Asset (Debit) -> Increase Balance
-        await inventoryAccount.increment('balance', { by: total_amount, transaction: t });
+        }, t);
 
         // Update Purchase Order status if linked
         if (purchase_order_id) {
-            const po = await db.PurchaseOrder.findByPk(purchase_order_id, { transaction: t });
+            const po = await db.PurchaseOrder.findByPk(purchase_order_id, {
+                include: [{ model: db.PurchaseOrderItem, as: 'items' }],
+                transaction: t
+            });
             if (po) {
-                await po.update({ status: 'received' }, { transaction: t });
+                let allReceived = true;
+                let partiallyReceived = false;
+
+                for (const poItem of po.items) {
+                    const received = parseFloat(poItem.quantity_received);
+                    const ordered = parseFloat(poItem.quantity);
+                    if (received < ordered) {
+                        allReceived = false;
+                    }
+                    if (received > 0) {
+                        partiallyReceived = true;
+                    }
+                }
+
+                const newStatus = allReceived ? 'received' : (partiallyReceived ? 'partially_received' : 'ordered');
+                await po.update({ status: newStatus }, { transaction: t });
+
+                // Add Audit Log for timeline
+                await db.AuditLog.create({
+                    organization_id,
+                    user_id,
+                    action: 'UPDATE',
+                    entity_type: 'PurchaseOrder',
+                    entity_id: po.id,
+                    description: `Goods Received: ${grn_number}. ${items.length} items received. Status updated to ${newStatus}.`,
+                    metadata: { grn_id: grn.id, grn_number, items_count: items.length }
+                }, { transaction: t });
             }
         }
 
@@ -558,7 +616,7 @@ const createSupplierPayment = async (req, res, next) => {
         });
 
         // 3. Record DEBIT in AP (decreases liability)
-        const debitTransaction = await Transaction.create({
+        const debitTransaction = await accountingService.recordTransaction({
             organization_id,
             branch_id,
             account_id: apAccount.id,
@@ -569,21 +627,22 @@ const createSupplierPayment = async (req, res, next) => {
             reference_id: reference_number || null,
             transaction_date: transaction_date || new Date(),
             description: description || `Payment to ${supplier.name}`
-        }, { transaction: t });
+        }, t);
 
-        // 4. Record CREDIT in Cash/Bank (decreases asset)
-        await Transaction.create({
+        // 4. Record CREDIT in Cash/Bank/Cheque
+        // Rules: Credit Asset -> Decrease; Credit Liability -> Increase
+        await accountingService.recordTransaction({
             organization_id,
             branch_id,
             account_id: paymentAccount.id,
             supplier_id,
             amount,
-            type: 'credit', // Credit asset (decrease) or Credit liability (increase for cheques payable)
+            type: 'credit',
             reference_type: 'Payment',
             reference_id: debitTransaction.id,
             transaction_date: transaction_date || new Date(),
             description: `Payment to ${supplier.name} via ${payment_method}`
-        }, { transaction: t });
+        }, t);
 
         // Create Cheque record if needed
         if (payment_method === 'cheque' && cheque_details) {
@@ -604,9 +663,17 @@ const createSupplierPayment = async (req, res, next) => {
             }, { transaction: t });
         }
 
-        // Update account balances
-        await apAccount.decrement('balance', { by: amount, transaction: t });
-        await paymentAccount.decrement('balance', { by: amount, transaction: t });
+        // Log payment
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logCustom(
+            organization_id,
+            req.user.id,
+            'SUPPLIER_PAYMENT',
+            `Payment of ${amount} recorded to supplier ${supplier.name} via ${payment_method}`,
+            ipAddress,
+            userAgent,
+            { supplier_id, amount, payment_method, reference_number }
+        );
 
         await t.commit();
         return successResponse(res, debitTransaction, 'Payment recorded successfully', 201);

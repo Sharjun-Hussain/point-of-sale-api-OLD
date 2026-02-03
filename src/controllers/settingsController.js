@@ -3,6 +3,7 @@ const { successResponse, errorResponse } = require('../utils/responseHandler');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const auditService = require('../services/auditService');
 
 // Configure Multer for Logo Uploads
 const storage = multer.diskStorage({
@@ -51,7 +52,22 @@ const updateBusinessSettings = async (req, res, next) => {
         const organization = await Organization.findByPk(req.user.organization_id);
         if (!organization) return errorResponse(res, 'Organization not found', 404);
 
+        const oldValues = { name: organization.name, email: organization.email, currency: organization.currency };
         await organization.update(req.body);
+
+        // Log settings update
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logUpdate(
+            req.user.organization_id,
+            req.user.id,
+            'Organization',
+            organization.id,
+            oldValues,
+            req.body,
+            ipAddress,
+            userAgent
+        );
+
         return successResponse(res, organization, 'Business settings updated');
     } catch (error) { next(error); }
 };
@@ -139,6 +155,18 @@ const updateSettingsByCategory = async (req, res, next) => {
             await setting.update({ settings_data: cleanData });
         }
 
+        // Log settings update
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logCustom(
+            req.user.organization_id,
+            req.user.id,
+            'UPDATE_SETTINGS',
+            `Updated ${category} settings`,
+            ipAddress,
+            userAgent,
+            { category, branch_id }
+        );
+
         return successResponse(res, cleanData, `${category} settings saved`);
     } catch (error) { next(error); }
 };
@@ -186,6 +214,17 @@ const updateLogo = async (req, res, next) => {
 
             const logoPath = `uploads/logos/${req.file.filename}`;
             await organization.update({ logo: logoPath });
+
+            // Log logo update
+            const { ipAddress, userAgent } = auditService.getRequestContext(req);
+            await auditService.logCustom(
+                req.user.organization_id,
+                req.user.id,
+                'UPDATE_LOGO',
+                'Business logo updated',
+                ipAddress,
+                userAgent
+            );
 
             return successResponse(res, { logo: logoPath }, 'Logo updated successfully');
         } catch (error) { next(error); }

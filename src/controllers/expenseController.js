@@ -3,6 +3,7 @@ const db = require('../models');
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
 const { Op } = require('sequelize');
+const accountingService = require('../services/accountingService');
 
 // --- Expense Categories ---
 const getAllExpenseCategories = async (req, res, next) => {
@@ -106,7 +107,7 @@ const createExpense = async (req, res, next) => {
         });
 
         // Debit Expense
-        await Transaction.create({
+        await accountingService.recordTransaction({
             organization_id,
             branch_id,
             account_id: expenseAccount.id,
@@ -116,32 +117,23 @@ const createExpense = async (req, res, next) => {
             reference_id: expense.id,
             transaction_date: expense_date || new Date(),
             description: `Expense: ${reference_no || expense.id}`
-        }, { transaction: t });
+        }, t);
 
         // Credit Cash or Cheques Payable
         const targetAccountId = payment_method === 'cheque' ? chequesPayableAccount.id : cashAccount.id;
         const accountName = payment_method === 'cheque' ? 'Cheques Payable' : 'Cash';
 
-        await Transaction.create({
+        await accountingService.recordTransaction({
             organization_id,
             branch_id,
             account_id: targetAccountId,
             amount,
-            type: 'credit', // Asset decrease
+            type: 'credit',
             reference_type: 'Expense',
             reference_id: expense.id,
             transaction_date: expense_date || new Date(),
             description: `Payment for Expense via ${accountName}`
-        }, { transaction: t });
-
-        // --- ACCOUNT BALANCE UPDATES ---
-        // 1. Expense Account (Debit - Increase Expense) -> Use custom method or convention
-        // For 'expense' type, usually Debits increase the balance (total expense).
-        await Account.increment('balance', { by: amount, where: { id: expenseAccount.id }, transaction: t });
-
-        // 2. Cash/Bank Account (Credit - Decrease Asset)
-        // For 'asset' type, Credits decrease the balance.
-        await Account.decrement('balance', { by: amount, where: { id: targetAccountId }, transaction: t });
+        }, t);
 
         await t.commit();
         return successResponse(res, expense, 'Expense recorded successfully', 201);

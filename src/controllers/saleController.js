@@ -1,9 +1,10 @@
 const db = require('../models');
-const { Sale, SaleItem, Product, ProductVariant, Stock, Transaction, Account, Customer, Branch, User, SaleEmployee, Cheque } = db;
+const { Sale, SaleItem, Product, ProductVariant, Stock, ProductBatch, Transaction, Account, Customer, Branch, User, SaleEmployee, Cheque } = db;
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
 const auditService = require('../services/auditService');
-const { Sequelize } = require('sequelize');
+const accountingService = require('../services/accountingService');
+const { Sequelize, Op } = require('sequelize');
 
 /**
  * Get All Sales
@@ -282,9 +283,10 @@ const createSale = async (req, res, next) => {
             }, { transaction: t });
         }
 
-        // --- 8. STOCK UPDATE ---
+        // --- 8. STOCK & BATCH UPDATE ---
         if (sale.status === 'completed') {
             for (const pItem of processedItems) {
+                // A. Update Global Stock
                 const stockWhere = { branch_id, product_id: pItem.product_id };
                 stockWhere.product_variant_id = pItem.product_variant_id || null;
 
@@ -294,10 +296,42 @@ const createSale = async (req, res, next) => {
                 } else {
                     await Stock.create({ ...stockWhere, branch_id, quantity: -pItem.quantity }, { transaction: t });
                 }
+
+                // B. Update Batches (FIFO - First Expiring First Out)
+                // Fetch batches with quantity > 0, ordered by expiry (asc) or creation (asc)
+                const batches = await ProductBatch.findAll({
+                    where: {
+                        branch_id,
+                        product_id: pItem.product_id,
+                        product_variant_id: pItem.product_variant_id || null,
+                        quantity: { [Op.gt]: 0 }
+                    },
+                    order: [
+                        ['expiry_date', 'ASC'], // Nulls might come last or first depending on DB, usually we want earliest expiry
+                        ['created_at', 'ASC']   // Fallback to FIFO
+                    ],
+                    transaction: t
+                });
+
+                let qtyToDeduct = parseFloat(pItem.quantity);
+
+                for (const batch of batches) {
+                    if (qtyToDeduct <= 0) break;
+
+                    const available = parseFloat(batch.quantity);
+                    const deduction = Math.min(available, qtyToDeduct);
+
+                    await batch.decrement('quantity', { by: deduction, transaction: t });
+                    qtyToDeduct -= deduction;
+                }
+
+                // Note: If qtyToDeduct > 0 here, it means we sold more than we have in batches.
+                // We allow this to happen (Global Stock goes negative) without blocking the sale,
+                // as cleaning up messy batch data is separate from blocking operations.
             }
         }
 
-        // --- 9. ACCOUNTING & LEDGER (Consistency Fix) ---
+        // --- 9. ACCOUNTING & LEDGER (Consistency Fix via AccountingService) ---
         if (sale.status === 'completed') {
             // Find Accounts
             const [cashAccount] = await Account.findOrCreate({
@@ -325,30 +359,25 @@ const createSale = async (req, res, next) => {
             });
 
             // A. Credit Revenue (Increase Revenue)
-            // Revenue is Credit in nature, so "Increase" means Credit.
-            await Transaction.create({
+            await accountingService.recordTransaction({
                 organization_id,
                 branch_id,
                 account_id: revenueAccount.id,
                 customer_id: customer_id || null,
-                amount: final_payable_amount, // Revenue is the full amount to be paid
+                amount: final_payable_amount,
                 type: 'credit',
                 reference_type: 'Sale',
                 reference_id: sale.id,
                 transaction_date: date,
                 description: `Sales Revenue from Invoice ${invoice_number}`
-            }, { transaction: t });
-
-            // UPDATE BALANCE: Revenue (Credit) -> Increase Balance
-            await revenueAccount.increment('balance', { by: final_payable_amount, transaction: t });
-
+            }, t);
 
             // B. Debit Payments (Cash/Cheque) -> Increase Asset
             if (paid_amount > 0) {
                 const targetAccount = payment_method === 'cheque' ? chequesInHandAccount : cashAccount;
                 const accountName = payment_method === 'cheque' ? 'Cheques in Hand' : 'Cash';
 
-                await Transaction.create({
+                await accountingService.recordTransaction({
                     organization_id,
                     branch_id,
                     account_id: targetAccount.id,
@@ -359,16 +388,13 @@ const createSale = async (req, res, next) => {
                     reference_id: sale.id,
                     transaction_date: date,
                     description: `${accountName} payment for Invoice ${invoice_number}`
-                }, { transaction: t });
-
-                // UPDATE BALANCE: Asset (Debit) -> Increase Balance
-                await targetAccount.increment('balance', { by: paid_amount, transaction: t });
+                }, t);
             }
 
             // C. Debit AR (Remaining) -> Increase Asset
             const remaining = final_payable_amount - paid_amount;
             if (remaining > 0 && customer_id) {
-                await Transaction.create({
+                await accountingService.recordTransaction({
                     organization_id,
                     branch_id,
                     account_id: arAccount.id,
@@ -379,10 +405,7 @@ const createSale = async (req, res, next) => {
                     reference_id: sale.id,
                     transaction_date: date,
                     description: `Accounts Receivable for Invoice ${invoice_number}`
-                }, { transaction: t });
-
-                // UPDATE BALANCE: Asset (Debit) -> Increase Balance
-                await arAccount.increment('balance', { by: remaining, transaction: t });
+                }, t);
             }
         }
 

@@ -1,4 +1,5 @@
-const { PurchaseOrder, PurchaseOrderItem, Supplier, Branch, User, Product, ProductVariant } = require('../models');
+const { PurchaseOrder, PurchaseOrderItem, Supplier, Branch, User, Product, ProductVariant, GRN, AuditLog, PurchaseReturn } = require('../models');
+const { format } = require('date-fns');
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
 const { Op } = require('sequelize');
@@ -41,6 +42,8 @@ const getPurchaseOrderById = async (req, res, next) => {
                 { model: Supplier, as: 'supplier' },
                 { model: Branch, as: 'branch' },
                 { model: User, as: 'created_by_user' },
+                { model: GRN, as: 'grns' },
+                { model: PurchaseReturn, as: 'returns' },
                 {
                     model: PurchaseOrderItem, as: 'items',
                     include: [
@@ -52,7 +55,39 @@ const getPurchaseOrderById = async (req, res, next) => {
         });
 
         if (!po) return errorResponse(res, 'Purchase Order not found', 404);
-        return successResponse(res, po, 'Purchase Order fetched');
+
+        // Fetch Timeline from AuditLog
+        const logs = await AuditLog.findAll({
+            where: {
+                organization_id: req.user.organization_id,
+                entity_type: 'PurchaseOrder',
+                entity_id: po.id
+            },
+            include: [{ model: User, as: 'user', attributes: ['name'] }],
+            order: [['created_at', 'DESC'], ['id', 'DESC']]
+        });
+
+        const timeline = logs.map(log => ({
+            title: log.description || log.action,
+            by: log.user?.name || 'System',
+            date: format(new Date(log.created_at), "MMM dd, yyyy HH:mm")
+        }));
+
+        // Check if there is an explicit CREATE log
+        const hasCreateLog = logs.some(log => log.action === 'CREATE');
+
+        if (!hasCreateLog) {
+            timeline.push({
+                title: "Purchase Order Created",
+                by: po.created_by_user?.name || "System",
+                date: format(new Date(po.created_at), "MMM dd, yyyy HH:mm")
+            });
+        }
+
+        const poData = po.toJSON();
+        poData.timeline = timeline;
+
+        return successResponse(res, poData, 'Purchase Order fetched');
     } catch (error) { next(error); }
 };
 
@@ -144,6 +179,16 @@ const createPurchaseOrder = async (req, res, next) => {
             }
         }
 
+        // Add Audit Log for creation
+        await AuditLog.create({
+            organization_id: po.organization_id,
+            user_id: req.user.id,
+            action: 'CREATE',
+            entity_type: 'PurchaseOrder',
+            entity_id: po.id,
+            description: `Purchase Order ${po.po_number} created.`
+        });
+
         const createdPo = await PurchaseOrder.findByPk(po.id, {
             include: [{ model: PurchaseOrderItem, as: 'items' }]
         });
@@ -164,7 +209,17 @@ const updatePurchaseOrder = async (req, res, next) => {
         }
 
         await po.update(req.body);
-        // Handle Item updates if necessary (omitted for brevity but recommended)
+
+        // Add Audit Log
+        await AuditLog.create({
+            organization_id: po.organization_id,
+            user_id: req.user.id,
+            action: 'UPDATE',
+            entity_type: 'PurchaseOrder',
+            entity_id: po.id,
+            description: `Purchase Order ${po.po_number} updated.`
+        });
+
         return successResponse(res, po, 'Purchase Order updated successfully');
     } catch (error) { next(error); }
 };
@@ -199,6 +254,16 @@ const approvePurchaseOrder = async (req, res, next) => {
         }
 
         await po.update({ status: 'ordered' });
+
+        // Add Audit Log
+        await AuditLog.create({
+            organization_id: po.organization_id,
+            user_id: req.user.id,
+            action: 'UPDATE',
+            entity_type: 'PurchaseOrder',
+            entity_id: po.id,
+            description: `Purchase Order ${po.po_number} approved and ordered.`
+        });
 
         return successResponse(res, po, 'Purchase Order approved successfully');
     } catch (error) { next(error); }

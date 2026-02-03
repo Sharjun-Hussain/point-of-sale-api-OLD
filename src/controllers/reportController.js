@@ -907,6 +907,123 @@ const reportController = {
 
             return successResponse(res, { accounts: balances, summary }, 'Trial Balance fetched successfully');
         } catch (error) { next(error); }
+    },
+
+    // 17. Dashboard Summary
+    getDashboardSummary: async (req, res, next) => {
+        try {
+            const organization_id = req.user.organization_id;
+            const branch_id = req.user.branch_id;
+
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            const todayEnd = new Date();
+            todayEnd.setHours(23, 59, 59, 999);
+
+            // Date range for "Last Month" (to calculate trends - simple version)
+            const lastMonthStart = new Date();
+            lastMonthStart.setMonth(lastMonthStart.getMonth() - 1);
+            lastMonthStart.setHours(0, 0, 0, 0);
+            const lastMonthEnd = new Date(todayEnd);
+            lastMonthEnd.setMonth(lastMonthEnd.getMonth() - 1);
+
+            const filter = { organization_id };
+            if (branch_id) {
+                filter.branch_id = branch_id;
+            }
+
+            // 1. Today's Revenue
+            const todayRevenue = await Sale.sum('payable_amount', {
+                where: {
+                    ...filter,
+                    status: 'completed',
+                    created_at: { [Op.between]: [todayStart, todayEnd] }
+                }
+            }) || 0;
+
+            const lastMonthRevenue = await Sale.sum('payable_amount', {
+                where: {
+                    ...filter,
+                    status: 'completed',
+                    created_at: { [Op.between]: [lastMonthStart, lastMonthEnd] }
+                }
+            }) || 0;
+
+            // 2. Pending Invoices (Unpaid or Partially Paid Sales)
+            const pendingInvoices = await Sale.count({
+                where: {
+                    ...filter,
+                    payment_status: { [Op.or]: ['unpaid', 'partially_paid'] },
+                    status: { [Op.ne]: 'cancelled' }
+                }
+            });
+
+            // 3. Low Stock Items
+            const stocks = await Stock.findAll({
+                include: [
+                    {
+                        model: ProductVariant,
+                        as: 'variant',
+                        attributes: ['low_stock_threshold']
+                    }
+                ],
+                where: branch_id ? { branch_id } : {
+                    organization_id  // If no branch_id, we still need to filter by organization via associations or direct where if Stock had organization_id
+                    // Note: Stock model has organization_id according to previous view_file
+                }
+            });
+
+            const lowStockCount = stocks.filter(s => {
+                const threshold = Number(s.variant?.low_stock_threshold || 10);
+                return Number(s.quantity) <= threshold;
+            }).length;
+
+            // 4. New Customers (This Month or Today) - Let's do This Month for "Change" visibility
+            const thisMonthStart = new Date();
+            thisMonthStart.setDate(1);
+            thisMonthStart.setHours(0, 0, 0, 0);
+
+            const newCustomers = await Customer.count({
+                where: {
+                    organization_id,
+                    created_at: { [Op.gte]: thisMonthStart }
+                }
+            });
+
+            // Helper for simple Trend
+            const calcTrend = (now, then) => {
+                if (!then || then === 0) return { trend: 'up', change: '100%' };
+                const pct = ((now - then) / then) * 100;
+                return {
+                    trend: pct >= 0 ? 'up' : 'down',
+                    change: `${Math.abs(pct).toFixed(1)}%`
+                };
+            };
+
+            const revenueTrend = calcTrend(todayRevenue, lastMonthRevenue / 30);
+
+            return successResponse(res, {
+                todayRevenue: {
+                    value: todayRevenue,
+                    ...revenueTrend
+                },
+                pendingInvoices: {
+                    value: pendingInvoices,
+                    trend: 'stable',
+                    change: '0%'
+                },
+                lowStockCount: {
+                    value: lowStockCount,
+                    trend: lowStockCount > 5 ? 'up' : 'down',
+                    change: 'Alert'
+                },
+                newCustomers: {
+                    value: newCustomers,
+                    trend: 'up',
+                    change: 'Monthly'
+                }
+            }, 'Dashboard summary fetched');
+        } catch (error) { next(error); }
     }
 };
 

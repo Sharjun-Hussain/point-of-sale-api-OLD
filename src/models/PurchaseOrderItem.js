@@ -21,6 +21,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.DECIMAL(15, 2),
             allowNull: false
         },
+        quantity_received: {
+            type: DataTypes.DECIMAL(15, 2),
+            defaultValue: 0.00
+        },
         unit_cost: {
             type: DataTypes.DECIMAL(15, 2),
             allowNull: false

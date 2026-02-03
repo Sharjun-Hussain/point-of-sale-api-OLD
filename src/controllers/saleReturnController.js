@@ -1,8 +1,10 @@
 const db = require('../models');
-const { Sale, SaleItem, SaleReturn, SaleReturnItem, Customer, Branch, User, Product, ProductVariant, Stock, Account, Transaction } = db;
+const { Sale, SaleItem, SaleReturn, SaleReturnItem, Customer, Branch, User, Product, ProductVariant, Stock, ProductBatch, Account, Transaction } = db;
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
 const { Sequelize, Op } = require('sequelize');
+const auditService = require('../services/auditService');
+const accountingService = require('../services/accountingService');
 
 /**
  * Get All Sale Returns
@@ -74,7 +76,6 @@ const createSaleReturn = async (req, res, next) => {
     try {
         const { sale_id, items, refund_amount, refund_method, notes, return_date } = req.body;
         const organization_id = req.user.organization_id;
-        const branch_id = req.user.branch_id;
         const user_id = req.user.id;
 
         const sale = await Sale.findOne({
@@ -84,6 +85,9 @@ const createSaleReturn = async (req, res, next) => {
 
         if (!sale) return errorResponse(res, 'Original sale not found', 404);
         if (!items || items.length === 0) return errorResponse(res, 'No items to return', 400);
+
+        // Fallback to sale branch if user has no specific branch (e.g. Admin)
+        const branch_id = req.user.branch_id || sale.branch_id;
 
         // Generate Return Number
         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -120,8 +124,9 @@ const createSaleReturn = async (req, res, next) => {
             notes
         }, { transaction: t });
 
-        // 2. Process Items (Update Stock & Create Return Items)
+        // 2. Process Items (Update Stock & Batches)
         for (const item of items) {
+            // ... (existing code for SaleReturnItem creation) ...
             const saleItem = sale.items.find(si => si.product_id === item.product_id &&
                 (si.product_variant_id === item.product_variant_id || (!si.product_variant_id && !item.product_variant_id)));
 
@@ -135,13 +140,32 @@ const createSaleReturn = async (req, res, next) => {
                 reason: item.reason
             }, { transaction: t });
 
-            // Increment Stock
+            // A. Increment Global Stock
             const stockWhere = { branch_id, product_id: item.product_id, product_variant_id: item.product_variant_id || null };
             const stock = await Stock.findOne({ where: stockWhere, transaction: t });
             if (stock) {
                 await stock.increment('quantity', { by: item.quantity, transaction: t });
             } else {
                 await Stock.create({ ...stockWhere, quantity: item.quantity }, { transaction: t });
+            }
+
+            // B. Increment Batch (Restore to Latest Batch)
+            // We assume the returned item goes back to the most recent batch (LIFO for returns)
+            const latestBatch = await ProductBatch.findOne({
+                where: {
+                    branch_id,
+                    product_id: item.product_id,
+                    product_variant_id: item.product_variant_id || null
+                },
+                order: [
+                    ['expiry_date', 'DESC'], // Put back into longest living batch? Or newest?
+                    ['created_at', 'DESC']   // Usually newest batch is best proxy
+                ],
+                transaction: t
+            });
+
+            if (latestBatch) {
+                await latestBatch.increment('quantity', { by: item.quantity, transaction: t });
             }
         }
 
@@ -165,7 +189,7 @@ const createSaleReturn = async (req, res, next) => {
         });
 
         // Debit Sales Return (Reduce Revenue)
-        await Transaction.create({
+        await accountingService.recordTransaction({
             organization_id,
             branch_id,
             account_id: salesReturnAccount.id,
@@ -176,12 +200,12 @@ const createSaleReturn = async (req, res, next) => {
             reference_id: saleReturn.id,
             transaction_date: return_date || new Date(),
             description: `Sales Return for Invoice ${sale.invoice_number}`
-        }, { transaction: t });
+        }, t);
 
         // Credit Refund source (Cash or AR)
         if (refund_amount > 0) {
             // Case where we give back cash
-            await Transaction.create({
+            await accountingService.recordTransaction({
                 organization_id,
                 branch_id,
                 account_id: cashAccount.id,
@@ -192,14 +216,13 @@ const createSaleReturn = async (req, res, next) => {
                 reference_id: saleReturn.id,
                 transaction_date: return_date || new Date(),
                 description: `Refund for Sales Return ${return_number}`
-            }, { transaction: t });
-            await cashAccount.decrement('balance', { by: refund_amount, transaction: t });
+            }, t);
         }
 
         // If it was a credit sale, reduce the AR balance for the remaining return amount
         const appliedToAR = total_return_amount - (refund_amount || 0);
         if (appliedToAR > 0 && sale.customer_id) {
-            await Transaction.create({
+            await accountingService.recordTransaction({
                 organization_id,
                 branch_id,
                 account_id: arAccount.id,
@@ -210,8 +233,7 @@ const createSaleReturn = async (req, res, next) => {
                 reference_id: saleReturn.id,
                 transaction_date: return_date || new Date(),
                 description: `Adjustment to AR for Sales Return ${return_number}`
-            }, { transaction: t });
-            await arAccount.decrement('balance', { by: appliedToAR, transaction: t });
+            }, t);
         }
 
         // 4. Update Original Sale Status if needed (Optional)
@@ -219,6 +241,25 @@ const createSaleReturn = async (req, res, next) => {
         // For simplicity, we just keep the return record.
 
         await t.commit();
+
+        // Log sale return
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logCreate(
+            organization_id,
+            req.user.id,
+            'SaleReturn',
+            saleReturn.id,
+            {
+                return_number: saleReturn.return_number,
+                invoice_number: sale.invoice_number,
+                total_amount: saleReturn.total_amount,
+                refund_amount: saleReturn.refund_amount,
+                items_count: items.length
+            },
+            ipAddress,
+            userAgent
+        );
+
         return successResponse(res, saleReturn, 'Sale Return processed successfully', 201);
 
     } catch (error) {

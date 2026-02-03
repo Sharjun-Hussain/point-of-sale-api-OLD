@@ -8,8 +8,11 @@ router.use(authenticate);
 
 router.get('/', checkPermission('Container View'), containerController.getAllContainers);
 router.get('/active/list', containerController.getActiveContainersList);
+router.get('/:id', checkPermission('Container View'), containerController.getContainerById);
 router.post('/', checkPermission('Container Create'), containerController.createContainer);
 router.put('/:id', checkPermission('Container Edit'), containerController.updateContainer);
+router.patch('/:id', checkPermission('Container Edit'), containerController.updateContainer);
+
 
 router.patch('/:id/activate', checkPermission('Container Edit'), (req, res, next) => {
     req.params.action = 'activate';

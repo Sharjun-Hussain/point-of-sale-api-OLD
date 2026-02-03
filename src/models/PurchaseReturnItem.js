@@ -21,6 +21,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             allowNull: true
         },
+        product_batch_id: {
+            type: DataTypes.UUID,
+            allowNull: true
+        },
         quantity: {
             type: DataTypes.DECIMAL(15, 2),
             allowNull: false

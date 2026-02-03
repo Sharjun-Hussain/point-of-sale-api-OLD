@@ -126,6 +126,11 @@ db.ProductVariant.belongsTo(db.Product, { as: 'product', foreignKey: 'product_id
 db.Product.belongsTo(db.MeasurementUnit, { as: 'measurement', foreignKey: 'measurement_id' });
 db.Product.belongsTo(db.Container, { as: 'container', foreignKey: 'container_id' });
 
+// Container Associations
+db.Container.belongsTo(db.MeasurementUnit, { as: 'measurement_unit', foreignKey: 'measurement_unit_id' });
+db.Container.belongsTo(db.Unit, { as: 'base_unit', foreignKey: 'base_unit_id' });
+
+
 // Customer & Supplier Associations
 db.Customer.belongsTo(db.Organization, { as: 'organization', foreignKey: 'organization_id' });
 db.Supplier.belongsTo(db.Organization, { as: 'organization', foreignKey: 'organization_id' });
@@ -186,6 +191,8 @@ db.PurchaseOrder.belongsTo(db.Branch, { as: 'branch', foreignKey: 'branch_id' })
 db.PurchaseOrder.belongsTo(db.Supplier, { as: 'supplier', foreignKey: 'supplier_id' });
 db.PurchaseOrder.belongsTo(db.User, { as: 'created_by_user', foreignKey: 'user_id' });
 db.PurchaseOrder.hasMany(db.PurchaseOrderItem, { as: 'items', foreignKey: 'purchase_order_id' });
+db.PurchaseOrder.hasMany(db.GRN, { as: 'grns', foreignKey: 'purchase_order_id' });
+db.PurchaseOrder.hasMany(db.PurchaseReturn, { as: 'returns', foreignKey: 'purchase_order_id' });
 db.PurchaseOrderItem.belongsTo(db.PurchaseOrder, { as: 'purchase_order', foreignKey: 'purchase_order_id' });
 db.PurchaseOrderItem.belongsTo(db.Product, { as: 'product', foreignKey: 'product_id' });
 db.PurchaseOrderItem.belongsTo(db.ProductVariant, { as: 'variant', foreignKey: 'product_variant_id' });
@@ -202,6 +209,7 @@ db.PurchaseReturn.hasMany(db.PurchaseReturnItem, { as: 'items', foreignKey: 'pur
 db.PurchaseReturnItem.belongsTo(db.PurchaseReturn, { as: 'purchase_return', foreignKey: 'purchase_return_id' });
 db.PurchaseReturnItem.belongsTo(db.Product, { as: 'product', foreignKey: 'product_id' });
 db.PurchaseReturnItem.belongsTo(db.ProductVariant, { as: 'variant', foreignKey: 'product_variant_id' });
+db.PurchaseReturnItem.belongsTo(db.ProductBatch, { as: 'batch', foreignKey: 'product_batch_id' });
 
 // Stock Associations
 db.Stock.belongsTo(db.Branch, { as: 'branch', foreignKey: 'branch_id' });

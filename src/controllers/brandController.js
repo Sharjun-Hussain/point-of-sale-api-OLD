@@ -2,6 +2,7 @@ const { Brand } = require('../models');
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
 const { Op } = require('sequelize');
+const auditService = require('../services/auditService');
 
 const getAllBrands = async (req, res, next) => {
     try {
@@ -44,8 +45,22 @@ const getActiveBrandsList = async (req, res, next) => {
 
 const createBrand = async (req, res, next) => {
     try {
+        const organization_id = req.user.organization_id;
         const { name, description } = req.body;
-        const brand = await Brand.create({ name, description });
+        const brand = await Brand.create({ name, description, organization_id });
+
+        // Log brand creation
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logCreate(
+            organization_id,
+            req.user.id,
+            'Brand',
+            brand.id,
+            { name: brand.name },
+            ipAddress,
+            userAgent
+        );
+
         return successResponse(res, brand, 'Brand created successfully', 201);
     } catch (error) {
         next(error);
@@ -57,7 +72,22 @@ const updateBrand = async (req, res, next) => {
         const brand = await Brand.findByPk(req.params.id);
         if (!brand) return errorResponse(res, 'Brand not found', 404);
 
+        const oldValues = { name: brand.name, description: brand.description };
         await brand.update(req.body);
+
+        // Log brand update
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logUpdate(
+            req.user.organization_id,
+            req.user.id,
+            'Brand',
+            brand.id,
+            oldValues,
+            req.body,
+            ipAddress,
+            userAgent
+        );
+
         return successResponse(res, brand, 'Brand updated successfully');
     } catch (error) {
         next(error);
@@ -73,6 +103,18 @@ const toggleStatus = async (req, res, next) => {
         brand.is_active = (action === 'activate');
         await brand.save();
 
+        // Log status toggle
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logCustom(
+            req.user.organization_id,
+            req.user.id,
+            brand.is_active ? 'ACTIVATE_BRAND' : 'DEACTIVATE_BRAND',
+            `Brand ${brand.name} ${brand.is_active ? 'activated' : 'deactivated'}`,
+            ipAddress,
+            userAgent,
+            { brand_id: brand.id }
+        );
+
         return successResponse(res, brand, `Brand ${action}d successfully`);
     } catch (error) {
         next(error);
@@ -83,6 +125,19 @@ const deleteBrand = async (req, res, next) => {
     try {
         const brand = await Brand.findByPk(req.params.id);
         if (!brand) return errorResponse(res, 'Brand not found', 404);
+
+        // Log brand deletion
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logDelete(
+            req.user.organization_id,
+            req.user.id,
+            'Brand',
+            brand.id,
+            { name: brand.name },
+            ipAddress,
+            userAgent
+        );
+
         await brand.destroy();
         return successResponse(res, null, 'Brand deleted successfully');
     } catch (error) {

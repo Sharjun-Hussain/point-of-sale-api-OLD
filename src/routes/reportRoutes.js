@@ -34,4 +34,7 @@ router.get('/customers/history', reportController.getCustomerHistory);
 // Purchase Reports
 router.get('/purchase/supplier-performance', reportController.getSupplierPerformance);
 
+// Dashboard
+router.get('/dashboard/summary', reportController.getDashboardSummary);
+
 module.exports = router;

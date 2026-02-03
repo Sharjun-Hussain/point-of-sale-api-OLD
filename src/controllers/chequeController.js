@@ -3,6 +3,7 @@ const { successResponse, errorResponse, paginatedResponse } = require('../utils/
 const { getPagination } = require('../utils/pagination');
 const { Op } = require('sequelize');
 const db = require('../models');
+const accountingService = require('../services/accountingService');
 
 /**
  * Get All Cheques
@@ -103,7 +104,7 @@ const updateChequeStatus = async (req, res, next) => {
             note: note || cheque.note
         }, { transaction: t });
 
-        // Financial Transaction logic if cleared
+        // Financial Transaction logic
         if (status === 'cleared') {
             const finalAccountId = account_id || cheque.account_id;
             if (!finalAccountId) {
@@ -128,39 +129,159 @@ const updateChequeStatus = async (req, res, next) => {
                 transaction: t
             });
 
-            // 1. Transaction: Bank Side
-            await Transaction.create({
-                organization_id: cheque.organization_id,
-                branch_id: cheque.branch_id,
-                account_id: bankAccount.id,
-                amount: cheque.amount,
-                type: cheque.type === 'receivable' ? 'debit' : 'credit',
-                transaction_date: cleared_date || new Date(),
-                reference_type: 'Cheque',
-                reference_id: cheque.id,
-                description: `Cheque ${cheque.cheque_number} cleared - ${cheque.bank_name}`
-            }, { transaction: t });
-
-            // 2. Transaction: Offset Side (Cheques in Hand / Cheques Payable)
-            await Transaction.create({
-                organization_id: cheque.organization_id,
-                branch_id: cheque.branch_id,
-                account_id: offsetAccount.id,
-                amount: cheque.amount,
-                type: cheque.type === 'receivable' ? 'credit' : 'debit',
-                transaction_date: cleared_date || new Date(),
-                reference_type: 'Cheque',
-                reference_id: cheque.id,
-                description: `Cheque ${cheque.cheque_number} cleared - ${cheque.bank_name}`
-            }, { transaction: t });
-
-            // Update balances
             if (cheque.type === 'receivable') {
-                await bankAccount.increment('balance', { by: cheque.amount, transaction: t });
-                await offsetAccount.decrement('balance', { by: cheque.amount, transaction: t });
+                // Customer Cheque Cleared: Bank (Debit +), Cheques In Hand (Credit -)
+                await accountingService.recordTransaction({
+                    organization_id: cheque.organization_id,
+                    branch_id: cheque.branch_id,
+                    account_id: bankAccount.id,
+                    amount: cheque.amount,
+                    type: 'debit',
+                    reference_type: 'Cheque',
+                    reference_id: cheque.id,
+                    transaction_date: cleared_date || new Date(),
+                    description: `Cheque Cleared: ${cheque.cheque_number} (${cheque.bank_name})`
+                }, t);
+
+                await accountingService.recordTransaction({
+                    organization_id: cheque.organization_id,
+                    branch_id: cheque.branch_id,
+                    account_id: offsetAccount.id,
+                    amount: cheque.amount,
+                    type: 'credit',
+                    reference_type: 'Cheque',
+                    reference_id: cheque.id,
+                    transaction_date: cleared_date || new Date(),
+                    description: `Cheque Cleared: ${cheque.cheque_number}`
+                }, t);
+
             } else {
-                await bankAccount.decrement('balance', { by: cheque.amount, transaction: t });
-                await offsetAccount.decrement('balance', { by: cheque.amount, transaction: t });
+                // Payable Cheque Cleared: Cheques Payable (Debit -), Bank (Credit -)
+                await accountingService.recordTransaction({
+                    organization_id: cheque.organization_id,
+                    branch_id: cheque.branch_id,
+                    account_id: offsetAccount.id,
+                    amount: cheque.amount,
+                    type: 'debit', // Reduce Liability
+                    reference_type: 'Cheque',
+                    reference_id: cheque.id,
+                    transaction_date: cleared_date || new Date(),
+                    description: `Cheque Cleared: ${cheque.cheque_number} (${cheque.bank_name})`
+                }, t);
+
+                await accountingService.recordTransaction({
+                    organization_id: cheque.organization_id,
+                    branch_id: cheque.branch_id,
+                    account_id: bankAccount.id,
+                    amount: cheque.amount,
+                    type: 'credit', // Reduce Asset
+                    reference_type: 'Cheque',
+                    reference_id: cheque.id,
+                    transaction_date: cleared_date || new Date(),
+                    description: `Cheque Cleared: ${cheque.cheque_number}`
+                }, t);
+            }
+
+        } else if (status === 'bounced') {
+            // HANDLE BOUNCE: Reverse the payment
+            // We need to look up the original transaction to find the customer/supplier
+            // But we can infer accounts: AR/AP vs Cheques In Hand/Payable
+
+            // Finds the Cheque Holding Account (Cheques in Hand / Cheques Payable)
+            const offsetAccountCode = cheque.type === 'receivable' ? '1050' : '2110';
+            const offsetAccountName = cheque.type === 'receivable' ? 'Cheques in Hand' : 'Cheques Payable';
+            const offsetAccountType = cheque.type === 'receivable' ? 'asset' : 'liability';
+
+            const [offsetAccount] = await Account.findOrCreate({
+                where: { organization_id: cheque.organization_id, code: offsetAccountCode },
+                defaults: { name: offsetAccountName, type: offsetAccountType },
+                transaction: t
+            });
+
+            // Find the Counterparty Account (AR or AP)
+            // Need customer/supplier ID from the original linked transaction usually
+            let customer_id = null;
+            let supplier_id = null;
+
+            if (cheque.reference_id) {
+                const linkedTx = await Transaction.findByPk(cheque.reference_id, { transaction: t });
+                if (linkedTx) {
+                    customer_id = linkedTx.customer_id;
+                    supplier_id = linkedTx.supplier_id;
+                }
+            }
+
+            if (cheque.type === 'receivable') {
+                // Bounced Customer Cheque: 
+                // Restore Debt: Debit AR
+                // Remove Cheque: Credit Cheques in Hand
+
+                const [arAccount] = await Account.findOrCreate({
+                    where: { organization_id: cheque.organization_id, code: '1100' },
+                    defaults: { name: 'Accounts Receivable', type: 'asset' },
+                    transaction: t
+                });
+
+                await accountingService.recordTransaction({
+                    organization_id: cheque.organization_id,
+                    branch_id: cheque.branch_id,
+                    account_id: arAccount.id,
+                    customer_id,
+                    amount: cheque.amount,
+                    type: 'debit', // Increase Asset (Owes us again)
+                    reference_type: 'Cheque',
+                    reference_id: cheque.id,
+                    transaction_date: new Date(),
+                    description: `Cheque Bounced: ${cheque.cheque_number} - Payment Reversed`
+                }, t);
+
+                await accountingService.recordTransaction({
+                    organization_id: cheque.organization_id,
+                    branch_id: cheque.branch_id,
+                    account_id: offsetAccount.id,
+                    amount: cheque.amount,
+                    type: 'credit', // Decrease Asset (Cheque is bad)
+                    reference_type: 'Cheque',
+                    reference_id: cheque.id,
+                    transaction_date: new Date(),
+                    description: `Cheque Bounced: ${cheque.cheque_number}`
+                }, t);
+
+            } else {
+                // Bounced Supplier Cheque (We bounced it?):
+                // Restore Liability: Credit AP
+                // Remove Cheque: Debit Cheques Payable
+
+                const [apAccount] = await Account.findOrCreate({
+                    where: { organization_id: cheque.organization_id, code: '2100' },
+                    defaults: { name: 'Accounts Payable', type: 'liability' },
+                    transaction: t
+                });
+
+                await accountingService.recordTransaction({
+                    organization_id: cheque.organization_id,
+                    branch_id: cheque.branch_id,
+                    account_id: offsetAccount.id, // Cheques Payable
+                    amount: cheque.amount,
+                    type: 'debit', // Reduce Liability (Remove the payable cheque)
+                    reference_type: 'Cheque',
+                    reference_id: cheque.id,
+                    transaction_date: new Date(),
+                    description: `Cheque Bounced: ${cheque.cheque_number}`
+                }, t);
+
+                await accountingService.recordTransaction({
+                    organization_id: cheque.organization_id,
+                    branch_id: cheque.branch_id,
+                    account_id: apAccount.id,
+                    supplier_id,
+                    amount: cheque.amount,
+                    type: 'credit', // Increase Liability (We owe supplier again)
+                    reference_type: 'Cheque',
+                    reference_id: cheque.id,
+                    transaction_date: new Date(),
+                    description: `Cheque Bounced: ${cheque.cheque_number} - Payment Reversed`
+                }, t);
             }
         }
 
