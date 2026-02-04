@@ -4,7 +4,7 @@
 # Inzeedo POS - Full Stack VPS Deployment Script
 # ==========================================
 # This script provisions a fresh Ubuntu/Debian server for the Inzeedo POS Backend.
-# It installs Node.js, MySQL, Nginx, PM2, configures the database, and deploys the app.
+# It installs Node.js, MySQL, Nginx, PM2, configures the database, SSL, and deploys the app.
 #
 # Usage: sudo ./vps_deploy.sh
 # ==========================================
@@ -66,16 +66,16 @@ cd "$(dirname "$0")"
 # ----------------------------------------------------------------------
 # 1. System Update & Prerequisites
 # ----------------------------------------------------------------------
-print_section "1/8: System Update & Prerequisites"
+print_section "1/9: System Update & Prerequisites"
 print_status "Updating system packages..."
 apt update
 apt upgrade -y
-apt install -y curl git ufw build-essential software-properties-common
+apt install -y curl git ufw build-essential software-properties-common apt-transport-https ca-certificates
 
 # ----------------------------------------------------------------------
 # 2. Install Node.js (if missing or old)
 # ----------------------------------------------------------------------
-print_section "2/8: Installing Node.js"
+print_section "2/9: Installing Node.js"
 if ! command -v node &> /dev/null; then
     print_warning "Node.js not found. Installing Node.js 20.x LTS..."
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
@@ -93,7 +93,7 @@ print_status "PM2 version: $(pm2 --version 2>/dev/null || echo 'Not installed')"
 # ----------------------------------------------------------------------
 # 3. Install MySQL Server (if missing)
 # ----------------------------------------------------------------------
-print_section "3/8: Installing MySQL Server"
+print_section "3/9: Installing MySQL Server"
 if ! command -v mysql &> /dev/null; then
     print_warning "MySQL not found. Installing mysql-server..."
     apt install -y mysql-server
@@ -122,7 +122,7 @@ systemctl enable mysql
 # ----------------------------------------------------------------------
 # 4. Install Nginx (if missing)
 # ----------------------------------------------------------------------
-print_section "4/8: Installing Nginx"
+print_section "4/9: Installing Nginx"
 if ! command -v nginx &> /dev/null; then
     print_warning "Nginx not found. Installing..."
     apt install -y nginx
@@ -134,7 +134,7 @@ fi
 # ----------------------------------------------------------------------
 # 5. Application Configuration (.env)
 # ----------------------------------------------------------------------
-print_section "5/8: Configuring Application Environment"
+print_section "5/9: Configuring Application Environment"
 
 SETUP_ENV=false
 DB_HOST="localhost"
@@ -212,7 +212,7 @@ fi
 # ----------------------------------------------------------------------
 # 6. Database Setup
 # ----------------------------------------------------------------------
-print_section "6/8: Setting up Database"
+print_section "6/9: Setting up Database"
 
 # Install Dependencies
 print_status "Installing project dependencies..."
@@ -234,6 +234,28 @@ print_status "Testing MySQL admin connection..."
 if mysql -h "$DB_HOST" -u "$ADMIN_DB_USER" ${ADMIN_DB_PASS:+-p$ADMIN_DB_PASS} -e "SELECT 1;" 2>/dev/null; then
     print_status "MySQL admin connection successful"
     
+    # Check if database actually exists first
+    if mysql -h "$DB_HOST" -u "$ADMIN_DB_USER" ${ADMIN_DB_PASS:+-p$ADMIN_DB_PASS} -e "USE \`$DB_NAME\`" 2>/dev/null; then
+        print_warning "Database '$DB_NAME' ALREADY EXISTS."
+        print_warning "Do you want to DELETE ALL DATA and perform a fresh install?"
+        echo -e "${RED}WARNING: This action cannot be undone!${NC}"
+        
+        read -p "$(echo -e ${YELLOW}"Drop database and reinstall? (y/N): "${NC})" DROP_DB
+        
+        if [[ "$DROP_DB" =~ ^[Yy]$ ]]; then
+            print_status "Dropping database '$DB_NAME'..."
+            mysql -h "$DB_HOST" -u "$ADMIN_DB_USER" ${ADMIN_DB_PASS:+-p$ADMIN_DB_PASS} -e "DROP DATABASE \`$DB_NAME\`;" 2>/dev/null
+            if [ $? -eq 0 ]; then
+                print_status "Database dropped successfully"
+            else
+                print_error "Failed to drop database"
+                exit 1
+            fi
+        else
+            print_status "Keeping existing database. Migrations will update schema."
+        fi
+    fi
+
     # Create database
     print_status "Creating database '$DB_NAME'..."
     mysql -h "$DB_HOST" -u "$ADMIN_DB_USER" ${ADMIN_DB_PASS:+-p$ADMIN_DB_PASS} <<EOF 2>/dev/null
@@ -243,7 +265,7 @@ COLLATE utf8mb4_unicode_ci;
 EOF
     
     if [ $? -eq 0 ]; then
-        print_status "Database '$DB_NAME' created/verified"
+        print_status "Database '$DB_NAME' verified/CREATED"
     else
         print_error "Failed to create database"
     fi
@@ -333,7 +355,7 @@ fi
 # ----------------------------------------------------------------------
 # 7. Setup PM2 Process Manager
 # ----------------------------------------------------------------------
-print_section "7/8: Configuring PM2 Process Manager"
+print_section "7/9: Configuring PM2 Process Manager"
 
 # Check if process exists
 if pm2 describe pos-backend > /dev/null 2>&1; then
@@ -356,16 +378,151 @@ pm2 status pos-backend
 # ----------------------------------------------------------------------
 # 8. Setup Nginx Reverse Proxy
 # ----------------------------------------------------------------------
-print_section "8/8: Configuring Nginx Reverse Proxy"
+print_section "8/9: Configuring Nginx Reverse Proxy"
 
-read -p "$(echo -e ${YELLOW}"Enter Domain Name or IP for Nginx [localhost]: "${NC})" INPUT_DOMAIN
-DOMAIN_NAME=${INPUT_DOMAIN:-localhost}
+echo -e "${YELLOW}=== DOMAIN CONFIGURATION ===${NC}"
+echo -e "${YELLOW}You need a valid domain name pointed to this server's IP address.${NC}"
+echo -e "${YELLOW}If you don't have a domain, use your server IP address.${NC}"
+
+read -p "$(echo -e ${YELLOW}"Enter Domain Name (e.g., api.yourdomain.com) or IP address: "${NC})" DOMAIN_NAME
+
+if [ -z "$DOMAIN_NAME" ]; then
+    print_error "Domain name cannot be empty!"
+    read -p "$(echo -e ${YELLOW}"Enter Domain Name or IP address: "${NC})" DOMAIN_NAME
+    if [ -z "$DOMAIN_NAME" ]; then
+        DOMAIN_NAME="localhost"
+        print_warning "Using 'localhost' as domain"
+    fi
+fi
 
 NGINX_CONF="/etc/nginx/sites-available/pos-backend"
 
 print_status "Creating Nginx configuration for $DOMAIN_NAME..."
 
 cat > $NGINX_CONF <<EOF
+# HTTP Configuration - will redirect to HTTPS
+server {
+    listen 80;
+    listen [::]:80;
+    server_name $DOMAIN_NAME;
+    
+    # Redirect all HTTP to HTTPS
+    return 301 https://\$server_name\$request_uri;
+}
+
+# HTTPS Configuration
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name $DOMAIN_NAME;
+    
+    # SSL Configuration (Certbot will update these)
+    ssl_certificate /etc/letsencrypt/live/$DOMAIN_NAME/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN_NAME/privkey.pem;
+    
+    # SSL Security Settings
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+    ssl_session_tickets off;
+    
+    # Security headers
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+    
+    # API Proxy
+    location / {
+        proxy_pass http://localhost:$PORT;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
+        proxy_buffering off;
+        
+        # Timeouts
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+    
+    # Increase max upload size for image uploads
+    client_max_body_size 10M;
+    
+    # Rate limiting
+    limit_req_zone \$binary_remote_addr zone=api:10m rate=10r/s;
+    limit_req zone=api burst=20 nodelay;
+    
+    # Logging
+    access_log /var/log/nginx/pos-backend-access.log;
+    error_log /var/log/nginx/pos-backend-error.log;
+}
+EOF
+
+# Enable Site
+if [ -f "$NGINX_CONF" ]; then
+    ln -sf $NGINX_CONF /etc/nginx/sites-enabled/
+    rm -f /etc/nginx/sites-enabled/default
+    print_status "Nginx configuration created at $NGINX_CONF"
+    
+    # Test configuration
+    print_status "Testing Nginx configuration..."
+    if nginx -t; then
+        systemctl reload nginx
+        print_status "Nginx configured and reloaded successfully"
+    else
+        print_error "Nginx configuration test failed!"
+        print_warning "Please check the configuration file: $NGINX_CONF"
+    fi
+else
+    print_error "Failed to create Nginx configuration"
+fi
+
+# ----------------------------------------------------------------------
+# 9. SSL Certificate Setup with Certbot
+# ----------------------------------------------------------------------
+print_section "9/9: SSL Certificate Setup with Certbot"
+
+# Check if domain is an IP address (Certbot doesn't work with IPs)
+if [[ $DOMAIN_NAME =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    print_warning "Domain appears to be an IP address ($DOMAIN_NAME)."
+    print_warning "Certbot cannot issue SSL certificates for IP addresses."
+    print_warning "You can either:"
+    echo -e "${YELLOW}  1. Use a real domain name${NC}"
+    echo -e "${YELLOW}  2. Use self-signed certificates${NC}"
+    echo -e "${YELLOW}  3. Continue without SSL (HTTP only)${NC}"
+    
+    read -p "$(echo -e ${YELLOW}"Skip SSL setup? (Y/n): "${NC})" SKIP_SSL
+    if [[ "$SKIP_SSL" =~ ^[Nn]$ ]]; then
+        print_status "Installing Certbot for self-signed certificate..."
+        apt install -y certbot
+        
+        # Create self-signed certificate
+        mkdir -p /etc/ssl/certs
+        openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+            -keyout /etc/ssl/certs/selfsigned.key \
+            -out /etc/ssl/certs/selfsigned.crt \
+            -subj "/C=US/ST=State/L=City/O=Organization/CN=$DOMAIN_NAME"
+        
+        # Update Nginx config to use self-signed
+        sed -i "s|ssl_certificate /etc/letsencrypt/live/$DOMAIN_NAME/fullchain.pem;|ssl_certificate /etc/ssl/certs/selfsigned.crt;|" $NGINX_CONF
+        sed -i "s|ssl_certificate_key /etc/letsencrypt/live/$DOMAIN_NAME/privkey.pem;|ssl_certificate_key /etc/ssl/certs/selfsigned.key;|" $NGINX_CONF
+        
+        systemctl reload nginx
+        print_status "Self-signed SSL certificate installed"
+    else
+        print_status "Skipping SSL setup. Using HTTP only."
+        # Revert to HTTP only config
+        cat > $NGINX_CONF <<EOF
 server {
     listen 80;
     server_name $DOMAIN_NAME;
@@ -402,28 +559,135 @@ server {
     proxy_read_timeout 60s;
 }
 EOF
-
-# Enable Site
-if [ -f "$NGINX_CONF" ]; then
-    ln -sf $NGINX_CONF /etc/nginx/sites-enabled/
-    rm -f /etc/nginx/sites-enabled/default
-    print_status "Nginx configuration created at $NGINX_CONF"
-    
-    # Test configuration
-    print_status "Testing Nginx configuration..."
-    if nginx -t; then
         systemctl reload nginx
-        print_status "Nginx configured and reloaded successfully"
-    else
-        print_error "Nginx configuration test failed!"
-        print_warning "Please check the configuration file: $NGINX_CONF"
     fi
 else
-    print_error "Failed to create Nginx configuration"
+    # Domain is not an IP, proceed with Certbot
+    print_status "Setting up SSL certificate for $DOMAIN_NAME..."
+    
+    # Check if Certbot is already installed
+    if ! command -v certbot &> /dev/null; then
+        print_status "Installing Certbot..."
+        
+        # Add Certbot repository
+        apt install -y snapd
+        snap install core
+        snap refresh core
+        
+        # Install Certbot
+        snap install --classic certbot
+        ln -s /snap/bin/certbot /usr/bin/certbot
+        
+        print_status "Certbot installed: $(certbot --version 2>/dev/null || echo 'Not installed')"
+    else
+        print_status "Certbot already installed: $(certbot --version 2>/dev/null | head -n1)"
+    fi
+    
+    # Check if domain resolves to this server
+    print_status "Checking DNS resolution for $DOMAIN_NAME..."
+    PUBLIC_IP=$(curl -s http://ipinfo.io/ip || curl -s http://ifconfig.me || echo "unknown")
+    
+    echo -e "${YELLOW}IMPORTANT:${NC}"
+    echo -e "${YELLOW}Before proceeding, ensure that:${NC}"
+    echo -e "1. Your domain ${BOLD}$DOMAIN_NAME${NC} points to server IP: ${BOLD}$PUBLIC_IP${NC}"
+    echo -e "2. DNS propagation is complete (can take up to 24 hours)"
+    echo -e "3. Port 80 is open and accessible from the internet"
+    
+    read -p "$(echo -e ${YELLOW}"Have you configured DNS for $DOMAIN_NAME? (y/N): "${NC})" DNS_CONFIRMED
+    
+    if [[ "$DNS_CONFIRMED" =~ ^[Yy]$ ]]; then
+        # Test DNS resolution
+        DOMAIN_IP=$(dig +short $DOMAIN_NAME | head -n1)
+        
+        if [ "$DOMAIN_IP" = "$PUBLIC_IP" ]; then
+            print_status "DNS correctly points to this server ($PUBLIC_IP)"
+        else
+            print_warning "DNS may not be configured correctly."
+            print_warning "$DOMAIN_NAME resolves to: $DOMAIN_IP"
+            print_warning "Server public IP is: $PUBLIC_IP"
+            read -p "$(echo -e ${YELLOW}"Continue anyway? (y/N): "${NC})" CONTINUE_DNS
+            if [[ ! "$CONTINUE_DNS" =~ ^[Yy]$ ]]; then
+                print_error "DNS not configured. SSL setup aborted."
+                print_warning "You can run SSL setup later with: sudo certbot --nginx"
+                SSL_SETUP=false
+            else
+                SSL_SETUP=true
+            fi
+        fi
+        
+        if [ "$SSL_SETUP" != false ]; then
+            # Run Certbot to obtain SSL certificate
+            print_status "Obtaining SSL certificate from Let's Encrypt..."
+            
+            # Temporarily revert to HTTP-only for Certbot challenge
+            cat > $NGINX_CONF <<EOF
+server {
+    listen 80;
+    server_name $DOMAIN_NAME;
+    
+    location / {
+        proxy_pass http://localhost:$PORT;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
+        proxy_buffering off;
+    }
+}
+EOF
+            systemctl reload nginx
+            
+            # Run Certbot
+            if certbot --nginx -d $DOMAIN_NAME --non-interactive --agree-tos --email admin@$DOMAIN_NAME --redirect; then
+                print_status "SSL certificate successfully installed!"
+                
+                # Update Nginx config to include our custom settings
+                CERTBOT_CONF="/etc/nginx/sites-available/pos-backend"
+                
+                # Read Certbot's config and add our custom settings
+                if [ -f "$CERTBOT_CONF" ]; then
+                    # Add additional security headers and settings
+                    sed -i '/server_name/a \\n    # SSL Security Settings\n    ssl_protocols TLSv1.2 TLSv1.3;\n    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384;\n    ssl_prefer_server_ciphers off;\n    ssl_session_cache shared:SSL:10m;\n    ssl_session_timeout 10m;\n    ssl_session_tickets off;' $CERTBOT_CONF
+                    
+                    # Add security headers
+                    sed -i '/location \/ {/i \\n    # Security headers\n    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;\n    add_header X-Frame-Options "SAMEORIGIN" always;\n    add_header X-Content-Type-Options "nosniff" always;\n    add_header X-XSS-Protection "1; mode=block" always;\n    add_header Referrer-Policy "strict-origin-when-cross-origin" always;\n    add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;' $CERTBOT_CONF
+                    
+                    # Add rate limiting
+                    sed -i '/location \/ {/i \\n    # Rate limiting\n    limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;\n    limit_req zone=api burst=20 nodelay;' $CERTBOT_CONF
+                    
+                    # Add upload size
+                    sed -i '/location \/ {/i \\n    # Increase max upload size for image uploads\n    client_max_body_size 10M;' $CERTBOT_CONF
+                    
+                    systemctl reload nginx
+                    print_status "Enhanced SSL configuration applied"
+                fi
+                
+                # Setup auto-renewal
+                print_status "Setting up automatic certificate renewal..."
+                (crontab -l 2>/dev/null; echo "0 12 * * * /usr/bin/certbot renew --quiet") | crontab -
+                print_status "Certificate auto-renewal configured"
+                
+            else
+                print_error "Certbot failed to obtain SSL certificate."
+                print_warning "Possible issues:"
+                print_warning "1. DNS not properly configured"
+                print_warning "2. Port 80 blocked by firewall"
+                print_warning "3. Domain validation failed"
+                print_warning "You can try manually: sudo certbot --nginx -d $DOMAIN_NAME"
+            fi
+        fi
+    else
+        print_warning "SSL setup skipped. You can run it later with:"
+        echo -e "${YELLOW}  sudo certbot --nginx -d $DOMAIN_NAME${NC}"
+    fi
 fi
 
 # ----------------------------------------------------------------------
-# 9. Configure Firewall
+# 10. Configure Firewall
 # ----------------------------------------------------------------------
 print_section "Firewall Configuration"
 
@@ -440,29 +704,36 @@ else
 fi
 
 # ----------------------------------------------------------------------
-# 10. Final Summary
+# 11. Final Summary
 # ----------------------------------------------------------------------
 print_section "DEPLOYMENT COMPLETE!"
 echo -e "${GREEN}${BOLD}✓ Inzeedo POS Backend Successfully Deployed!${NC}"
 echo ""
 echo -e "${CYAN}${BOLD}Application Details:${NC}"
 echo -e "${BLUE}• Backend URL:${NC} http://localhost:$PORT"
-echo -e "${BLUE}• Nginx Proxy:${NC} http://$DOMAIN_NAME -> http://localhost:$PORT"
+echo -e "${BLUE}• Public URL:${NC} https://$DOMAIN_NAME"
 echo -e "${BLUE}• Database:${NC} $DB_NAME (User: $DB_USER)"
 echo -e "${BLUE}• Environment:${NC} Production"
+echo -e "${BLUE}• SSL Certificate:${NC} $(if [ -f "/etc/letsencrypt/live/$DOMAIN_NAME/fullchain.pem" ]; then echo "Installed (Let's Encrypt)"; elif [ -f "/etc/ssl/certs/selfsigned.crt" ]; then echo "Self-signed"; else echo "Not installed (HTTP only)"; fi)"
 echo ""
 echo -e "${CYAN}${BOLD}Management Commands:${NC}"
 echo -e "${YELLOW}View logs:${NC}          pm2 logs pos-backend"
 echo -e "${YELLOW}Restart app:${NC}        pm2 restart pos-backend"
 echo -e "${YELLOW}Check status:${NC}       pm2 status"
-echo -e "${YELLOW}View Nginx logs:${NC}    tail -f /var/log/nginx/error.log"
+echo -e "${YELLOW}View Nginx logs:${NC}    tail -f /var/log/nginx/pos-backend-error.log"
 echo -e "${YELLOW}MySQL access:${NC}       mysql -u $DB_USER -p$DB_PASSWORD $DB_NAME"
+echo -e "${YELLOW}Renew SSL:${NC}          certbot renew"
 echo ""
-echo -e "${CYAN}${BOLD}Next Steps:${NC}"
-echo -e "1. Test the API: ${YELLOW}curl http://$DOMAIN_NAME/api/health${NC}"
-echo -e "2. Secure MySQL: ${YELLOW}sudo mysql_secure_installation${NC}"
-echo -e "3. Setup SSL/TLS (Certbot): ${YELLOW}sudo apt install certbot python3-certbot-nginx${NC}"
-echo -e "4. Configure backup for database"
+echo -e "${CYAN}${BOLD}Verification Tests:${NC}"
+echo -e "${YELLOW}Test API (HTTP):${NC}    curl http://$DOMAIN_NAME/api/health"
+echo -e "${YELLOW}Test API (HTTPS):${NC}   curl https://$DOMAIN_NAME/api/health"
+echo -e "${YELLOW}Test SSL:${NC}           openssl s_client -connect $DOMAIN_NAME:443"
+echo ""
+echo -e "${CYAN}${BOLD}Troubleshooting:${NC}"
+echo -e "${YELLOW}Check service status:${NC}   systemctl status nginx mysql"
+echo -e "${YELLOW}Check firewall:${NC}         ufw status"
+echo -e "${YELLOW}Check DNS:${NC}              nslookup $DOMAIN_NAME"
+echo -e "${YELLOW}Check SSL expiry:${NC}       certbot certificates"
 echo ""
 echo -e "${MAGENTA}Deployment log saved to: $LOG_FILE${NC}"
 echo -e "${GREEN}${BOLD}Thank you for using Inzeedo POS!${NC}"
