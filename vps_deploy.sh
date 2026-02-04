@@ -101,7 +101,7 @@ if [ ! -f .env ]; then
         echo -e "${GREEN}Created .env from example.${NC}"
         
         # Interactive Prompt for Critical Vars
-        echo -e "${YELLOW}Please configure your Database Credentials now.${NC}"
+        echo -e "${YELLOW}Please configure your APP Database Credentials (user for running the app).${NC}"
         read -p "Enter Database Host [localhost]: " INPUT_DB_HOST
         DB_HOST=${INPUT_DB_HOST:-localhost}
         
@@ -144,24 +144,42 @@ echo -e "\n${GREEN}[6/8] Setting up Database...${NC}"
 echo "Installing project dependencies..."
 pnpm install
 
+# Capture Admin Credentials for Setup
+echo -e "${YELLOW}We need SUPERUSER privileges to create the database/users if they don't exist.${NC}"
+echo -e "${YELLOW}Please enter MySQL Admin credentials (often 'root').${NC}"
+
+read -p "MySQL Admin User [root]: " ADMIN_DB_USER
+ADMIN_DB_USER=${ADMIN_DB_USER:-root}
+
+read -s -p "MySQL Admin Password: " ADMIN_DB_PASS
+echo ""
+
 # Try to create database if it doesn't exist (Using mysql cli)
 echo "Checking if database '$DB_NAME' exists..."
 
 EXIT_CODE=0
-mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASSWORD" -e "USE $DB_NAME" 2>/dev/null || EXIT_CODE=$?
-
-if [ $EXIT_CODE -ne 0 ]; then
-    echo -e "${YELLOW}Database '$DB_NAME' does not exist. Attempting to create...${NC}"
-    mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASSWORD" -e "CREATE DATABASE $DB_NAME;"
+# Check connection first
+mysql -h "$DB_HOST" -u "$ADMIN_DB_USER" -p"$ADMIN_DB_PASS" -e "SELECT 1" 2>/dev/null
+if [ $? -ne 0 ]; then
+    echo -e "${RED}Failed to connect to MySQL with provided Admin credentials.${NC}"
+    echo -e "${RED}Skipping DB creation. Warning: Migrations might fail if DB doesn't exist.${NC}"
+else
+    # Try to create DB
+    mysql -h "$DB_HOST" -u "$ADMIN_DB_USER" -p"$ADMIN_DB_PASS" -e "CREATE DATABASE IF NOT EXISTS $DB_NAME;" 2>/dev/null
     if [ $? -eq 0 ]; then
-        echo -e "${GREEN}Database created successfully.${NC}"
+        echo -e "${GREEN}Database '$DB_NAME' verified/created.${NC}"
+        
+        # Optional: Grant privileges if the app user is different from root
+        if [ "$DB_USER" != "root" ]; then
+             echo "Granting privileges to '$DB_USER'..."
+             mysql -h "$DB_HOST" -u "$ADMIN_DB_USER" -p"$ADMIN_DB_PASS" -e "CREATE USER IF NOT EXISTS '$DB_USER'@'localhost' IDENTIFIED BY '$DB_PASSWORD'; GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'localhost'; FLUSH PRIVILEGES;" 2>/dev/null
+        fi
     else
-        echo -e "${RED}Failed to create database. Please check credentials in .env${NC}"
-        exit 1
+        echo -e "${RED}Failed to create database. Check permissions.${NC}"
     fi
 fi
 
-# Run Migrations
+# Run Migrations (Using App Credentials from .env)
 echo "Running Sequelize Migrations..."
 pnpm run db:migrate
 
@@ -182,8 +200,7 @@ fi
 
 # Save and Startup
 pm2 save
-pm2 startup | tail -n 1 | bash > /dev/null 2>&1 # Execute the startup command automatically if possible, otherwise user does it manually usually.
-# Just echo instructions just in case
+pm2 startup | tail -n 1 | bash > /dev/null 2>&1 
 echo -e "${BLUE}PM2 configured. If the server reboots, PM2 will restart the app.${NC}"
 
 # ----------------------------------------------------------------------
@@ -191,7 +208,6 @@ echo -e "${BLUE}PM2 configured. If the server reboots, PM2 will restart the app.
 # ----------------------------------------------------------------------
 echo -e "\n${GREEN}[8/8] Configuring Nginx Reverse Proxy...${NC}"
 
-DOMAIN_NAME="localhost" # Change this or prompt for it
 read -p "Enter Domain Name or IP for Nginx [localhost]: " INPUT_DOMAIN
 DOMAIN_NAME=${INPUT_DOMAIN:-localhost}
 
@@ -228,11 +244,6 @@ if [ $? -eq 0 ]; then
 else
     echo -e "${RED}Nginx configuration failed. Please check $NGINX_CONF${NC}"
 fi
-
-# Setup UFW
-ufw allow 'Nginx Full'
-ufw allow OpenSSH
-# ufw enable # Doing this automatically can lock user out if SSH not configured right. Leaving manual.
 
 echo -e "${BLUE}==============================================${NC}"
 echo -e "${GREEN}   Deployment Complete!   ${NC}"
