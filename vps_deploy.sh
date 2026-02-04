@@ -39,7 +39,7 @@ cd "$(dirname "$0")"
 # 1. System Update & Prerequisites
 # ----------------------------------------------------------------------
 echo -e "\n${GREEN}[1/8] Updating System Packages...${NC}"
-apt update && apt upgrade -y
+apt update
 apt install -y curl git ufw build-essential
 
 # ----------------------------------------------------------------------
@@ -79,57 +79,57 @@ systemctl start mysql
 systemctl enable mysql
 
 # ----------------------------------------------------------------------
-# 4. Install Nginx (if missing)
-# ----------------------------------------------------------------------
-echo -e "\n${GREEN}[4/8] Checking Nginx...${NC}"
-if ! command -v nginx &> /dev/null; then
-    echo -e "${YELLOW}Nginx not found. Installing nginx...${NC}"
-    apt install -y nginx
-else
-    echo -e "Nginx is already installed: $(nginx -v)"
-fi
-
-# ----------------------------------------------------------------------
 # 5. Application Configuration (.env)
 # ----------------------------------------------------------------------
 echo -e "\n${GREEN}[5/8] Configuring Application Environment...${NC}"
+
+SETUP_ENV=false
 
 if [ ! -f .env ]; then
     echo -e "${YELLOW}.env file not found. Creating from .env.example...${NC}"
     if [ -f .env.example ]; then
         cp .env.example .env
-        echo -e "${GREEN}Created .env from example.${NC}"
-        
-        # Interactive Prompt for Critical Vars
-        echo -e "${YELLOW}Please configure your APP Database Credentials (user for running the app).${NC}"
-        read -p "Enter Database Host [localhost]: " INPUT_DB_HOST
-        DB_HOST=${INPUT_DB_HOST:-localhost}
-        
-        read -p "Enter Database User [root]: " INPUT_DB_USER
-        DB_USER=${INPUT_DB_USER:-root}
-        
-        read -s -p "Enter Database Password: " INPUT_DB_PASS
-        echo ""
-        DB_PASSWORD=$INPUT_DB_PASS
-        
-        read -p "Enter Database Name [pos_system]: " INPUT_DB_NAME
-        DB_NAME=${INPUT_DB_NAME:-pos_system}
-        
-        # Update .env using sed
-        sed -i "s/DB_HOST=localhost/DB_HOST=$DB_HOST/" .env
-        sed -i "s/DB_USER=root/DB_USER=$DB_USER/" .env
-        sed -i "s/DB_PASSWORD=your_db_password/DB_PASSWORD=$DB_PASSWORD/" .env
-        sed -i "s/DB_NAME=pos_system/DB_NAME=$DB_NAME/" .env
-        sed -i "s/NODE_ENV=production/NODE_ENV=production/" .env
-        
+        SETUP_ENV=true
     else
         echo -e "${RED}Error: .env.example not found! Cannot configure app.${NC}"
         exit 1
     fi
 else
-    echo -e "Using existing .env file."
-    # still read vars for script usage
-    export $(grep -v '^#' .env | xargs)
+    echo -e "${YELLOW}Existing .env file found.${NC}"
+    read -p "Do you want to reconfigure .env credentials? (y/N): " RECONF
+    if [[ "$RECONF" =~ ^[Yy]$ ]]; then
+        # Reset provided env to example
+        cp .env.example .env
+        SETUP_ENV=true
+    else
+         echo -e "Using existing .env configuration."
+    fi
+fi
+
+if [ "$SETUP_ENV" = true ]; then
+    # Interactive Prompt for Critical Vars
+    echo -e "${YELLOW}Please configure your APP Database Credentials (user for running the app).${NC}"
+    read -p "Enter Database Host [localhost]: " INPUT_DB_HOST
+    DB_HOST=${INPUT_DB_HOST:-localhost}
+    
+    read -p "Enter Database User [root]: " INPUT_DB_USER
+    DB_USER=${INPUT_DB_USER:-root}
+    
+    read -s -p "Enter Database Password: " INPUT_DB_PASS
+    echo ""
+    DB_PASSWORD=$INPUT_DB_PASS
+    
+    read -p "Enter Database Name [pos_system]: " INPUT_DB_NAME
+    DB_NAME=${INPUT_DB_NAME:-pos_system}
+    
+    # Update .env using sed
+    sed -i "s/DB_HOST=localhost/DB_HOST=$DB_HOST/" .env
+    sed -i "s/DB_USER=root/DB_USER=$DB_USER/" .env
+    # Escape special chars in password for sed
+    SAFE_PASS=$(echo $DB_PASSWORD | sed 's/[&/\]/\\&/g')
+    sed -i "s/DB_PASSWORD=your_db_password/DB_PASSWORD=$SAFE_PASS/" .env
+    sed -i "s/DB_NAME=pos_system/DB_NAME=$DB_NAME/" .env
+    sed -i "s/NODE_ENV=production/NODE_ENV=production/" .env
 fi
 
 # Reload env vars
