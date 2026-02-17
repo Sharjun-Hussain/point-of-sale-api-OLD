@@ -7,12 +7,22 @@ const auditService = require('../services/auditService');
 
 const getAllUsers = async (req, res, next) => {
     try {
-        const { page, size, name } = req.query;
+        const { page, size, name, organization_id } = req.query; // Added organization_id param
         const { limit, offset } = getPagination(page, size);
 
-        const where = {
-            organization_id: req.user.organization_id
-        };
+        // Check if user is Super Admin
+        const isSuperAdmin = req.user.roles.some(role => role.name === 'Super Admin');
+
+        const where = {};
+
+        // If not Super Admin, restrict to their organization
+        if (!isSuperAdmin) {
+            where.organization_id = req.user.organization_id;
+        } else if (organization_id) {
+            // If Super Admin AND organization_id param is provided, filter by it
+            where.organization_id = organization_id;
+        }
+
         if (name) {
             where.name = { [Op.like]: `%${name}%` };
         }
@@ -27,7 +37,7 @@ const getAllUsers = async (req, res, next) => {
                 { model: Branch, as: 'branches' }
             ],
             distinct: true,
-            order: [['created_at', 'DESC']]
+            order: [['created_at', 'DESC']] // Fixed sort order
         });
 
         return paginatedResponse(res, users.rows, {

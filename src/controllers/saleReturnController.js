@@ -23,7 +23,7 @@ const getAllSaleReturns = async (req, res, next) => {
             include: [
                 { model: Customer, as: 'customer', attributes: ['name', 'phone'] },
                 { model: Branch, as: 'branch', attributes: ['name'] },
-                { model: User, as: 'user', attributes: ['name'] },
+                { model: User, as: 'cashier', attributes: ['name'] },
                 { model: Sale, as: 'sale', attributes: ['invoice_number'] }
             ],
             limit,
@@ -50,7 +50,7 @@ const getSaleReturnById = async (req, res, next) => {
             include: [
                 { model: Customer, as: 'customer' },
                 { model: Branch, as: 'branch' },
-                { model: User, as: 'user' },
+                { model: User, as: 'cashier' },
                 { model: Sale, as: 'sale' },
                 {
                     model: SaleReturnItem,

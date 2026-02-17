@@ -505,10 +505,10 @@ const reportController = {
         } catch (error) { next(error); }
     },
 
-    // 9. Sales Return History
+    // 9. Sales Return History & Report Data
     getSalesReturnHistory: async (req, res, next) => {
         try {
-            const { start_date, end_date, branch_id } = req.query;
+            const { start_date, end_date, branch_id, user_id } = req.query;
             const organization_id = req.user.organization_id;
 
             const whereClause = { organization_id };
@@ -517,11 +517,15 @@ const reportController = {
                 whereClause.branch_id = branch_id;
             }
 
+            if (user_id && user_id !== 'all') {
+                whereClause.user_id = user_id;
+            }
+
             if (start_date && end_date) {
                 whereClause.return_date = {
                     [Op.between]: [
-                        new Date(start_date),
-                        new Date(end_date)
+                        new Date(start_date + 'T00:00:00'),
+                        new Date(end_date + 'T23:59:59')
                     ]
                 };
             }
@@ -531,6 +535,7 @@ const reportController = {
                 include: [
                     { model: db.Customer, as: 'customer', attributes: ['name'] },
                     { model: db.Sale, as: 'sale', attributes: ['invoice_number'] },
+                    { model: db.User, as: 'cashier', attributes: ['name'] },
                     {
                         model: db.SaleReturnItem,
                         as: 'items',
@@ -540,7 +545,21 @@ const reportController = {
                 order: [['return_date', 'DESC']]
             });
 
-            return successResponse(res, returns, 'Sales return history fetched successfully');
+            // Calculate Metrics for Report
+            const totalReturns = returns.length;
+            const totalReturnAmount = returns.reduce((sum, r) => sum + parseFloat(r.total_amount || 0), 0);
+            const totalRefundAmount = returns.reduce((sum, r) => sum + parseFloat(r.refund_amount || 0), 0);
+            const uniqueCustomers = new Set(returns.map(r => r.customer_id)).size;
+
+            return successResponse(res, {
+                data: returns,
+                stats: {
+                    totalReturns,
+                    totalReturnAmount,
+                    totalRefundAmount,
+                    uniqueCustomers
+                }
+            }, 'Sales return history fetched successfully');
         } catch (error) { next(error); }
     },
 

@@ -16,6 +16,9 @@ const routes = require('./src/routes');
 const errorHandler = require('./src/middleware/errorHandler');
 const rateLimiter = require('./src/middleware/rateLimiter');
 
+// Import scheduled jobs
+const { scheduleSubscriptionCheck } = require('./src/jobs/subscriptionScheduler');
+
 // Initialize Express app
 const app = express();
 
@@ -98,6 +101,9 @@ const startServer = async () => {
             await db.sync({ alter: false });
             console.log('✅ Database synchronized.');
         }
+
+        // Start scheduled jobs (with immediate expiry check)
+        await scheduleSubscriptionCheck();
 
         // Start server
         app.listen(PORT, () => {

@@ -25,6 +25,27 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.TEXT,
             allowNull: true
         },
+        city: {
+            type: DataTypes.STRING,
+            allowNull: true
+        },
+        code: {
+            type: DataTypes.STRING,
+            allowNull: true
+        },
+        opening_time: {
+            type: DataTypes.STRING,
+            allowNull: true
+        },
+        closing_time: {
+            type: DataTypes.STRING,
+            allowNull: true
+        },
+        is_main: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false,
+            allowNull: false
+        },
         is_active: {
             type: DataTypes.BOOLEAN,
             defaultValue: true

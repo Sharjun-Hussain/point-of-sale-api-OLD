@@ -49,6 +49,26 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             allowNull: true
         },
+        subscription_tier: {
+            type: DataTypes.ENUM('Basic', 'Pro', 'Enterprise'),
+            allowNull: true
+        },
+        billing_cycle: {
+            type: DataTypes.ENUM('Monthly', 'Yearly', 'Lifetime'),
+            allowNull: true
+        },
+        subscription_expiry_date: {
+            type: DataTypes.DATE,
+            allowNull: true
+        },
+        subscription_status: {
+            type: DataTypes.ENUM('Active', 'Expired', 'Trial', 'Suspended'),
+            defaultValue: 'Trial'
+        },
+        purchase_date: {
+            type: DataTypes.DATE,
+            allowNull: true
+        },
         is_active: {
             type: DataTypes.BOOLEAN,
             defaultValue: true

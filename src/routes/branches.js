@@ -8,6 +8,7 @@ router.use(authenticate);
 
 router.get('/', checkPermission('Branch View'), orgController.getAllBranches);
 router.get('/active/list', orgController.getActiveBranchesList);
+router.get('/:id', checkPermission('Branch View'), orgController.getBranchById); // Added by me
 router.post('/', checkPermission('Branch Create'), orgController.createBranch);
 router.put('/:id', checkPermission('Branch Edit'), orgController.updateBranch);
 

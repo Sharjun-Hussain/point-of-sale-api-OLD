@@ -52,6 +52,7 @@ db.SaleReturn = require('./SaleReturn')(sequelize, DataTypes);
 db.SaleReturnItem = require('./SaleReturnItem')(sequelize, DataTypes);
 db.StockTransfer = require('./StockTransfer')(sequelize, DataTypes);
 db.StockTransferItem = require('./StockTransferItem')(sequelize, DataTypes);
+db.SubscriptionHistory = require('./SubscriptionHistory')(sequelize, DataTypes);
 
 // Associations
 // Many-to-Many: User and Role
@@ -91,6 +92,10 @@ db.Permission.belongsToMany(db.Role, {
 // Organization & Branch
 db.Organization.hasMany(db.Branch, { as: 'branches', foreignKey: 'organization_id' });
 db.Branch.belongsTo(db.Organization, { as: 'organization', foreignKey: 'organization_id' });
+
+// Organization & SubscriptionHistory
+db.Organization.hasMany(db.SubscriptionHistory, { as: 'subscription_histories', foreignKey: 'organization_id' });
+db.SubscriptionHistory.belongsTo(db.Organization, { as: 'organization', foreignKey: 'organization_id' });
 
 // User associations with Organization and Branch
 db.User.belongsTo(db.Organization, { as: 'organization', foreignKey: 'organization_id' });
@@ -167,7 +172,7 @@ db.SaleReturn.belongsTo(db.Organization, { as: 'organization', foreignKey: 'orga
 db.SaleReturn.belongsTo(db.Branch, { as: 'branch', foreignKey: 'branch_id' });
 db.SaleReturn.belongsTo(db.Customer, { as: 'customer', foreignKey: 'customer_id' });
 db.SaleReturn.belongsTo(db.Sale, { as: 'sale', foreignKey: 'sale_id' });
-db.SaleReturn.belongsTo(db.User, { as: 'user', foreignKey: 'user_id' });
+db.SaleReturn.belongsTo(db.User, { as: 'cashier', foreignKey: 'user_id' });
 db.SaleReturn.hasMany(db.SaleReturnItem, { as: 'items', foreignKey: 'sale_return_id' });
 
 db.SaleReturnItem.belongsTo(db.SaleReturn, { as: 'sale_return', foreignKey: 'sale_return_id' });
