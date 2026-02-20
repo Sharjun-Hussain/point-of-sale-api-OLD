@@ -12,6 +12,9 @@ const db = require('./src/config/database');
 // Import routes
 const routes = require('./src/routes');
 
+// Import logger
+const logger = require('./src/utils/logger');
+
 // Import middleware
 const errorHandler = require('./src/middleware/errorHandler');
 const rateLimiter = require('./src/middleware/rateLimiter');
@@ -50,9 +53,9 @@ app.use(compression());
 
 // Logging middleware
 if (process.env.NODE_ENV === 'development') {
-    app.use(morgan('dev'));
+    app.use(morgan('dev', { stream: logger.stream }));
 } else {
-    app.use(morgan('combined'));
+    app.use(morgan('combined', { stream: logger.stream }));
 }
 
 // Static files for uploads
@@ -92,14 +95,14 @@ const startServer = async () => {
     try {
         // Test database connection
         await db.authenticate();
-        console.log('✅ Database connection established successfully.');
+        logger.info('✅ Database connection established successfully.');
 
         // Sync database (in development only)
         if (process.env.NODE_ENV === 'development') {
             // Use { alter: true } to update tables without dropping
             // Use { force: true } to drop and recreate (WARNING: data loss)
             await db.sync({ alter: false });
-            console.log('✅ Database synchronized.');
+            logger.info('✅ Database synchronized.');
         }
 
         // Start scheduled jobs (with immediate expiry check)
@@ -107,27 +110,25 @@ const startServer = async () => {
 
         // Start server
         app.listen(PORT, () => {
-            console.log(`🚀 Server running on port ${PORT}`);
-            console.log(`📍 Environment: ${process.env.NODE_ENV}`);
-            console.log(`🔗 API Base URL: http://localhost:${PORT}/api/${process.env.API_VERSION || 'v1'}`);
+            logger.info(`🚀 Server running on port ${PORT}`);
+            logger.info(`📍 Environment: ${process.env.NODE_ENV}`);
+            logger.info(`🔗 API Base URL: ${process.env.BACKEND_URL || `http://localhost:${PORT}`}/api/${process.env.API_VERSION || 'v1'}`);
         });
     } catch (error) {
-        console.error('❌ Unable to start server:', error);
+        logger.error('❌ Unable to start server:', error);
         process.exit(1);
     }
 };
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
-    console.error('UNHANDLED REJECTION! 💥 Shutting down...');
-    console.error(err.name, err.message);
+    logger.error('UNHANDLED REJECTION! 💥 Shutting down...', err);
     process.exit(1);
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
-    console.error('UNCAUGHT EXCEPTION! 💥 Shutting down...');
-    console.error(err.name, err.message);
+    logger.error('UNCAUGHT EXCEPTION! 💥 Shutting down...', err);
     process.exit(1);
 });
 
