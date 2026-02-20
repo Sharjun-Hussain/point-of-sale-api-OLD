@@ -44,3 +44,28 @@
 {"level":"info","message":"📍 Environment: development","timestamp":"2026-02-21 01:23:19"}
 {"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-02-21 01:23:19"}
 {"level":"info","message":"\nSIGINT received. Starting graceful shutdown...","timestamp":"2026-02-21 01:23:41"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-02-21 01:24:34"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-02-21 01:24:34"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-02-21 01:24:35"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-02-21 01:24:35"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-02-21 01:24:35"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-02-21 01:24:35"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-02-21 01:28:45"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-02-21 01:28:45"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-02-21 01:28:46"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-02-21 01:28:46"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-02-21 01:28:46"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-02-21 01:28:46"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-02-21 01:30:21"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-02-21 01:30:21"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-02-21 01:30:21"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-02-21 01:30:21"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-02-21 01:30:21"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-02-21 01:30:21"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-02-21 01:34:34"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-02-21 01:34:34"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-02-21 01:34:34"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-02-21 01:34:34"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-02-21 01:34:34"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-02-21 01:34:34"}
+{"level":"info","message":"\nSIGINT received. Starting graceful shutdown...","timestamp":"2026-02-21 01:35:04"}
