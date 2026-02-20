@@ -90,6 +90,7 @@ app.use(errorHandler);
 
 // Database connection and server start
 const PORT = process.env.PORT || 5000;
+let server;
 
 const startServer = async () => {
     try {
@@ -99,23 +100,47 @@ const startServer = async () => {
 
         // Sync database (in development only)
         if (process.env.NODE_ENV === 'development') {
-            // Use { alter: true } to update tables without dropping
-            // Use { force: true } to drop and recreate (WARNING: data loss)
             await db.sync({ alter: false });
             logger.info('✅ Database synchronized.');
         }
 
-        // Start scheduled jobs (with immediate expiry check)
+        // Start scheduled jobs
         await scheduleSubscriptionCheck();
 
         // Start server
-        app.listen(PORT, () => {
+        server = app.listen(PORT, () => {
             logger.info(`🚀 Server running on port ${PORT}`);
             logger.info(`📍 Environment: ${process.env.NODE_ENV}`);
             logger.info(`🔗 API Base URL: ${process.env.BACKEND_URL || `http://localhost:${PORT}`}/api/${process.env.API_VERSION || 'v1'}`);
         });
+
     } catch (error) {
-        logger.error('❌ Unable to start server:', error);
+        logger.error('❌ Unable to initialize server:', error);
+        process.exit(1);
+    }
+};
+
+// Graceful Shutdown function
+const gracefulShutdown = async (signal) => {
+    logger.info(`\n${signal} received. Starting graceful shutdown...`);
+
+    if (server) {
+        // 1. Stop accepting new requests
+        server.close(() => {
+            logger.info('HTTP server closed.');
+        });
+    }
+
+    try {
+        // 2. Close database connections
+        await db.close();
+        logger.info('Database connection closed.');
+
+        // 3. Exit process successfully
+        logger.info('Graceful shutdown completed.');
+        process.exit(0);
+    } catch (err) {
+        logger.error('Error during shutdown:', err);
         process.exit(1);
     }
 };
@@ -131,6 +156,10 @@ process.on('uncaughtException', (err) => {
     logger.error('UNCAUGHT EXCEPTION! 💥 Shutting down...', err);
     process.exit(1);
 });
+
+// Listen for termination signals
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // Start the server
 startServer();
