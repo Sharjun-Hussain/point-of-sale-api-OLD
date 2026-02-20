@@ -1,3 +1,5 @@
+const { Branch } = require('../models');
+
 /**
  * Branch Access Middleware
  * Ensures users can only access data from their assigned branches
