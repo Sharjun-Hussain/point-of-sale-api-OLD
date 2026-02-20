@@ -53,6 +53,7 @@ db.SaleReturnItem = require('./SaleReturnItem')(sequelize, DataTypes);
 db.StockTransfer = require('./StockTransfer')(sequelize, DataTypes);
 db.StockTransferItem = require('./StockTransferItem')(sequelize, DataTypes);
 db.SubscriptionHistory = require('./SubscriptionHistory')(sequelize, DataTypes);
+db.RefreshToken = require('./RefreshToken')(sequelize, DataTypes);
 
 // Associations
 // Many-to-Many: User and Role
@@ -99,6 +100,11 @@ db.SubscriptionHistory.belongsTo(db.Organization, { as: 'organization', foreignK
 
 // User associations with Organization and Branch
 db.User.belongsTo(db.Organization, { as: 'organization', foreignKey: 'organization_id' });
+db.User.belongsTo(db.Branch, { as: 'branch', foreignKey: 'branch_id' });
+
+// User & RefreshToken
+db.User.hasMany(db.RefreshToken, { as: 'refresh_tokens', foreignKey: 'user_id' });
+db.RefreshToken.belongsTo(db.User, { as: 'user', foreignKey: 'user_id' });
 db.Organization.hasMany(db.User, { as: 'users', foreignKey: 'organization_id' });
 
 db.User.belongsToMany(db.Branch, {

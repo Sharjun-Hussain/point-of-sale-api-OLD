@@ -1,6 +1,6 @@
-const { User, Role, Permission, Branch } = require('../models');
+const { User, Role, Permission, Branch, RefreshToken } = require('../models');
 const { hashPassword, comparePassword } = require('../utils/passwordHelper');
-const { generateAccessToken, generateRefreshToken } = require('../utils/jwtHelper');
+const { generateAccessToken, generateRefreshToken, verifyToken, decodeToken } = require('../utils/jwtHelper');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const auditService = require('../services/auditService');
 
@@ -28,11 +28,10 @@ const login = async (req, res, next) => {
         });
 
         if (!user) {
-            console.log(`\x1b[31m[AUTH DEBUG] User not found: ${email}\x1b[0m`);
             // Log failed login attempt
             await auditService.logLogin(
-                null, // No organization ID for failed login
-                null, // No user ID for failed login
+                null,
+                null,
                 auditService.getIpAddress(req),
                 auditService.getUserAgent(req),
                 false,
@@ -41,17 +40,12 @@ const login = async (req, res, next) => {
             return errorResponse(res, 'Invalid credentials', 401);
         }
 
-        console.log(`\x1b[32m[AUTH DEBUG] User found: ${user.email}\x1b[0m`);
-
         if (!user.is_active) {
-            console.log(`\x1b[31m[AUTH DEBUG] User is inactive: ${email}\x1b[0m`);
             return errorResponse(res, 'Account is deactivated', 403);
         }
 
         // Check password
-        console.log(`\x1b[33m[AUTH DEBUG] Comparing passwords...\x1b[0m`);
         const isMatch = await comparePassword(password, user.password);
-        console.log(`\x1b[33m[AUTH DEBUG] Password match: ${isMatch}\x1b[0m`);
         if (!isMatch) {
             // Log failed login attempt
             await auditService.logLogin(
@@ -67,7 +61,15 @@ const login = async (req, res, next) => {
 
         // Generate tokens
         const accessToken = generateAccessToken(user.id);
-        const refreshToken = generateRefreshToken(user.id);
+        const refreshTokenStr = generateRefreshToken(user.id);
+
+        // Save refresh token to DB
+        const decoded = decodeToken(refreshTokenStr);
+        await RefreshToken.create({
+            token: refreshTokenStr,
+            user_id: user.id,
+            expires_at: new Date(decoded.exp * 1000)
+        });
 
         // Update last login
         user.last_login = new Date();
@@ -93,8 +95,84 @@ const login = async (req, res, next) => {
                 branches: user.branches
             },
             auth_token: accessToken,
-            refresh_token: refreshToken
+            refresh_token: refreshTokenStr
         }, 'Login successful');
+    } catch (error) {
+        next(error);
+    }
+};
+
+const refresh = async (req, res, next) => {
+    try {
+        const { refresh_token } = req.body;
+        if (!refresh_token) {
+            return errorResponse(res, 'Refresh token required', 400);
+        }
+
+        // Find token in DB
+        const savedToken = await RefreshToken.findOne({
+            where: { token: refresh_token },
+            include: [{ model: User, as: 'user' }]
+        });
+
+        // 1. Detect Token Reuse (Attacker might be using an old token)
+        if (!savedToken) {
+            // Check if this token was previously revoked (meaning it was replaced)
+            // Note: In this simple implementation, we delete used tokens. 
+            // If it's missing, it could be reuse or just expired.
+            // For extra security, we could keep revoked tokens with a revoked_at date.
+            return errorResponse(res, 'Invalid refresh token', 401);
+        }
+
+        // 2. Verify JWT signature and expiry
+        let payload;
+        try {
+            payload = verifyToken(refresh_token, true);
+        } catch (err) {
+            // If JWT is invalid or expired, delete it from DB
+            await savedToken.destroy();
+            return errorResponse(res, 'Invalid or expired refresh token', 401);
+        }
+
+        // 3. Check DB expiry (extra safety)
+        if (savedToken.expires_at < new Date()) {
+            await savedToken.destroy();
+            return errorResponse(res, 'Refresh token expired', 401);
+        }
+
+        // 4. Generate new tokens (Rotation)
+        const user = savedToken.user;
+        const newAccessToken = generateAccessToken(user.id);
+        const newRefreshTokenStr = generateRefreshToken(user.id);
+
+        // 5. Replace old token in DB (Atomic rotation)
+        const decoded = decodeToken(newRefreshTokenStr);
+        await RefreshToken.create({
+            token: newRefreshTokenStr,
+            user_id: user.id,
+            expires_at: new Date(decoded.exp * 1000)
+        });
+
+        await savedToken.destroy();
+
+        return successResponse(res, {
+            auth_token: newAccessToken,
+            refresh_token: newRefreshTokenStr
+        }, 'Token refreshed');
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+const logout = async (req, res, next) => {
+    try {
+        const { refresh_token } = req.body;
+        if (refresh_token) {
+            // Delete the refresh token from DB
+            await RefreshToken.destroy({ where: { token: refresh_token } });
+        }
+        return successResponse(res, null, 'Logged out successfully');
     } catch (error) {
         next(error);
     }
@@ -120,8 +198,6 @@ const register = async (req, res, next) => {
             password: hashedPassword
         });
 
-        // Default role assignment can be added here
-
         return successResponse(res, {
             user: {
                 id: user.id,
@@ -135,7 +211,6 @@ const register = async (req, res, next) => {
 };
 
 const me = async (req, res) => {
-    // req.user is attached by auth middleware
     return successResponse(res, {
         user: {
             id: req.user.id,
@@ -151,6 +226,8 @@ const me = async (req, res) => {
 
 module.exports = {
     login,
+    refresh,
+    logout,
     register,
     me
 };

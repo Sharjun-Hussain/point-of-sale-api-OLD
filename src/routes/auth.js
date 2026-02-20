@@ -8,6 +8,8 @@ const { loginValidationRules, registerValidationRules } = require('../validation
 // Public routes
 router.post('/login', loginValidationRules, validate, authController.login);
 router.post('/register', registerValidationRules, validate, authController.register);
+router.post('/refresh', authController.refresh);
+router.post('/logout', authController.logout);
 
 // Protected routes
 router.get('/me', authenticate, authController.me);
