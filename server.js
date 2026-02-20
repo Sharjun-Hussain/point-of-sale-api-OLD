@@ -93,30 +93,46 @@ const PORT = process.env.PORT || 5000;
 let server;
 
 const startServer = async () => {
-    try {
-        // Test database connection
-        await db.authenticate();
-        logger.info('✅ Database connection established successfully.');
+    const maxAttempts = parseInt(process.env.DB_RETRY_ATTEMPTS || '5');
+    const delay = parseInt(process.env.DB_RETRY_DELAY || '5000');
 
-        // Sync database (in development only)
-        if (process.env.NODE_ENV === 'development') {
-            await db.sync({ alter: false });
-            logger.info('✅ Database synchronized.');
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            logger.info(`Attempting to connect to database... (Attempt ${attempt}/${maxAttempts})`);
+            // Test database connection
+            await db.authenticate();
+            logger.info('✅ Database connection established successfully.');
+
+            // Sync database (in development only)
+            if (process.env.NODE_ENV === 'development') {
+                await db.sync({ alter: false });
+                logger.info('✅ Database synchronized.');
+            }
+
+            // Start scheduled jobs
+            await scheduleSubscriptionCheck();
+
+            // Start server
+            server = app.listen(PORT, () => {
+                logger.info(`🚀 Server running on port ${PORT}`);
+                logger.info(`📍 Environment: ${process.env.NODE_ENV}`);
+                logger.info(`🔗 API Base URL: ${process.env.BACKEND_URL || `http://localhost:${PORT}`}/api/${process.env.API_VERSION || 'v1'}`);
+            });
+
+            // If we successfully started everything, break the retry loop
+            return;
+
+        } catch (error) {
+            logger.error(`❌ Attempt ${attempt}/${maxAttempts} failed:`, error.message);
+
+            if (attempt === maxAttempts) {
+                logger.error('CRITICAL: Max database connection attempts reached. Exiting...');
+                process.exit(1);
+            }
+
+            logger.info(`Retrying in ${delay / 1000}s...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
         }
-
-        // Start scheduled jobs
-        await scheduleSubscriptionCheck();
-
-        // Start server
-        server = app.listen(PORT, () => {
-            logger.info(`🚀 Server running on port ${PORT}`);
-            logger.info(`📍 Environment: ${process.env.NODE_ENV}`);
-            logger.info(`🔗 API Base URL: ${process.env.BACKEND_URL || `http://localhost:${PORT}`}/api/${process.env.API_VERSION || 'v1'}`);
-        });
-
-    } catch (error) {
-        logger.error('❌ Unable to initialize server:', error);
-        process.exit(1);
     }
 };
 
