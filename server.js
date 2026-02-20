@@ -28,7 +28,7 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-            "img-src": ["'self'", "data:", "http://localhost:5000", "https://images.unsplash.com"],
+            "img-src": ["'self'", "data:", process.env.BACKEND_URL || "http://localhost:5000", "https://images.unsplash.com"],
         },
     },
 }));
