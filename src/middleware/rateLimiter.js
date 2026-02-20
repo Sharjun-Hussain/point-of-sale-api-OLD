@@ -1,8 +1,9 @@
 const { RateLimiterMySQL } = require('rate-limiter-flexible');
 const mysql = require('mysql2');
 
-// Connection configuration for the rate limiter
-// Note: RateLimiterMySQL works best with the callback-based mysql2 client
+let rateLimiter = null;
+
+// Use a separate pool for the rate limiter to avoid blocking the main app pool
 const pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
@@ -14,36 +15,57 @@ const pool = mysql.createPool({
     queueLimit: 0
 });
 
-// Create rate limiter
-const rateLimiter = new RateLimiterMySQL({
-    storeClient: pool,
-    dbName: process.env.DB_NAME || 'pos_system',
-    tableName: 'rate_limits',
-    storeType: 'pool', // Explicitly specify the store type
-    points: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // Number of requests
-    duration: parseInt(process.env.RATE_LIMIT_WINDOW_MS) / 1000 || 900, // Per 15 minutes (in seconds)
-    tableCreated: false, // It will try to create the table if it's not created yet
-});
+const initRateLimiter = () => {
+    if (rateLimiter) return rateLimiter;
+
+    try {
+        rateLimiter = new RateLimiterMySQL({
+            storeClient: pool,
+            dbName: process.env.DB_NAME || 'pos_system',
+            tableName: 'rate_limits',
+            storeType: 'pool',
+            points: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
+            duration: (parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 900000) / 1000,
+            tableCreated: false,
+        });
+
+        // Catch initial connection/table creation errors to prevent unhandled rejections
+        // Note: internal errors in RateLimiterMySQL are usually swallowed or logged
+        // but it doesn't have a specific .on('error') for the instance itself.
+        // The pool handles its own errors.
+
+        return rateLimiter;
+    } catch (err) {
+        console.error('Rate Limiter Initialization Error:', err);
+        return null;
+    }
+};
 
 const rateLimiterMiddleware = async (req, res, next) => {
-    try {
-        // Use IP address as key
-        const key = req.ip || req.connection.remoteAddress;
+    const limiter = initRateLimiter();
 
-        await rateLimiter.consume(key);
+    if (!limiter) {
+        // If DB is not ready yet, just skip rate limiting for now
+        return next();
+    }
+
+    try {
+        const key = req.ip || req.connection.remoteAddress;
+        await limiter.consume(key);
         next();
     } catch (rejRes) {
-        // If it's a rate limit error (rejRes is an object with msBeforeNext)
-        if (rejRes.msBeforeNext !== undefined) {
+        if (rejRes instanceof Error) {
+            // DB Error or similar
+            console.error('Rate Limiter Error:', rejRes.message);
+            next();
+        } else if (rejRes.msBeforeNext !== undefined) {
+            // Rate limit triggered
             res.status(429).json({
                 status: 'error',
                 message: 'Too many requests, please try again later.',
                 retryAfter: Math.ceil(rejRes.msBeforeNext / 1000)
             });
         } else {
-            // If it's a database error or something else, log it and let the request through
-            // We don't want to block users if the rate limit table is down
-            console.error('Rate Limiter Error:', rejRes);
             next();
         }
     }

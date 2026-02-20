@@ -123,7 +123,7 @@ const startServer = async () => {
             return;
 
         } catch (error) {
-            logger.error(`❌ Attempt ${attempt}/${maxAttempts} failed:`, error.message);
+            logger.error(`❌ Attempt ${attempt}/${maxAttempts} failed: ${error.message}`);
 
             if (attempt === maxAttempts) {
                 logger.error('CRITICAL: Max database connection attempts reached. Exiting...');
@@ -178,6 +178,9 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // Start the server
-startServer();
+startServer().catch(err => {
+    logger.error('CRITICAL: Failed to start server:', err);
+    process.exit(1);
+});
 
 module.exports = app;
