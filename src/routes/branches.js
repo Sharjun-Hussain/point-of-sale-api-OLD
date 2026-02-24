@@ -6,20 +6,20 @@ const { checkPermission } = require('../middleware/permission');
 
 router.use(authenticate);
 
-router.get('/', checkPermission('Branch View'), orgController.getAllBranches);
+router.get('/', checkPermission('branch:view'), orgController.getAllBranches);
 router.get('/active/list', orgController.getActiveBranchesList);
-router.get('/:id', checkPermission('Branch View'), orgController.getBranchById); // Added by me
-router.post('/', checkPermission('Branch Create'), orgController.createBranch);
-router.put('/:id', checkPermission('Branch Edit'), orgController.updateBranch);
+router.get('/:id', checkPermission('branch:view'), orgController.getBranchById); // Added by me
+router.post('/', checkPermission('branch:create'), orgController.createBranch);
+router.put('/:id', checkPermission('branch:edit'), orgController.updateBranch);
 
-router.patch('/:id/activate', checkPermission('Branch Edit'), (req, res, next) => {
+router.patch('/:id/activate', checkPermission('branch:edit'), (req, res, next) => {
     req.params.action = 'activate';
     orgController.toggleBranchStatus(req, res, next);
 });
-router.patch('/:id/deactivate', checkPermission('Branch Edit'), (req, res, next) => {
+router.patch('/:id/deactivate', checkPermission('branch:edit'), (req, res, next) => {
     req.params.action = 'deactivate';
     orgController.toggleBranchStatus(req, res, next);
 });
-router.patch('/:id/:action', checkPermission('Branch Edit'), orgController.toggleBranchStatus);
+router.patch('/:id/:action', checkPermission('branch:edit'), orgController.toggleBranchStatus);
 
 module.exports = router;

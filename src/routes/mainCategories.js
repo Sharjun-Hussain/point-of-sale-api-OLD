@@ -6,20 +6,20 @@ const { checkPermission } = require('../middleware/permission');
 
 router.use(authenticate);
 
-router.get('/', checkPermission('Main Category View'), categoryController.getAllMainCategories);
+router.get('/', checkPermission('category:view'), categoryController.getAllMainCategories);
 router.get('/active/list', categoryController.getActiveMainCategoriesList);
 router.get('/list', categoryController.getActiveMainCategoriesList);
-router.post('/', checkPermission('Main Category Create'), categoryController.createMainCategory);
-router.put('/:id', checkPermission('Main Category Edit'), categoryController.updateMainCategory);
+router.post('/', checkPermission('category:create'), categoryController.createMainCategory);
+router.put('/:id', checkPermission('category:edit'), categoryController.updateMainCategory);
 
-router.patch('/:id/activate', checkPermission('Main Category Edit'), (req, res, next) => {
+router.patch('/:id/activate', checkPermission('category:edit'), (req, res, next) => {
     req.params.action = 'activate';
     categoryController.toggleMainStatus(req, res, next);
 });
-router.patch('/:id/deactivate', checkPermission('Main Category Edit'), (req, res, next) => {
+router.patch('/:id/deactivate', checkPermission('category:edit'), (req, res, next) => {
     req.params.action = 'deactivate';
     categoryController.toggleMainStatus(req, res, next);
 });
-router.patch('/:id/:action', checkPermission('Main Category Edit'), categoryController.toggleMainStatus);
+router.patch('/:id/:action', checkPermission('category:edit'), categoryController.toggleMainStatus);
 
 module.exports = router;

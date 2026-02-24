@@ -6,9 +6,9 @@ const { checkPermission } = require('../middleware/permission');
 
 router.use(authenticate);
 
-router.get('/', checkPermission('Product View'), attributeController.getAllAttributes);
-router.post('/', checkPermission('Product Create'), attributeController.createAttribute);
-router.put('/:id', checkPermission('Product Edit'), attributeController.updateAttribute);
-router.delete('/:id', checkPermission('Product Edit'), attributeController.deleteAttribute);
+router.get('/', checkPermission('attr:view'), attributeController.getAllAttributes);
+router.post('/', checkPermission('attr:create'), attributeController.createAttribute);
+router.put('/:id', checkPermission('attr:edit'), attributeController.updateAttribute);
+router.delete('/:id', checkPermission('attr:delete'), attributeController.deleteAttribute);
 
 module.exports = router;

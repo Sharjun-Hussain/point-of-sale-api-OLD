@@ -7,18 +7,18 @@ const upload = require('../middleware/upload');
 
 router.use(authenticate);
 
-router.post('/create', upload.single('logo'), checkPermission('Organization Create'), orgController.createOrganization);
+router.post('/create', upload.single('logo'), checkPermission('org:create'), orgController.createOrganization);
 // Super Admin should see all organizations
-router.get('/', checkPermission('Organization View'), orgController.getAllOrganizations); // Changed from getOrganization
-router.get('/me', checkPermission('Organization View'), orgController.getOrganization);
-router.put('/', checkPermission('Organization Edit'), orgController.updateOrganization);
-router.put('/me', checkPermission('Organization Edit'), orgController.updateOrganization);
+router.get('/', checkPermission('org:view'), orgController.getAllOrganizations); // Changed from getOrganization
+router.get('/me', checkPermission('org:view'), orgController.getOrganization);
+router.put('/', checkPermission('org:edit'), orgController.updateOrganization);
+router.put('/me', checkPermission('org:edit'), orgController.updateOrganization);
 
 // Admin Routes for specific Organization ID
-router.get('/:id', checkPermission('Organization View'), orgController.getOrganizationById);
-router.patch('/:id', upload.single('logo'), checkPermission('Organization Edit'), orgController.updateOrganizationById);
-router.patch('/:id/status/:action', checkPermission('Organization Edit'), orgController.toggleOrganizationStatus);
-router.patch('/:id/status', checkPermission('Organization Edit'), orgController.toggleOrganizationStatus);
-router.get('/:id/subscription-history', checkPermission('Organization View'), orgController.getSubscriptionHistory);
+router.get('/:id', checkPermission('org:view'), orgController.getOrganizationById);
+router.patch('/:id', upload.single('logo'), checkPermission('org:edit'), orgController.updateOrganizationById);
+router.patch('/:id/status/:action', checkPermission('org:edit'), orgController.toggleOrganizationStatus);
+router.patch('/:id/status', checkPermission('org:edit'), orgController.toggleOrganizationStatus);
+router.get('/:id/subscription-history', checkPermission('org:view'), orgController.getSubscriptionHistory);
 
 module.exports = router;

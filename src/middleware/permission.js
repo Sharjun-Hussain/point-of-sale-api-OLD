@@ -32,8 +32,18 @@ const checkPermission = (requiredPermission) => {
                 });
             }
 
-            // Check if user has required permission
-            if (!userPermissions.includes(requiredPermission)) {
+            // Check if user has required permission (including wildcards)
+            const hasDirectPermission = userPermissions.includes(requiredPermission);
+            const hasWildcardPermission = userPermissions.some(perm => {
+                if (perm === '*') return true;
+                if (perm.endsWith(':*')) {
+                    const module = perm.split(':')[0];
+                    return requiredPermission.startsWith(`${module}:`);
+                }
+                return false;
+            });
+
+            if (!hasDirectPermission && !hasWildcardPermission) {
                 return res.status(403).json({
                     status: 'error',
                     message: 'Insufficient permissions'
@@ -78,8 +88,19 @@ const checkAnyPermission = (permissions = []) => {
                 });
             }
 
-            // Check if user has any of the required permissions
-            const hasPermission = permissions.some(perm => userPermissions.includes(perm));
+            // Check if user has any of the required permissions (including wildcards)
+            const hasPermission = permissions.some(requiredPermission => {
+                const hasDirect = userPermissions.includes(requiredPermission);
+                const hasWildcard = userPermissions.some(perm => {
+                    if (perm === '*') return true;
+                    if (perm.endsWith(':*')) {
+                        const module = perm.split(':')[0];
+                        return requiredPermission.startsWith(`${module}:`);
+                    }
+                    return false;
+                });
+                return hasDirect || hasWildcard;
+            });
 
             if (!hasPermission) {
                 return res.status(403).json({

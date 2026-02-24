@@ -6,9 +6,9 @@ const { checkPermission } = require('../middleware/permission');
 
 router.use(authenticate);
 
-router.get('/', checkPermission('Role View'), roleController.getAllRoles);
-router.post('/', checkPermission('Role Create'), roleController.createRole);
-router.put('/:id', checkPermission('Role Edit'), roleController.updateRole);
-router.get('/permissions', checkPermission('Role View'), roleController.getAllPermissions);
+router.get('/', checkPermission('role:view'), roleController.getAllRoles);
+router.post('/', checkPermission('role:create'), roleController.createRole);
+router.put('/:id', checkPermission('role:edit'), roleController.updateRole);
+router.get('/permissions', checkPermission('role:view'), roleController.getAllPermissions);
 
 module.exports = router;

@@ -6,7 +6,7 @@ const { checkPermission } = require('../middleware/permission');
 
 router.use(authenticate);
 
-router.get('/', checkPermission('Expense View'), expenseController.getAllExpenseCategories);
-router.post('/', checkPermission('Expense Create'), expenseController.createExpenseCategory);
+router.get('/', checkPermission('expense:view'), expenseController.getAllExpenseCategories);
+router.post('/', checkPermission('expense:create'), expenseController.createExpenseCategory);
 
 module.exports = router;

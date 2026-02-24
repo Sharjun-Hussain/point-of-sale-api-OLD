@@ -6,12 +6,12 @@ const { checkPermission } = require('../middleware/permission');
 
 router.use(authenticate);
 
-router.get('/', checkPermission('Purchase View'), poController.getAllPurchaseOrders);
-router.post('/', checkPermission('Purchase Create'), poController.createPurchaseOrder);
-router.get('/:id', checkPermission('Purchase View'), poController.getPurchaseOrderById);
-router.patch('/:id/approve', checkPermission('Purchase Edit'), poController.approvePurchaseOrder);
-router.get('/:id/pdf', checkPermission('Purchase View'), poController.generatePOPDF);
-router.put('/:id', checkPermission('Purchase Edit'), poController.updatePurchaseOrder);
-router.delete('/:id', checkPermission('Purchase Delete'), poController.deletePurchaseOrder);
+router.get('/', checkPermission('purchase:view'), poController.getAllPurchaseOrders);
+router.post('/', checkPermission('purchase:create'), poController.createPurchaseOrder);
+router.get('/:id', checkPermission('purchase:view'), poController.getPurchaseOrderById);
+router.patch('/:id/approve', checkPermission('purchase:edit'), poController.approvePurchaseOrder);
+router.get('/:id/pdf', checkPermission('purchase:view'), poController.generatePOPDF);
+router.put('/:id', checkPermission('purchase:edit'), poController.updatePurchaseOrder);
+router.delete('/:id', checkPermission('purchase:delete'), poController.deletePurchaseOrder);
 
 module.exports = router;

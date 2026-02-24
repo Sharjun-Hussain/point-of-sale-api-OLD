@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const auditController = require('../controllers/auditController');
 const authenticate = require('../middleware/auth');
+const { checkPermission } = require('../middleware/permission');
 
 /**
  * @route   GET /api/v1/audit-logs
@@ -11,6 +12,7 @@ const authenticate = require('../middleware/auth');
 router.get(
     '/',
     authenticate,
+    checkPermission('system:audit_log'),
     auditController.getAllAuditLogs
 );
 
@@ -22,6 +24,7 @@ router.get(
 router.get(
     '/stats',
     authenticate,
+    checkPermission('system:audit_log'),
     auditController.getAuditStats
 );
 
@@ -33,6 +36,7 @@ router.get(
 router.get(
     '/entity/:entityType/:entityId',
     authenticate,
+    checkPermission('system:audit_log'),
     auditController.getEntityAuditTrail
 );
 
@@ -44,6 +48,7 @@ router.get(
 router.get(
     '/user/:userId',
     authenticate,
+    checkPermission('system:audit_log'),
     auditController.getUserActivity
 );
 
@@ -55,6 +60,7 @@ router.get(
 router.get(
     '/:id',
     authenticate,
+    checkPermission('system:audit_log'),
     auditController.getAuditLogById
 );
 

@@ -7,20 +7,20 @@ const upload = require('../middleware/upload');
 
 router.use(authenticate);
 
-router.get('/', checkPermission('Supplier View'), supplierController.getAllSuppliers);
-router.get('/active/list', checkPermission('Supplier View'), supplierController.getActiveSuppliersList);
-router.get('/grn', checkPermission('Purchase View'), supplierController.getGRNList);
-router.get('/grn/:id', checkPermission('Purchase View'), supplierController.getGRNDetail);
-router.get('/grn/:id/pdf', checkPermission('Purchase View'), supplierController.generateGRNPDF);
-router.get('/:id', checkPermission('Supplier View'), supplierController.getSupplierById);
-router.get('/:id/ledger', checkPermission('Accounting View'), supplierController.getSupplierLedger);
+router.get('/', checkPermission('supplier:view'), supplierController.getAllSuppliers);
+router.get('/active/list', checkPermission('supplier:view'), supplierController.getActiveSuppliersList);
+router.get('/grn', checkPermission('purchase:view'), supplierController.getGRNList);
+router.get('/grn/:id', checkPermission('purchase:view'), supplierController.getGRNDetail);
+router.get('/grn/:id/pdf', checkPermission('purchase:view'), supplierController.generateGRNPDF);
+router.get('/:id', checkPermission('supplier:view'), supplierController.getSupplierById);
+router.get('/:id/ledger', checkPermission('finance:view'), supplierController.getSupplierLedger);
 
-router.post('/', checkPermission('Supplier Create'), upload.none(), supplierController.createSupplier);
-router.post('/grn', checkPermission('Purchase Create'), upload.single('invoiceFile'), supplierController.createGRN);
-router.post('/:id/payments', checkPermission('Accounting Create'), supplierController.createSupplierPayment);
+router.post('/', checkPermission('supplier:create'), upload.none(), supplierController.createSupplier);
+router.post('/grn', checkPermission('purchase:create'), upload.single('invoiceFile'), supplierController.createGRN);
+router.post('/:id/payments', checkPermission('finance:manage'), supplierController.createSupplierPayment);
 
-router.put('/:id', checkPermission('Supplier Edit'), upload.none(), supplierController.updateSupplier);
+router.put('/:id', checkPermission('supplier:edit'), upload.none(), supplierController.updateSupplier);
 
-router.delete('/:id', checkPermission('Supplier Delete'), supplierController.deleteSupplier);
+router.delete('/:id', checkPermission('supplier:delete'), supplierController.deleteSupplier);
 
 module.exports = router;

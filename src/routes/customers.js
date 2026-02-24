@@ -6,16 +6,16 @@ const { checkPermission } = require('../middleware/permission');
 
 router.use(authenticate);
 
-router.get('/', checkPermission('Customer View'), customerController.getAllCustomers);
-router.get('/active/list', checkPermission('Customer View'), customerController.getActiveCustomersList);
-router.get('/:id', checkPermission('Customer View'), customerController.getCustomerById);
-router.get('/:id/ledger', checkPermission('Accounting View'), customerController.getCustomerLedger);
+router.get('/', checkPermission('customer:view'), customerController.getAllCustomers);
+router.get('/active/list', checkPermission('customer:view'), customerController.getActiveCustomersList);
+router.get('/:id', checkPermission('customer:view'), customerController.getCustomerById);
+router.get('/:id/ledger', checkPermission('finance:view'), customerController.getCustomerLedger);
 
-router.post('/', checkPermission('Customer Create'), customerController.createCustomer);
-router.post('/:id/payments', checkPermission('Accounting View'), customerController.createCustomerPayment);
+router.post('/', checkPermission('customer:create'), customerController.createCustomer);
+router.post('/:id/payments', checkPermission('finance:manage'), customerController.createCustomerPayment);
 
-router.put('/:id', checkPermission('Customer Edit'), customerController.updateCustomer);
+router.put('/:id', checkPermission('customer:edit'), customerController.updateCustomer);
 
-router.delete('/:id', checkPermission('Customer Delete'), customerController.deleteCustomer);
+router.delete('/:id', checkPermission('customer:delete'), customerController.deleteCustomer);
 
 module.exports = router;

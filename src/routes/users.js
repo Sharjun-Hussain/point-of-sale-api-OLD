@@ -7,9 +7,9 @@ const { checkPermission } = require('../middleware/permission');
 router.use(authenticate);
 
 router.get('/active-sellers', userController.getActiveSellers);
-router.get('/', checkPermission('User View'), userController.getAllUsers);
-router.post('/', checkPermission('User Create'), userController.createUser);
-router.put('/:id', checkPermission('User Edit'), userController.updateUser);
-router.patch('/:id/toggle-status', checkPermission('User Edit'), userController.toggleUserStatus);
+router.get('/', checkPermission('user:view'), userController.getAllUsers);
+router.post('/', checkPermission('user:create'), userController.createUser);
+router.put('/:id', checkPermission('user:edit'), userController.updateUser);
+router.patch('/:id/toggle-status', checkPermission('user:edit'), userController.toggleUserStatus);
 
 module.exports = router;

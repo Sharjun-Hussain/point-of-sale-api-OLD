@@ -6,20 +6,20 @@ const { checkPermission } = require('../middleware/permission');
 
 router.use(authenticate);
 
-router.get('/', checkPermission('Sub Category View'), categoryController.getAllSubCategories);
+router.get('/', checkPermission('category:view'), categoryController.getAllSubCategories);
 router.get('/active/list', categoryController.getActiveSubCategoriesList);
 router.get('/list', categoryController.getActiveSubCategoriesList);
-router.post('/', checkPermission('Sub Category Create'), categoryController.createSubCategory);
-router.put('/:id', checkPermission('Sub Category Edit'), categoryController.updateSubCategory);
+router.post('/', checkPermission('category:create'), categoryController.createSubCategory);
+router.put('/:id', checkPermission('category:edit'), categoryController.updateSubCategory);
 
-router.patch('/:id/activate', checkPermission('Sub Category Edit'), (req, res, next) => {
+router.patch('/:id/activate', checkPermission('category:edit'), (req, res, next) => {
     req.params.action = 'activate';
     categoryController.toggleSubStatus(req, res, next);
 });
-router.patch('/:id/deactivate', checkPermission('Sub Category Edit'), (req, res, next) => {
+router.patch('/:id/deactivate', checkPermission('category:edit'), (req, res, next) => {
     req.params.action = 'deactivate';
     categoryController.toggleSubStatus(req, res, next);
 });
-router.patch('/:id/:action', checkPermission('Sub Category Edit'), categoryController.toggleSubStatus);
+router.patch('/:id/:action', checkPermission('category:edit'), categoryController.toggleSubStatus);
 
 module.exports = router;

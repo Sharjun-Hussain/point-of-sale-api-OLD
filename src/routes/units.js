@@ -6,19 +6,19 @@ const { checkPermission } = require('../middleware/permission');
 
 router.use(authenticate);
 
-router.get('/', checkPermission('Unit View'), unitController.getAllUnits);
+router.get('/', checkPermission('unit:view'), unitController.getAllUnits);
 router.get('/active/list', unitController.getActiveUnitsList);
-router.post('/', checkPermission('Unit Create'), unitController.createUnit);
-router.put('/:id', checkPermission('Unit Edit'), unitController.updateUnit);
+router.post('/', checkPermission('unit:create'), unitController.createUnit);
+router.put('/:id', checkPermission('unit:edit'), unitController.updateUnit);
 
-router.patch('/:id/activate', checkPermission('Unit Edit'), (req, res, next) => {
+router.patch('/:id/activate', checkPermission('unit:edit'), (req, res, next) => {
     req.params.action = 'activate';
     unitController.toggleUnitStatus(req, res, next);
 });
-router.patch('/:id/deactivate', checkPermission('Unit Edit'), (req, res, next) => {
+router.patch('/:id/deactivate', checkPermission('unit:edit'), (req, res, next) => {
     req.params.action = 'deactivate';
     unitController.toggleUnitStatus(req, res, next);
 });
-router.patch('/:id/:action', checkPermission('Unit Edit'), unitController.toggleUnitStatus);
+router.patch('/:id/:action', checkPermission('unit:edit'), unitController.toggleUnitStatus);
 
 module.exports = router;

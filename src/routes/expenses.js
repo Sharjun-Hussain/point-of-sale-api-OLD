@@ -7,13 +7,13 @@ const { checkPermission } = require('../middleware/permission');
 router.use(authenticate);
 
 // Expense categories (Frontend might use different base for these sometimes)
-router.get('/categories', checkPermission('Expense View'), expenseController.getAllExpenseCategories);
-router.post('/categories', checkPermission('Expense Create'), expenseController.createExpenseCategory);
+router.get('/categories', checkPermission('expense:view'), expenseController.getAllExpenseCategories);
+router.post('/categories', checkPermission('expense:create'), expenseController.createExpenseCategory);
 
 // Expenses
-router.get('/', checkPermission('Expense View'), expenseController.getAllExpenses);
-router.post('/', checkPermission('Expense Create'), expenseController.createExpense);
-router.put('/:id', checkPermission('Expense Edit'), expenseController.updateExpense);
-router.delete('/:id', checkPermission('Expense Delete'), expenseController.deleteExpense);
+router.get('/', checkPermission('expense:view'), expenseController.getAllExpenses);
+router.post('/', checkPermission('expense:create'), expenseController.createExpense);
+router.put('/:id', checkPermission('expense:edit'), expenseController.updateExpense);
+router.delete('/:id', checkPermission('expense:delete'), expenseController.deleteExpense);
 
 module.exports = router;

@@ -8,13 +8,13 @@ router.use(authenticate);
 
 // Business Profile Settings
 // Business Profile Settings
-router.get('/business', checkPermission('Settings View'), settingsController.getBusinessSettings);
-router.put('/business', checkPermission('Settings Edit'), settingsController.updateBusinessSettings);
+router.get('/business', checkPermission('system:settings'), settingsController.getBusinessSettings);
+router.put('/business', checkPermission('system:settings'), settingsController.updateBusinessSettings);
 
 // Modular Settings (pos, receipt, communication, general)
-router.get('/global', checkPermission('Settings View'), settingsController.getGlobalSettings);
-router.post('/logo', checkPermission('Settings Edit'), settingsController.updateLogo);
-router.get('/:category', checkPermission('Settings View'), settingsController.getSettingsByCategory);
-router.post('/:category', checkPermission('Settings Edit'), settingsController.updateSettingsByCategory);
+router.get('/global', checkPermission('system:settings'), settingsController.getGlobalSettings);
+router.post('/logo', checkPermission('system:settings'), settingsController.updateLogo);
+router.get('/:category', checkPermission('system:settings'), settingsController.getSettingsByCategory);
+router.post('/:category', checkPermission('system:settings'), settingsController.updateSettingsByCategory);
 
 module.exports = router;

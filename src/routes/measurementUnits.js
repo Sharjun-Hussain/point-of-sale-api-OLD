@@ -6,19 +6,19 @@ const { checkPermission } = require('../middleware/permission');
 
 router.use(authenticate);
 
-router.get('/', checkPermission('Unit View'), unitController.getAllMeasurementUnits);
+router.get('/', checkPermission('unit:view'), unitController.getAllMeasurementUnits);
 router.get('/active/list', unitController.getActiveMeasurementUnitsList);
-router.post('/', checkPermission('Unit Create'), unitController.createMeasurementUnit);
-router.put('/:id', checkPermission('Unit Edit'), unitController.updateMeasurementUnit);
+router.post('/', checkPermission('unit:create'), unitController.createMeasurementUnit);
+router.put('/:id', checkPermission('unit:edit'), unitController.updateMeasurementUnit);
 
-router.patch('/:id/activate', checkPermission('Unit Edit'), (req, res, next) => {
+router.patch('/:id/activate', checkPermission('unit:edit'), (req, res, next) => {
     req.params.action = 'activate';
     unitController.toggleMeasurementStatus(req, res, next);
 });
-router.patch('/:id/deactivate', checkPermission('Unit Edit'), (req, res, next) => {
+router.patch('/:id/deactivate', checkPermission('unit:edit'), (req, res, next) => {
     req.params.action = 'deactivate';
     unitController.toggleMeasurementStatus(req, res, next);
 });
-router.patch('/:id/:action', checkPermission('Unit Edit'), unitController.toggleMeasurementStatus);
+router.patch('/:id/:action', checkPermission('unit:edit'), unitController.toggleMeasurementStatus);
 
 module.exports = router;

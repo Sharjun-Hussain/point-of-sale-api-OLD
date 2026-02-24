@@ -2,37 +2,38 @@ const express = require('express');
 const router = express.Router();
 const reportController = require('../controllers/reportController');
 const authenticate = require('../middleware/auth');
+const { checkPermission } = require('../middleware/permission');
 
 // Apply authentication to all report routes
 router.use(authenticate);
 
 // Sales Reports
-router.get('/sales/daily', reportController.getDailySales);
-router.get('/sales/product', reportController.getSalesByProduct);
-router.get('/sales/returns', reportController.getSalesReturnHistory);
-router.get('/sales/categories', reportController.getCategorySales);
-router.get('/sales/item-count', reportController.getSoldItemCount);
-router.get('/sales/supplier-profit', reportController.getSupplierProfit);
-router.get('/sales/non-stock', reportController.getNonStockSales);
+router.get('/sales/daily', checkPermission('report:view'), reportController.getDailySales);
+router.get('/sales/product', checkPermission('report:view'), reportController.getSalesByProduct);
+router.get('/sales/returns', checkPermission('report:view'), reportController.getSalesReturnHistory);
+router.get('/sales/categories', checkPermission('report:view'), reportController.getCategorySales);
+router.get('/sales/item-count', checkPermission('report:view'), reportController.getSoldItemCount);
+router.get('/sales/supplier-profit', checkPermission('report:view'), reportController.getSupplierProfit);
+router.get('/sales/non-stock', checkPermission('report:view'), reportController.getNonStockSales);
 
 // Stock Reports
-router.get('/stocks/value', reportController.getStockValue);
-router.get('/stocks/low-stock', reportController.getLowStock);
-router.get('/stocks/transfers', reportController.getStockTransfers);
-router.get('/stocks/summary', reportController.getStockSummary);
+router.get('/stocks/value', checkPermission('report:view'), reportController.getStockValue);
+router.get('/stocks/low-stock', checkPermission('report:view'), reportController.getLowStock);
+router.get('/stocks/transfers', checkPermission('report:view'), reportController.getStockTransfers);
+router.get('/stocks/summary', checkPermission('report:view'), reportController.getStockSummary);
 
 // Financial Reports
-router.get('/finance/profit-loss', reportController.getProfitLoss);
-router.get('/finance/tax', reportController.getTaxReport);
-router.get('/finance/capital-balance', reportController.getCapitalBalance);
-router.get('/finance/cheques', reportController.getChequeSummary);
-router.get('/finance/trial-balance', reportController.getTrialBalance);
+router.get('/finance/profit-loss', checkPermission('report:view'), reportController.getProfitLoss);
+router.get('/finance/tax', checkPermission('report:view'), reportController.getTaxReport);
+router.get('/finance/capital-balance', checkPermission('report:view'), reportController.getCapitalBalance);
+router.get('/finance/cheques', checkPermission('report:view'), reportController.getChequeSummary);
+router.get('/finance/trial-balance', checkPermission('report:view'), reportController.getTrialBalance);
 
 // Customer Reports
-router.get('/customers/history', reportController.getCustomerHistory);
+router.get('/customers/history', checkPermission('report:view'), reportController.getCustomerHistory);
 
 // Purchase Reports
-router.get('/purchase/supplier-performance', reportController.getSupplierPerformance);
+router.get('/purchase/supplier-performance', checkPermission('report:view'), reportController.getSupplierPerformance);
 
 // Dashboard
 router.get('/dashboard/summary', reportController.getDashboardSummary);

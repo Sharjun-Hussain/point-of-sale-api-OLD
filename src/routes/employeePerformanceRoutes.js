@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const employeePerformanceController = require('../controllers/employeePerformanceController');
 const authenticate = require('../middleware/auth');
+const { checkPermission } = require('../middleware/permission');
 
 router.use(authenticate);
 
@@ -10,6 +11,6 @@ router.use(authenticate);
  * @desc    Get employee performance metrics for leaderboard/dashboard
  * @access  Authenticated users
  */
-router.get('/', employeePerformanceController.getEmployeePerformance);
+router.get('/', checkPermission('report:view'), employeePerformanceController.getEmployeePerformance);
 
 module.exports = router;
