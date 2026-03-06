@@ -29,9 +29,11 @@ const employeePerformanceRoutes = require('./employeePerformanceRoutes');
 const reportRoutes = require('./reportRoutes');
 const chequeRoutes = require('./cheques');
 const accountRoutes = require('./accounts');
+const stockRoutes = require('./stocks');
 
 // Use routes
 router.use('/', authRoutes);
+router.use('/stocks', stockRoutes);
 router.use('/accounts', accountRoutes);
 router.use('/organizations', organizationRoutes);
 router.use('/branches', branchRoutes);

@@ -346,3 +346,85 @@
 {"level":"info","message":"\u001b[0mGET /api/v1/users/active-sellers \u001b[36m304\u001b[0m 107.769 ms - -\u001b[0m","timestamp":"2026-02-24 13:42:07"}
 {"level":"info","message":"\nSIGINT received. Starting graceful shutdown...","timestamp":"2026-02-24 13:42:26"}
 {"level":"info","message":"\nSIGINT received. Starting graceful shutdown...","timestamp":"2026-02-24 13:42:59"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-02-24 13:43:24"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-02-24 13:43:25"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-02-24 13:43:25"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-02-24 13:43:25"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-02-24 13:43:25"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-02-24 13:43:25"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-02-24 13:56:47"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-02-24 13:56:47"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-02-24 13:56:47"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-02-24 13:56:47"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-02-24 13:56:47"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-02-24 13:56:47"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-02-24 13:57:00"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-02-24 13:57:00"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-02-24 13:57:00"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-02-24 13:57:00"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-02-24 13:57:00"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-02-24 13:57:00"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-02-24 13:57:23"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-02-24 13:57:23"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-02-24 13:57:23"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-02-24 13:57:23"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-02-24 13:57:23"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-02-24 13:57:23"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/business \u001b[36m304\u001b[0m 413.451 ms - -\u001b[0m","timestamp":"2026-02-24 14:05:11"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/receipt \u001b[36m304\u001b[0m 395.787 ms - -\u001b[0m","timestamp":"2026-02-24 14:05:11"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/pos \u001b[36m304\u001b[0m 411.676 ms - -\u001b[0m","timestamp":"2026-02-24 14:05:11"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 414.075 ms - -\u001b[0m","timestamp":"2026-02-24 14:05:11"}
+{"level":"info","message":"\u001b[0mGET /api/v1/sales?status=completed&size=10 \u001b[36m304\u001b[0m 429.338 ms - -\u001b[0m","timestamp":"2026-02-24 14:05:11"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 110.524 ms - -\u001b[0m","timestamp":"2026-02-24 14:05:11"}
+{"level":"info","message":"\u001b[0mGET /api/v1/sales?status=completed&size=10 \u001b[36m304\u001b[0m 176.992 ms - -\u001b[0m","timestamp":"2026-02-24 14:05:11"}
+{"level":"info","message":"\u001b[0mGET /api/v1/customers/active/list \u001b[36m304\u001b[0m 48.447 ms - -\u001b[0m","timestamp":"2026-02-24 14:05:11"}
+{"level":"info","message":"\u001b[0mGET /uploads/images%5B%5D-1769955324185-861586388.png \u001b[36m304\u001b[0m 4.404 ms - -\u001b[0m","timestamp":"2026-02-24 14:05:12"}
+{"level":"info","message":"\u001b[0mGET /uploads/images%5B%5D-1769933963783-361524460.png \u001b[36m304\u001b[0m 1.967 ms - -\u001b[0m","timestamp":"2026-02-24 14:05:12"}
+{"level":"info","message":"\u001b[0mGET /api/v1/customers/active/list \u001b[36m304\u001b[0m 46.275 ms - -\u001b[0m","timestamp":"2026-02-24 14:05:12"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users/active-sellers \u001b[36m304\u001b[0m 85.116 ms - -\u001b[0m","timestamp":"2026-02-24 14:05:12"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users/active-sellers \u001b[36m304\u001b[0m 33.323 ms - -\u001b[0m","timestamp":"2026-02-24 14:05:12"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 92.436 ms - -\u001b[0m","timestamp":"2026-02-24 14:05:18"}
+{"level":"info","message":"\u001b[0mGET /api/v1/roles \u001b[36m304\u001b[0m 179.076 ms - -\u001b[0m","timestamp":"2026-02-24 14:05:19"}
+{"level":"info","message":"\u001b[0mGET /api/v1/permissions?per_page=200 \u001b[33m404\u001b[0m 212.615 ms - 46\u001b[0m","timestamp":"2026-02-24 14:05:19"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users \u001b[36m304\u001b[0m 231.488 ms - -\u001b[0m","timestamp":"2026-02-24 14:05:19"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 291.224 ms - -\u001b[0m","timestamp":"2026-02-24 14:05:19"}
+{"level":"info","message":"\u001b[0mGET /api/v1/roles \u001b[36m304\u001b[0m 257.182 ms - -\u001b[0m","timestamp":"2026-02-24 14:05:19"}
+{"level":"info","message":"\u001b[0mGET /api/v1/permissions?per_page=200 \u001b[33m404\u001b[0m 199.820 ms - 46\u001b[0m","timestamp":"2026-02-24 14:05:19"}
+{"level":"info","message":"\u001b[0mGET /uploads/logos/logo-1770028207788-496095247.png \u001b[36m304\u001b[0m 2.220 ms - -\u001b[0m","timestamp":"2026-02-24 14:05:19"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users \u001b[36m304\u001b[0m 361.406 ms - -\u001b[0m","timestamp":"2026-02-24 14:05:19"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 254.514 ms - -\u001b[0m","timestamp":"2026-02-24 14:05:19"}
+{"level":"info","message":"\u001b[0mGET /api/v1/stocks?page=1&size=10&product_name= \u001b[32m200\u001b[0m 149.105 ms - -\u001b[0m","timestamp":"2026-02-24 14:05:33"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 243.862 ms - -\u001b[0m","timestamp":"2026-02-24 14:05:33"}
+{"level":"info","message":"\u001b[0mGET /api/v1/stocks?page=1&size=10&product_name= \u001b[36m304\u001b[0m 176.978 ms - -\u001b[0m","timestamp":"2026-02-24 14:05:34"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 219.271 ms - -\u001b[0m","timestamp":"2026-02-24 14:05:34"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 184.927 ms - -\u001b[0m","timestamp":"2026-02-24 14:07:25"}
+{"level":"info","message":"\u001b[0mGET /api/v1/stocks?page=1&size=10&product_name= \u001b[36m304\u001b[0m 319.102 ms - -\u001b[0m","timestamp":"2026-02-24 14:07:25"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 318.354 ms - -\u001b[0m","timestamp":"2026-02-24 14:07:25"}
+{"level":"info","message":"\u001b[0mGET /uploads/logos/logo-1770028207788-496095247.png \u001b[36m304\u001b[0m 8.494 ms - -\u001b[0m","timestamp":"2026-02-24 14:07:25"}
+{"level":"info","message":"\u001b[0mGET /api/v1/stocks?page=1&size=10&product_name= \u001b[32m200\u001b[0m 190.820 ms - -\u001b[0m","timestamp":"2026-02-24 14:07:25"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 282.534 ms - -\u001b[0m","timestamp":"2026-02-24 14:07:25"}
+{"level":"info","message":"\u001b[0mGET /api/v1/stocks?page=1&size=10&product_name=&branch_id=cf3a2759-3c83-42ca-b9f7-97164bfe8918 \u001b[32m200\u001b[0m 122.973 ms - -\u001b[0m","timestamp":"2026-02-24 14:08:59"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 132.390 ms - -\u001b[0m","timestamp":"2026-02-24 14:08:59"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 49.454 ms - -\u001b[0m","timestamp":"2026-02-24 14:09:01"}
+{"level":"info","message":"\u001b[0mGET /api/v1/stocks?page=1&size=10&product_name=&branch_id=ac3be323-0689-4ea0-b436-86171c0b7166 \u001b[32m200\u001b[0m 102.763 ms - 134\u001b[0m","timestamp":"2026-02-24 14:09:01"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 58.423 ms - -\u001b[0m","timestamp":"2026-02-24 14:09:04"}
+{"level":"info","message":"\u001b[0mGET /api/v1/stocks?page=1&size=10&product_name=&branch_id=cf3a2759-3c83-42ca-b9f7-97164bfe8918 \u001b[36m304\u001b[0m 141.278 ms - -\u001b[0m","timestamp":"2026-02-24 14:09:04"}
+{"level":"info","message":"\u001b[0mGET /api/v1/stocks/transfers?page=1&size=10 \u001b[32m200\u001b[0m 100.634 ms - 137\u001b[0m","timestamp":"2026-02-24 14:09:10"}
+{"level":"info","message":"\u001b[0mGET /api/v1/stocks/transfers?page=1&size=10 \u001b[36m304\u001b[0m 106.337 ms - -\u001b[0m","timestamp":"2026-02-24 14:09:10"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 384.171 ms - -\u001b[0m","timestamp":"2026-02-24 14:09:33"}
+{"level":"info","message":"\u001b[0mGET /api/v1/stocks/transfers?page=1&size=10 \u001b[36m304\u001b[0m 386.194 ms - -\u001b[0m","timestamp":"2026-02-24 14:09:33"}
+{"level":"info","message":"\u001b[0mGET /api/v1/stocks/transfers?page=1&size=10 \u001b[36m304\u001b[0m 143.256 ms - -\u001b[0m","timestamp":"2026-02-24 14:09:33"}
+{"level":"info","message":"\u001b[0mGET /uploads/logos/logo-1770028207788-496095247.png \u001b[36m304\u001b[0m 3.763 ms - -\u001b[0m","timestamp":"2026-02-24 14:09:33"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 216.900 ms - -\u001b[0m","timestamp":"2026-02-24 14:09:47"}
+{"level":"info","message":"\u001b[0mGET /api/v1/stocks/transfers?page=1&size=10 \u001b[36m304\u001b[0m 227.649 ms - -\u001b[0m","timestamp":"2026-02-24 14:09:47"}
+{"level":"info","message":"\u001b[0mGET /api/v1/stocks/transfers?page=1&size=10 \u001b[36m304\u001b[0m 94.515 ms - -\u001b[0m","timestamp":"2026-02-24 14:09:47"}
+{"level":"info","message":"\u001b[0mGET /uploads/logos/logo-1770028207788-496095247.png \u001b[36m304\u001b[0m 3.258 ms - -\u001b[0m","timestamp":"2026-02-24 14:09:47"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 297.437 ms - -\u001b[0m","timestamp":"2026-02-24 14:11:25"}
+{"level":"info","message":"\u001b[0mGET /api/v1/stocks/transfers?page=1&size=10 \u001b[36m304\u001b[0m 296.383 ms - -\u001b[0m","timestamp":"2026-02-24 14:11:25"}
+{"level":"info","message":"\u001b[0mGET /api/v1/stocks/transfers?page=1&size=10 \u001b[36m304\u001b[0m 118.028 ms - -\u001b[0m","timestamp":"2026-02-24 14:11:25"}
+{"level":"info","message":"\u001b[0mGET /uploads/logos/logo-1770028207788-496095247.png \u001b[36m304\u001b[0m 4.557 ms - -\u001b[0m","timestamp":"2026-02-24 14:11:25"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 55.355 ms - -\u001b[0m","timestamp":"2026-02-24 14:11:27"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 90.023 ms - -\u001b[0m","timestamp":"2026-02-24 14:11:27"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?search=as \u001b[32m200\u001b[0m 76.146 ms - -\u001b[0m","timestamp":"2026-02-24 14:11:38"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?search=aq \u001b[32m200\u001b[0m 62.519 ms - -\u001b[0m","timestamp":"2026-02-24 14:11:38"}
+{"level":"info","message":"\nSIGINT received. Starting graceful shutdown...","timestamp":"2026-02-24 14:13:19"}
