@@ -50,15 +50,19 @@ const getAllUsers = async (req, res, next) => {
 
 const createUser = async (req, res, next) => {
     try {
-        const { name, email, password, role_ids, branch_ids } = req.body;
+        const { name, first_name, last_name, email, password, role_ids, branch_ids, nic, joined_date } = req.body;
         const organization_id = req.user.organization_id;
 
         const existingUser = await User.findOne({ where: { email } });
         if (existingUser) return errorResponse(res, 'Email already exists', 409);
 
         const hashedPassword = await hashPassword(password);
+
+        // Auto-construct name if not provided
+        const userName = name || [first_name, last_name].filter(Boolean).join(' ') || email.split('@')[0];
+
         const user = await User.create({
-            name, email, password: hashedPassword, organization_id
+            name: userName, first_name, last_name, email, password: hashedPassword, organization_id, nic, joined_date
         });
 
         if (role_ids) await user.setRoles(role_ids);
@@ -94,13 +98,29 @@ const updateUser = async (req, res, next) => {
         const user = await User.findByPk(req.params.id);
         if (!user) return errorResponse(res, 'User not found', 404);
 
-        const { role_ids, branch_ids, password, ...updateData } = req.body;
+        const { role_ids, branch_ids, password, first_name, last_name, name, ...updateData } = req.body;
 
         if (password) {
             updateData.password = await hashPassword(password);
         }
 
-        await user.update(updateData);
+        if (first_name) updateData.first_name = first_name;
+        if (last_name) updateData.last_name = last_name;
+        if (name) {
+            updateData.name = name;
+        } else if (first_name || last_name) {
+            // Re-construct name if components changed but name not explicitly provided
+            const currentFirstName = first_name || user.first_name;
+            const currentLastName = last_name || user.last_name;
+            updateData.name = [currentFirstName, currentLastName].filter(Boolean).join(' ');
+        }
+
+        await user.update({ ...updateData, ...req.body }); // Ensure all fields in req.body are considered, but prioritze our logic
+        // Safer approach:
+        // await user.update(Object.assign(updateData, req.body));
+        // Actually the Destructuring already handled the specific ones. 
+        // Let's stick to a cleaner version.
+
         if (role_ids) await user.setRoles(role_ids);
         if (branch_ids) await user.setBranches(branch_ids);
 

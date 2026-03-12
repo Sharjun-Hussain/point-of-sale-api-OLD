@@ -4,6 +4,7 @@ const { successResponse, errorResponse, paginatedResponse } = require('../utils/
 const { getPagination } = require('../utils/pagination');
 const { Op } = require('sequelize');
 const accountingService = require('../services/accountingService');
+const auditService = require('../services/auditService');
 
 // --- Expense Categories ---
 const getAllExpenseCategories = async (req, res, next) => {
@@ -27,10 +28,14 @@ const getAllExpenses = async (req, res, next) => {
         const { page, size, from_date, to_date } = req.query;
         const { limit, offset } = getPagination(page, size);
 
-        const where = {};
+        const where = { organization_id: req.user.organization_id };
         if (from_date && to_date) {
             where.expense_date = { [Op.between]: [new Date(from_date), new Date(to_date)] };
         }
+
+        const { branch_id, category_id } = req.query;
+        if (branch_id) where.branch_id = branch_id;
+        if (category_id) where.expense_category_id = category_id;
 
         const expenses = await Expense.findAndCountAll({
             where,
@@ -56,12 +61,60 @@ const createExpense = async (req, res, next) => {
     const t = await db.sequelize.transaction();
     try {
         const { organization_id, id: user_id } = req.user;
-        const { payment_method, amount, expense_date, category_id, branch_id: payload_branch_id, cheque_details, reference_no, note } = req.body;
 
-        const branch_id = payload_branch_id || req.user.branch_id;
+        // Handle potentially stringified data from FormData
+        let bodyData = req.body;
+        if (req.body.data) {
+            try {
+                bodyData = JSON.parse(req.body.data);
+            } catch (e) {
+                console.error("Failed to parse req.body.data", e);
+            }
+        }
+
+        const {
+            payment_method,
+            amount,
+            expense_date,
+            category_id,
+            expense_category_id,
+            branch_id: payload_branch_id,
+            cheque_details,
+            reference_no,
+            note,
+            notes
+        } = bodyData;
+
+        let branch_id = payload_branch_id || req.user.branch_id;
+
+        // Fallback to main branch if no branch_id is found
+        if (!branch_id) {
+            const mainBranch = await Branch.findOne({
+                where: { organization_id, is_main: true }
+            });
+            if (mainBranch) {
+                branch_id = mainBranch.id;
+            } else {
+                // Last resort: find any active branch for this org
+                const anyBranch = await Branch.findOne({
+                    where: { organization_id, is_active: true }
+                });
+                if (anyBranch) branch_id = anyBranch.id;
+            }
+        }
+
+        if (!branch_id) {
+            return errorResponse(res, 'No branch associated with user or organization', 400);
+        }
+
+        const actual_category_id = category_id || expense_category_id;
+        const actual_notes = note || notes;
 
         const expense = await Expense.create({
-            ...req.body,
+            ...bodyData,
+            expense_category_id: actual_category_id,
+            notes: actual_notes,
+            receipt_image: req.file ? req.file.path : null,
             organization_id,
             user_id,
             branch_id
@@ -136,6 +189,26 @@ const createExpense = async (req, res, next) => {
         }, t);
 
         await t.commit();
+
+        // Audit Log
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logCreate(
+            organization_id,
+            user_id,
+            'Expense',
+            expense.id,
+            {
+                amount,
+                expense_date: expense.expense_date,
+                payment_method,
+                expense_category_id: actual_category_id,
+                reference_no,
+                branch_id
+            },
+            ipAddress,
+            userAgent
+        );
+
         return successResponse(res, expense, 'Expense recorded successfully', 201);
     } catch (error) {
         await t.rollback();
@@ -144,21 +217,196 @@ const createExpense = async (req, res, next) => {
 };
 
 const updateExpense = async (req, res, next) => {
+    const t = await db.sequelize.transaction();
     try {
-        const expense = await Expense.findByPk(req.params.id);
-        if (!expense) return errorResponse(res, 'Expense not found', 404);
-        await expense.update(req.body);
+        const { organization_id } = req.user;
+        const { id } = req.params;
+
+        const expense = await Expense.findOne({
+            where: { id, organization_id },
+            transaction: t
+        });
+
+        if (!expense) {
+            await t.rollback();
+            return errorResponse(res, 'Expense not found', 404);
+        }
+
+        const oldValues = expense.toJSON();
+        const {
+            amount: newAmount,
+            payment_method: newPaymentMethod,
+            branch_id: newBranchId,
+            expense_date: newExpenseDate,
+            category_id,
+            expense_category_id,
+            note,
+            notes
+        } = req.body;
+
+        const actual_category_id = category_id || expense_category_id;
+        const actual_notes = note || notes;
+
+        // Fields that affect accounting
+        const amountChanged = newAmount !== undefined && parseFloat(newAmount) !== parseFloat(expense.amount);
+        const paymentMethodChanged = newPaymentMethod !== undefined && newPaymentMethod !== expense.payment_method;
+        const branchChanged = newBranchId !== undefined && newBranchId !== expense.branch_id;
+        const dateChanged = newExpenseDate !== undefined && new Date(newExpenseDate).getTime() !== new Date(expense.expense_date).getTime();
+
+        await expense.update({
+            ...req.body,
+            expense_category_id: actual_category_id,
+            notes: actual_notes
+        }, { transaction: t });
+
+        if (amountChanged || paymentMethodChanged || branchChanged || dateChanged) {
+            // Re-calculate accounting transactions
+            // 1. Delete old transactions
+            await Transaction.destroy({
+                where: {
+                    organization_id,
+                    reference_type: 'Expense',
+                    reference_id: expense.id
+                },
+                transaction: t
+            });
+
+            // 2. Record new transactions
+            const [expenseAccount] = await Account.findOrCreate({
+                where: { organization_id, code: '5000' },
+                defaults: { name: 'General Expenses', type: 'expense' },
+                transaction: t
+            });
+
+            const [cashAccount] = await Account.findOrCreate({
+                where: { organization_id, code: '1000' },
+                defaults: { name: 'Cash', type: 'asset' },
+                transaction: t
+            });
+
+            const [chequesPayableAccount] = await Account.findOrCreate({
+                where: { organization_id, code: '2100' },
+                defaults: { name: 'Cheques Payable', type: 'liability' },
+                transaction: t
+            });
+
+            const amount = newAmount || expense.amount;
+            const branch_id = newBranchId || expense.branch_id;
+            const payment_method = newPaymentMethod || expense.payment_method;
+            const expense_date = newExpenseDate || expense.expense_date;
+
+            // Debit Expense
+            await accountingService.recordTransaction({
+                organization_id,
+                branch_id,
+                account_id: expenseAccount.id,
+                amount,
+                type: 'debit',
+                reference_type: 'Expense',
+                reference_id: expense.id,
+                transaction_date: expense_date,
+                description: `Expense Update: ${expense.reference_no || expense.id}`
+            }, t);
+
+            // Credit Asset/Liability
+            const targetAccountId = payment_method === 'cheque' ? chequesPayableAccount.id : cashAccount.id;
+            const accountName = payment_method === 'cheque' ? 'Cheques Payable' : 'Cash';
+
+            await accountingService.recordTransaction({
+                organization_id,
+                branch_id,
+                account_id: targetAccountId,
+                amount,
+                type: 'credit',
+                reference_type: 'Expense',
+                reference_id: expense.id,
+                transaction_date: expense_date,
+                description: `Payment for Updated Expense via ${accountName}`
+            }, t);
+        }
+
+        await t.commit();
+
+        // Audit Log
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logUpdate(
+            organization_id,
+            req.user.id,
+            'Expense',
+            expense.id,
+            oldValues,
+            expense.toJSON(),
+            ipAddress,
+            userAgent
+        );
+
         return successResponse(res, expense, 'Expense updated successfully');
-    } catch (error) { next(error); }
+    } catch (error) {
+        await t.rollback();
+        next(error);
+    }
 };
 
 const deleteExpense = async (req, res, next) => {
+    const t = await db.sequelize.transaction();
     try {
-        const expense = await Expense.findByPk(req.params.id);
-        if (!expense) return errorResponse(res, 'Expense not found', 404);
-        await expense.destroy();
+        const { organization_id } = req.user;
+        const { id } = req.params;
+
+        const expense = await Expense.findOne({
+            where: { id, organization_id },
+            transaction: t
+        });
+
+        if (!expense) {
+            await t.rollback();
+            return errorResponse(res, 'Expense not found', 404);
+        }
+
+        const oldValues = expense.toJSON();
+
+        // 1. Delete associated transactions
+        await Transaction.destroy({
+            where: {
+                organization_id,
+                reference_type: 'Expense',
+                reference_id: expense.id
+            },
+            transaction: t
+        });
+
+        // 2. Delete associated cheques if any
+        await Cheque.destroy({
+            where: {
+                organization_id,
+                reference_type: 'expense',
+                reference_id: expense.id
+            },
+            transaction: t
+        });
+
+        // 3. Delete expense
+        await expense.destroy({ transaction: t });
+
+        await t.commit();
+
+        // Audit Log
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logDelete(
+            organization_id,
+            req.user.id,
+            'Expense',
+            expense.id,
+            oldValues,
+            ipAddress,
+            userAgent
+        );
+
         return successResponse(res, null, 'Expense deleted successfully');
-    } catch (error) { next(error); }
+    } catch (error) {
+        await t.rollback();
+        next(error);
+    }
 };
 
 module.exports = {

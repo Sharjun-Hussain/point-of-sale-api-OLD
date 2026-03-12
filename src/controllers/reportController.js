@@ -4,7 +4,8 @@ const {
     Stock, Branch, Supplier, PurchaseOrder, Expense, Organization
 } = db;
 const { Op, Sequelize } = require('sequelize');
-const { successResponse, errorResponse } = require('../utils/responseHandler');
+const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
+const { getPagination, getPaginationData } = require('../utils/pagination');
 
 const reportController = {
     // 1. Daily Sales Summary
@@ -104,7 +105,7 @@ const reportController = {
     // 2. Sales by Product
     getSalesByProduct: async (req, res, next) => {
         try {
-            const { start_date, end_date, branch_id, main_category_id, brand_id } = req.query;
+            const { start_date, end_date, branch_id, main_category_id, sub_category_id, brand_id, page = 1, limit = 10 } = req.query;
             const organization_id = req.user.organization_id;
 
             const whereClause = { status: 'completed', organization_id };
@@ -129,6 +130,19 @@ const reportController = {
             if (brand_id && brand_id !== 'all') {
                 productWhere.brand_id = brand_id;
             }
+            if (sub_category_id && sub_category_id !== 'all') {
+                productWhere.sub_category_id = sub_category_id;
+            }
+            if (req.query.search) {
+                productWhere[Op.or] = [
+                    { name: { [Op.like]: `%${req.query.search}%` } },
+                    { code: { [Op.like]: `%${req.query.search}%` } }
+                ];
+            }
+
+            // Note: We need to aggregate first, then paginate. 
+            // Since we're grouping by product and variant, items might be numerous.
+            // Using a subquery or calculating the full set is necessary for correct total counts.
 
             const items = await SaleItem.findAll({
                 include: [
@@ -157,10 +171,34 @@ const reportController = {
                     [Sequelize.fn('SUM', Sequelize.col('SaleItem.total_amount')), 'total_revenue']
                 ],
                 group: ['product_id', 'product_variant_id', 'product.id', 'variant.id'],
-                order: [[Sequelize.literal('total_revenue'), 'DESC']]
+                order: [[Sequelize.literal('total_revenue'), 'DESC']],
+                raw: true,
+                nest: true
             });
 
-            return successResponse(res, items, 'Product sales report fetched successfully');
+            // Calculate Summary for the whole set
+            const summary = items.reduce((acc, curr) => ({
+                totalRevenue: acc.totalRevenue + Number(curr.total_revenue),
+                totalSold: acc.totalSold + Number(curr.total_quantity),
+                uniqueProducts: acc.uniqueProducts + 1
+            }), { totalRevenue: 0, totalSold: 0, uniqueProducts: 0 });
+
+            // Pagination
+            const total = items.length;
+            const totalPages = Math.ceil(total / limit);
+            const offset = (page - 1) * limit;
+            const paginatedData = items.slice(offset, offset + Number(limit));
+
+            return successResponse(res, {
+                data: paginatedData,
+                summary,
+                pagination: {
+                    total,
+                    page: Number(page),
+                    limit: Number(limit),
+                    totalPages
+                }
+            }, 'Product sales report fetched successfully');
         } catch (error) { next(error); }
     },
 
@@ -267,6 +305,8 @@ const reportController = {
                 return Number(s.quantity) <= threshold;
             }).map(s => ({
                 id: s.id,
+                variant_id: s.variant_id,
+                product_id: s.product_id,
                 product: s.product.name + (s.variant?.name ? ` (${s.variant.name})` : ''),
                 image: s.product.image,
                 branch: s.branch?.name,
@@ -566,8 +606,9 @@ const reportController = {
     // 10. Category Sales (Main & Sub)
     getCategorySales: async (req, res, next) => {
         try {
-            const { type, start_date, end_date } = req.query; // type: 'main' or 'sub'
+            const { type, start_date, end_date, branch_id, page, size } = req.query; // type: 'main' or 'sub'
             const organization_id = req.user.organization_id;
+            const { limit, offset } = getPagination(page, size);
 
             const dateFilter = {};
             if (start_date && end_date) {
@@ -576,10 +617,14 @@ const reportController = {
                 };
             }
 
+            if (branch_id && branch_id !== 'all') {
+                dateFilter.branch_id = branch_id;
+            }
+
             const isMain = type === 'main';
             const categoryModel = isMain ? 'main_category' : 'sub_category';
 
-            const categorySales = await db.SaleItem.findAll({
+            const categorySales = await db.SaleItem.findAndCountAll({
                 include: [
                     {
                         model: db.Sale,
@@ -602,10 +647,37 @@ const reportController = {
                     [Sequelize.fn('SUM', Sequelize.col('SaleItem.total_amount')), 'total_revenue']
                 ],
                 group: [Sequelize.col(`product->${categoryModel}.id`), Sequelize.col(`product->${categoryModel}.name`)],
-                order: [[Sequelize.literal('total_revenue'), 'DESC']]
+                order: [[Sequelize.literal('total_revenue'), 'DESC']],
+                limit,
+                offset,
+                subQuery: false,
+                distinct: true
             });
 
-            return successResponse(res, categorySales, 'Category sales report fetched successfully');
+            // Calculate grand total revenue for percentage share
+            const totalResult = await db.SaleItem.findAll({
+                include: [
+                    {
+                        model: db.Sale,
+                        as: 'sale',
+                        where: { organization_id, status: 'completed', ...dateFilter },
+                        attributes: []
+                    }
+                ],
+                attributes: [
+                    [Sequelize.fn('SUM', Sequelize.col('SaleItem.total_amount')), 'grand_total_revenue']
+                ],
+                raw: true
+            });
+
+            const grandTotalRevenue = totalResult[0]?.grand_total_revenue || 0;
+
+            return paginatedResponse(res, categorySales.rows, {
+                total: categorySales.count.length, // findAndCountAll with group returns array of counts
+                page: parseInt(page) || 1,
+                limit,
+                grandTotalRevenue
+            }, 'Category sales report fetched successfully');
         } catch (error) { next(error); }
     },
 
@@ -640,8 +712,9 @@ const reportController = {
     // 12. Sold Item Count
     getSoldItemCount: async (req, res, next) => {
         try {
-            const { start_date, end_date, branch_id } = req.query;
+            const { start_date, end_date, branch_id, page, size } = req.query;
             const organization_id = req.user.organization_id;
+            const { limit, offset } = getPagination(page, size);
 
             const dateFilter = {};
             if (start_date && end_date) {
@@ -650,12 +723,22 @@ const reportController = {
                 };
             }
 
-            const items = await db.SaleItem.findAll({
+            const saleWhere = {
+                organization_id,
+                status: 'completed',
+                ...dateFilter
+            };
+
+            if (branch_id && branch_id !== 'all') {
+                saleWhere.branch_id = branch_id;
+            }
+
+            const items = await db.SaleItem.findAndCountAll({
                 include: [
                     {
                         model: db.Sale,
                         as: 'sale',
-                        where: { organization_id, status: 'completed', ...dateFilter, ...(branch_id && branch_id !== 'all' ? { branch_id } : {}) },
+                        where: saleWhere,
                         attributes: []
                     },
                     { model: db.Product, as: 'product', attributes: ['name', 'code'] },
@@ -666,10 +749,37 @@ const reportController = {
                     [Sequelize.fn('SUM', Sequelize.col('quantity')), 'count']
                 ],
                 group: ['product_id', 'product_variant_id', 'product.id', 'variant.id'],
-                order: [[Sequelize.literal('count'), 'DESC']]
+                order: [[Sequelize.literal('count'), 'DESC']],
+                limit,
+                offset,
+                subQuery: false,
+                distinct: true
             });
 
-            return successResponse(res, items, 'Sold item count report fetched successfully');
+            // Calculate total quantity sold for summary card
+            const totalQtyResult = await db.SaleItem.findAll({
+                include: [
+                    {
+                        model: db.Sale,
+                        as: 'sale',
+                        where: saleWhere,
+                        attributes: []
+                    }
+                ],
+                attributes: [
+                    [Sequelize.fn('SUM', Sequelize.col('quantity')), 'total_quantity']
+                ],
+                raw: true
+            });
+
+            const totalQuantity = totalQtyResult[0]?.total_quantity || 0;
+
+            return paginatedResponse(res, items.rows, {
+                total: items.count.length, // Grouping causes count to be an array
+                page: parseInt(page) || 1,
+                limit,
+                totalQuantity
+            }, 'Sold item count report fetched successfully');
         } catch (error) { next(error); }
     },
 
@@ -745,13 +855,14 @@ const reportController = {
     getStockSummary: async (req, res, next) => {
         try {
             const organization_id = req.user.organization_id;
-            const { branch_id, main_category_id } = req.query;
+            const { branch_id, main_category_id, sub_category_id } = req.query;
 
             const where = {};
             if (branch_id && branch_id !== 'all') where.branch_id = branch_id;
 
             const productWhere = {};
             if (main_category_id && main_category_id !== 'all') productWhere.main_category_id = main_category_id;
+            if (sub_category_id && sub_category_id !== 'all') productWhere.sub_category_id = sub_category_id;
 
             const stocks = await db.Stock.findAll({
                 where,
@@ -761,7 +872,10 @@ const reportController = {
                         as: 'product',
                         where: productWhere,
                         attributes: ['name', 'code'],
-                        include: [{ model: db.MainCategory, as: 'main_category', attributes: ['name'] }]
+                        include: [
+                            { model: db.MainCategory, as: 'main_category', attributes: ['name'] },
+                            { model: db.SubCategory, as: 'sub_category', attributes: ['name'] }
+                        ]
                     },
                     { model: db.ProductVariant, as: 'variant', attributes: ['name', 'sku', 'low_stock_threshold'] },
                     {
@@ -782,7 +896,8 @@ const reportController = {
     getSupplierProfit: async (req, res, next) => {
         try {
             const organization_id = req.user.organization_id;
-            const { start_date, end_date, branch_id, supplier_id } = req.query;
+            const { start_date, end_date, branch_id, supplier_id, page = 1, size = 10 } = req.query;
+            const limit = parseInt(size);
 
             const where = { organization_id, status: 'completed' };
             if (branch_id && branch_id !== 'all') {
@@ -819,14 +934,16 @@ const reportController = {
             const profitBySupplier = {};
             items.forEach(item => {
                 const supplier = item.product?.supplier;
-                const supplierId = supplier?.id || 'unknown';
-                const supplierName = supplier?.name || 'Unknown';
+                if (!supplier) return; // Skip if no supplier (though products usually have one)
+
+                const supplierId = supplier.id;
+                const supplierName = supplier.name;
 
                 if (!profitBySupplier[supplierId]) {
                     profitBySupplier[supplierId] = {
                         supplier_name: supplierName,
                         sold: 0,
-                        totalSales: 0,
+                        totalRevenue: 0,
                         discount: 0,
                         cost: 0,
                         netSales: 0,
@@ -838,48 +955,128 @@ const reportController = {
                 const lineDiscount = Number(item.discount_amount || 0);
                 const cost = Number(item.variant?.cost_price || 0) * qty;
 
-                // totalSales is gross (before line discount)
                 profitBySupplier[supplierId].sold += qty;
-                profitBySupplier[supplierId].totalSales += (totalAmount + lineDiscount);
+                profitBySupplier[supplierId].totalRevenue += totalAmount; // This is the net revenue for the supplier
                 profitBySupplier[supplierId].discount += lineDiscount;
-                profitBySupplier[supplierId].netSales += totalAmount;
                 profitBySupplier[supplierId].cost += cost;
                 profitBySupplier[supplierId].profit += (totalAmount - cost);
             });
 
-            const result = Object.values(profitBySupplier).map(stats => ({
+            const allResults = Object.values(profitBySupplier).map(stats => ({
                 ...stats,
-                margin: stats.netSales > 0 ? (stats.profit / stats.netSales) * 100 : 0
+                margin: stats.totalRevenue > 0 ? (stats.profit / stats.totalRevenue) * 100 : 0
             })).sort((a, b) => b.profit - a.profit);
 
-            return successResponse(res, result, 'Supplier profit report fetched successfully');
+            // Summary for the whole set
+            const summaryData = allResults.reduce((acc, curr) => ({
+                totalRevenue: acc.totalRevenue + curr.totalRevenue,
+                totalProfit: acc.totalProfit + curr.profit,
+                activeSuppliers: acc.activeSuppliers + 1
+            }), { totalRevenue: 0, totalProfit: 0, activeSuppliers: 0 });
+
+            summaryData.topSupplier = allResults.length > 0 ? allResults[0] : null;
+
+            // Pagination
+            const total = allResults.length;
+            const totalPages = Math.ceil(total / limit);
+            const offset = (page - 1) * limit;
+            const paginatedData = allResults.slice(offset, offset + limit);
+
+            return successResponse(res, {
+                data: paginatedData,
+                summary: summaryData,
+                pagination: {
+                    total,
+                    page: Number(page),
+                    limit: Number(limit),
+                    totalPages
+                }
+            }, 'Supplier profit report fetched successfully');
         } catch (error) { next(error); }
     },
 
     // 17. Non-Stock Sales Summary
     getNonStockSales: async (req, res, next) => {
         try {
+            const { start_date, end_date, branch_id, page, size } = req.query;
             const organization_id = req.user.organization_id;
-            const { start_date, end_date } = req.query;
+            const { limit, offset } = getPagination(page, size);
 
-            const where = { organization_id, status: 'completed' };
+            const dateFilter = {};
             if (start_date && end_date) {
-                where.created_at = { [Op.between]: [new Date(start_date), new Date(end_date)] };
+                dateFilter.created_at = {
+                    [Op.between]: [new Date(start_date + 'T00:00:00'), new Date(end_date + 'T23:59:59')]
+                };
             }
 
-            const items = await db.SaleItem.findAll({
+            const saleWhere = {
+                organization_id,
+                status: 'completed',
+                ...dateFilter
+            };
+
+            if (branch_id && branch_id !== 'all') {
+                saleWhere.branch_id = branch_id;
+            }
+
+            const items = await db.SaleItem.findAndCountAll({
                 include: [
-                    { model: db.Sale, as: 'sale', where, attributes: [] },
+                    {
+                        model: db.Sale,
+                        as: 'sale',
+                        where: saleWhere,
+                        attributes: ['invoice_number', 'created_at']
+                    },
                     {
                         model: db.Product,
                         as: 'product',
-                        where: { is_stock_managed: false },
+                        required: true,
                         attributes: ['name', 'code']
                     }
-                ]
+                ],
+                order: [['created_at', 'DESC']],
+                limit,
+                offset,
+                subQuery: false,
+                distinct: true
             });
 
-            return successResponse(res, items, 'Non-stock sales report fetched successfully');
+            // Calculate total revenue for summary
+            const totalRevenueResult = await db.SaleItem.findAll({
+                include: [
+                    {
+                        model: db.Sale,
+                        as: 'sale',
+                        where: saleWhere,
+                        attributes: []
+                    },
+                    {
+                        model: db.Product,
+                        as: 'product',
+                        required: true,
+                        attributes: []
+                    }
+                ],
+                attributes: [
+                    [Sequelize.fn('SUM', Sequelize.col('SaleItem.total_amount')), 'total_revenue']
+                ],
+                raw: true
+            });
+
+            const grandTotalRevenue = totalRevenueResult[0]?.total_revenue || 0;
+
+            const totalPages = Math.ceil(items.count / limit);
+
+            return successResponse(res, {
+                data: items.rows,
+                pagination: {
+                    total: items.count,
+                    page: parseInt(page) || 1,
+                    limit,
+                    totalPages,
+                    grandTotalRevenue
+                }
+            }, 'Non-stock sales report fetched successfully');
         } catch (error) { next(error); }
     },
 
@@ -929,6 +1126,51 @@ const reportController = {
     },
 
     // 17. Dashboard Summary
+    // 18. Card Reconciliation Report
+    getCardReconciliation: async (req, res, next) => {
+        try {
+            const { start_date, end_date, branch_id } = req.query;
+            const organization_id = req.user.organization_id;
+
+            const whereClause = {
+                organization_id,
+                status: 'completed',
+                payment_method: 'Card'
+            };
+
+            if (branch_id && branch_id !== 'all') {
+                whereClause.branch_id = branch_id;
+            }
+
+            if (start_date && end_date) {
+                whereClause.created_at = {
+                    [Op.between]: [
+                        new Date(start_date + 'T00:00:00'),
+                        new Date(end_date + 'T23:59:59')
+                    ]
+                };
+            }
+
+            const sales = await Sale.findAll({
+                where: whereClause,
+                attributes: ['invoice_number', 'total_amount', 'tax_amount', 'payable_amount', 'created_at', 'payment_method'],
+                include: [
+                    { model: Branch, as: 'branch', attributes: ['name'] }
+                ],
+                order: [['created_at', 'DESC']]
+            });
+
+            const summary = {
+                totalSales: sales.reduce((sum, s) => sum + Number(s.payable_amount), 0),
+                count: sales.length,
+                // Mocking discrepancy for now as it usually involves third-party bank settlement data
+                discrepancyCount: 0
+            };
+
+            return successResponse(res, { details: sales, summary }, 'Card reconciliation report fetched successfully');
+        } catch (error) { next(error); }
+    },
+
     getDashboardSummary: async (req, res, next) => {
         try {
             const organization_id = req.user.organization_id;

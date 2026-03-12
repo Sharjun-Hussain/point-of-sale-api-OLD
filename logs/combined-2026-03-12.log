@@ -1,0 +1,360 @@
+{"level":"info","message":"\u001b[0mGET /api/v1/audit-logs?page=1&size=20 \u001b[32m200\u001b[0m 125.684 ms - -\u001b[0m","timestamp":"2026-03-12 00:00:09"}
+{"level":"info","message":"\u001b[0mGET /api/v1/audit-logs?page=1&size=20 \u001b[36m304\u001b[0m 160.247 ms - -\u001b[0m","timestamp":"2026-03-12 00:00:09"}
+{"level":"info","message":"\u001b[0mGET /api/v1/organizations \u001b[36m304\u001b[0m 237.937 ms - -\u001b[0m","timestamp":"2026-03-12 00:00:16"}
+{"level":"info","message":"\u001b[0mGET /api/v1/organizations \u001b[36m304\u001b[0m 172.489 ms - -\u001b[0m","timestamp":"2026-03-12 00:00:16"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 312.316 ms - -\u001b[0m","timestamp":"2026-03-12 00:04:20"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 356.057 ms - -\u001b[0m","timestamp":"2026-03-12 00:04:20"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 100.622 ms - -\u001b[0m","timestamp":"2026-03-12 00:04:20"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 00:11:21"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-03-12 00:11:21"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-03-12 00:11:21"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-03-12 00:11:21"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-03-12 00:11:21"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-03-12 00:11:21"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 00:11:38"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-03-12 00:11:38"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-03-12 00:11:38"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-03-12 00:11:38"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-03-12 00:11:38"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-03-12 00:11:38"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 00:12:27"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-03-12 00:12:28"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-03-12 00:12:28"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-03-12 00:12:28"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-03-12 00:12:28"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-03-12 00:12:28"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 00:13:34"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-03-12 00:13:34"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-03-12 00:13:34"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-03-12 00:13:34"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-03-12 00:13:34"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-03-12 00:13:34"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 00:13:38"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-03-12 00:13:38"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-03-12 00:13:38"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-03-12 00:13:38"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-03-12 00:13:38"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-03-12 00:13:38"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 00:13:46"}
+{"level":"error","message":"❌ Attempt 1/5 failed: Access denied for user 'root'@'localhost' (using password: NO)","timestamp":"2026-03-12 00:13:46"}
+{"level":"info","message":"Retrying in 5s...","timestamp":"2026-03-12 00:13:46"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 2/5)","timestamp":"2026-03-12 00:13:51"}
+{"level":"error","message":"❌ Attempt 2/5 failed: ConnectionManager.getConnection was called after the connection manager was closed!","timestamp":"2026-03-12 00:13:51"}
+{"level":"info","message":"Retrying in 5s...","timestamp":"2026-03-12 00:13:51"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 3/5)","timestamp":"2026-03-12 00:13:56"}
+{"level":"error","message":"❌ Attempt 3/5 failed: ConnectionManager.getConnection was called after the connection manager was closed!","timestamp":"2026-03-12 00:13:56"}
+{"level":"info","message":"Retrying in 5s...","timestamp":"2026-03-12 00:13:56"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 4/5)","timestamp":"2026-03-12 00:14:01"}
+{"level":"error","message":"❌ Attempt 4/5 failed: ConnectionManager.getConnection was called after the connection manager was closed!","timestamp":"2026-03-12 00:14:01"}
+{"level":"info","message":"Retrying in 5s...","timestamp":"2026-03-12 00:14:01"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 5/5)","timestamp":"2026-03-12 00:14:06"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 00:14:11"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-03-12 00:14:11"}
+{"level":"info","message":"🚀 Server running on port 0","timestamp":"2026-03-12 00:14:11"}
+{"level":"info","message":"📍 Environment: test","timestamp":"2026-03-12 00:14:11"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-03-12 00:14:11"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 00:14:30"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-03-12 00:14:30"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-03-12 00:14:30"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-03-12 00:14:30"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-03-12 00:14:30"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-03-12 00:14:30"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 00:15:09"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-03-12 00:15:09"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-03-12 00:15:09"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-03-12 00:15:09"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-03-12 00:15:09"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-03-12 00:15:09"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:45:31 +0000] \"POST /api/auth/login HTTP/1.1\" 404 46 \"-\" \"-\"","timestamp":"2026-03-12 00:15:31"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:45:34 +0000] \"POST /api/auth/login HTTP/1.1\" 404 46 \"-\" \"-\"","timestamp":"2026-03-12 00:15:34"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:45:38 +0000] \"POST /api/auth/login HTTP/1.1\" 404 46 \"-\" \"-\"","timestamp":"2026-03-12 00:15:38"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 00:15:55"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-03-12 00:15:55"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-03-12 00:15:55"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-03-12 00:15:55"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-03-12 00:15:55"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-03-12 00:15:55"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:46:18 +0000] \"POST /api/v1/auth/login HTTP/1.1\" 404 46 \"-\" \"-\"","timestamp":"2026-03-12 00:16:18"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 00:16:36"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-03-12 00:16:36"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-03-12 00:16:36"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-03-12 00:16:36"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-03-12 00:16:36"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-03-12 00:16:36"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:47:33 +0000] \"POST /api/v1/auth/login HTTP/1.1\" 404 46 \"-\" \"-\"","timestamp":"2026-03-12 00:17:33"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:47:38 +0000] \"POST /api/v1/auth/login HTTP/1.1\" 404 46 \"-\" \"-\"","timestamp":"2026-03-12 00:17:38"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 00:18:04"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-03-12 00:18:04"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-03-12 00:18:04"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-03-12 00:18:04"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-03-12 00:18:04"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-03-12 00:18:04"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:49:45 +0000] \"POST /api/v1/auth/login HTTP/1.1\" 404 46 \"-\" \"-\"","timestamp":"2026-03-12 00:19:45"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:49:45 +0000] \"POST /api/v1/auth/login HTTP/1.1\" 404 46 \"-\" \"-\"","timestamp":"2026-03-12 00:19:45"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:49:45 +0000] \"POST /api/v1/auth/login HTTP/1.1\" 404 46 \"-\" \"-\"","timestamp":"2026-03-12 00:19:45"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 00:20:34"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-03-12 00:20:34"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-03-12 00:20:35"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-03-12 00:20:35"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-03-12 00:20:35"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-03-12 00:20:35"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:50:52 +0000] \"POST /api/v1/login HTTP/1.1\" 200 - \"-\" \"-\"","timestamp":"2026-03-12 00:20:52"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:50:52 +0000] \"POST /api/v1/login HTTP/1.1\" 401 50 \"-\" \"-\"","timestamp":"2026-03-12 00:20:52"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:50:53 +0000] \"POST /api/v1/login HTTP/1.1\" 401 50 \"-\" \"-\"","timestamp":"2026-03-12 00:20:53"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 00:21:27"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-03-12 00:21:27"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-03-12 00:21:27"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-03-12 00:21:27"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-03-12 00:21:27"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-03-12 00:21:27"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 00:21:53"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-03-12 00:21:53"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-03-12 00:21:53"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-03-12 00:21:53"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-03-12 00:21:53"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-03-12 00:21:53"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:52:01 +0000] \"POST /api/v1/login HTTP/1.1\" 200 - \"-\" \"-\"","timestamp":"2026-03-12 00:22:01"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:52:02 +0000] \"POST /api/v1/login HTTP/1.1\" 401 50 \"-\" \"-\"","timestamp":"2026-03-12 00:22:02"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:52:02 +0000] \"POST /api/v1/login HTTP/1.1\" 401 50 \"-\" \"-\"","timestamp":"2026-03-12 00:22:02"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 00:22:40"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-03-12 00:22:40"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-03-12 00:22:40"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-03-12 00:22:40"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-03-12 00:22:40"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-03-12 00:22:40"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 00:26:02"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-03-12 00:26:02"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-03-12 00:26:03"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-03-12 00:26:03"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-03-12 00:26:03"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-03-12 00:26:03"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:56:20 +0000] \"POST /api/v1/login HTTP/1.1\" 200 - \"-\" \"-\"","timestamp":"2026-03-12 00:26:20"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:56:20 +0000] \"POST /api/v1/organizations HTTP/1.1\" 404 46 \"-\" \"-\"","timestamp":"2026-03-12 00:26:20"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:56:20 +0000] \"POST /api/v1/login HTTP/1.1\" 200 - \"-\" \"-\"","timestamp":"2026-03-12 00:26:20"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:56:20 +0000] \"POST /api/v1/organizations HTTP/1.1\" 404 46 \"-\" \"-\"","timestamp":"2026-03-12 00:26:20"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:56:20 +0000] \"POST /api/v1/login HTTP/1.1\" 200 - \"-\" \"-\"","timestamp":"2026-03-12 00:26:20"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:56:20 +0000] \"POST /api/v1/branches HTTP/1.1\" 201 357 \"-\" \"-\"","timestamp":"2026-03-12 00:26:20"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 00:26:44"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-03-12 00:26:44"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-03-12 00:26:44"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-03-12 00:26:44"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-03-12 00:26:44"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-03-12 00:26:44"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:56:56 +0000] \"POST /api/v1/login HTTP/1.1\" 200 - \"-\" \"-\"","timestamp":"2026-03-12 00:26:56"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:56:56 +0000] \"POST /api/v1/organizations/create HTTP/1.1\" 500 67 \"-\" \"-\"","timestamp":"2026-03-12 00:26:56"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:56:56 +0000] \"POST /api/v1/login HTTP/1.1\" 200 - \"-\" \"-\"","timestamp":"2026-03-12 00:26:56"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:56:56 +0000] \"POST /api/v1/organizations/create HTTP/1.1\" 400 120 \"-\" \"-\"","timestamp":"2026-03-12 00:26:56"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:56:56 +0000] \"POST /api/v1/login HTTP/1.1\" 200 - \"-\" \"-\"","timestamp":"2026-03-12 00:26:56"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:56:56 +0000] \"POST /api/v1/branches HTTP/1.1\" 201 357 \"-\" \"-\"","timestamp":"2026-03-12 00:26:56"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 00:27:31"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-03-12 00:27:31"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-03-12 00:27:31"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-03-12 00:27:31"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-03-12 00:27:31"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-03-12 00:27:31"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:57:38 +0000] \"POST /api/v1/login HTTP/1.1\" 200 - \"-\" \"-\"","timestamp":"2026-03-12 00:27:38"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:57:38 +0000] \"POST /api/v1/organizations/create HTTP/1.1\" 201 920 \"-\" \"-\"","timestamp":"2026-03-12 00:27:38"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:57:38 +0000] \"POST /api/v1/login HTTP/1.1\" 200 - \"-\" \"-\"","timestamp":"2026-03-12 00:27:38"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:57:38 +0000] \"POST /api/v1/organizations/create HTTP/1.1\" 400 120 \"-\" \"-\"","timestamp":"2026-03-12 00:27:38"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:57:39 +0000] \"POST /api/v1/login HTTP/1.1\" 200 - \"-\" \"-\"","timestamp":"2026-03-12 00:27:39"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:57:39 +0000] \"POST /api/v1/branches HTTP/1.1\" 201 357 \"-\" \"-\"","timestamp":"2026-03-12 00:27:39"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 00:29:28"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-03-12 00:29:28"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-03-12 00:29:29"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-03-12 00:29:29"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-03-12 00:29:29"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-03-12 00:29:29"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:59:46 +0000] \"POST /api/v1/login HTTP/1.1\" 200 - \"-\" \"-\"","timestamp":"2026-03-12 00:29:46"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:59:46 +0000] \"POST /api/v1/main-categories HTTP/1.1\" 403 55 \"-\" \"-\"","timestamp":"2026-03-12 00:29:46"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:59:46 +0000] \"POST /api/v1/login HTTP/1.1\" 200 - \"-\" \"-\"","timestamp":"2026-03-12 00:29:46"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:59:46 +0000] \"POST /api/v1/products HTTP/1.1\" 403 55 \"-\" \"-\"","timestamp":"2026-03-12 00:29:46"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:59:46 +0000] \"POST /api/v1/login HTTP/1.1\" 200 - \"-\" \"-\"","timestamp":"2026-03-12 00:29:46"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:59:46 +0000] \"POST /api/v1/products HTTP/1.1\" 403 55 \"-\" \"-\"","timestamp":"2026-03-12 00:29:46"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:18:59:47 +0000] \"POST /api/v1/login HTTP/1.1\" 200 - \"-\" \"-\"","timestamp":"2026-03-12 00:29:47"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 00:30:02"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-03-12 00:30:02"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-03-12 00:30:02"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-03-12 00:30:02"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-03-12 00:30:02"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-03-12 00:30:02"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 00:30:21"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-03-12 00:30:21"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-03-12 00:30:21"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-03-12 00:30:21"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-03-12 00:30:21"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-03-12 00:30:21"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:19:00:35 +0000] \"POST /api/v1/login HTTP/1.1\" 200 - \"-\" \"-\"","timestamp":"2026-03-12 00:30:35"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:19:00:35 +0000] \"POST /api/v1/main-categories HTTP/1.1\" 201 277 \"-\" \"-\"","timestamp":"2026-03-12 00:30:35"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:19:00:35 +0000] \"POST /api/v1/login HTTP/1.1\" 200 - \"-\" \"-\"","timestamp":"2026-03-12 00:30:35"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:19:00:36 +0000] \"POST /api/v1/products HTTP/1.1\" 201 584 \"-\" \"-\"","timestamp":"2026-03-12 00:30:36"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:19:00:36 +0000] \"POST /api/v1/login HTTP/1.1\" 200 - \"-\" \"-\"","timestamp":"2026-03-12 00:30:36"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:19:00:36 +0000] \"POST /api/v1/products HTTP/1.1\" 201 550 \"-\" \"-\"","timestamp":"2026-03-12 00:30:36"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:19:00:37 +0000] \"POST /api/v1/login HTTP/1.1\" 200 - \"-\" \"-\"","timestamp":"2026-03-12 00:30:37"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:19:00:37 +0000] \"GET /api/v1/products HTTP/1.1\" 200 - \"-\" \"-\"","timestamp":"2026-03-12 00:30:37"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 00:30:58"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-03-12 00:30:58"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-03-12 00:30:59"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-03-12 00:30:59"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-03-12 00:30:59"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-03-12 00:30:59"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:19:01:09 +0000] \"POST /api/v1/login HTTP/1.1\" 200 - \"-\" \"-\"","timestamp":"2026-03-12 00:31:09"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:19:01:09 +0000] \"POST /api/v1/main-categories HTTP/1.1\" 201 277 \"-\" \"-\"","timestamp":"2026-03-12 00:31:09"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:19:01:09 +0000] \"POST /api/v1/login HTTP/1.1\" 200 - \"-\" \"-\"","timestamp":"2026-03-12 00:31:09"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:19:01:09 +0000] \"POST /api/v1/products HTTP/1.1\" 201 584 \"-\" \"-\"","timestamp":"2026-03-12 00:31:09"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:19:01:10 +0000] \"POST /api/v1/login HTTP/1.1\" 200 - \"-\" \"-\"","timestamp":"2026-03-12 00:31:10"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:19:01:10 +0000] \"POST /api/v1/products HTTP/1.1\" 400 115 \"-\" \"-\"","timestamp":"2026-03-12 00:31:10"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:19:01:10 +0000] \"POST /api/v1/login HTTP/1.1\" 200 - \"-\" \"-\"","timestamp":"2026-03-12 00:31:10"}
+{"level":"info","message":"::ffff:127.0.0.1 - - [11/Mar/2026:19:01:10 +0000] \"GET /api/v1/products HTTP/1.1\" 200 - \"-\" \"-\"","timestamp":"2026-03-12 00:31:10"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 00:42:43"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-03-12 00:42:43"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-03-12 00:42:43"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-03-12 00:42:43"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-03-12 00:42:43"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-03-12 00:42:43"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 00:42:46"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-03-12 00:42:46"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-03-12 00:42:46"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-03-12 00:42:46"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-03-12 00:42:46"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-03-12 00:42:46"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 00:43:02"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-03-12 00:43:02"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-03-12 00:43:03"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-03-12 00:43:03"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-03-12 00:43:03"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-03-12 00:43:03"}
+{"level":"info","message":"\u001b[0mGET /api/v1/v1/users \u001b[33m404\u001b[0m 59.689 ms - 46\u001b[0m","timestamp":"2026-03-12 00:44:28"}
+{"level":"info","message":"\u001b[0mGET /api/v1/v1/branches/active/list \u001b[33m404\u001b[0m 152.526 ms - 46\u001b[0m","timestamp":"2026-03-12 00:46:05"}
+{"level":"info","message":"\u001b[0mGET /api/v1/v1/roles \u001b[33m404\u001b[0m 176.170 ms - 46\u001b[0m","timestamp":"2026-03-12 00:46:05"}
+{"level":"info","message":"\u001b[0mGET /api/v1/v1/branches/active/list \u001b[33m404\u001b[0m 16.518 ms - 46\u001b[0m","timestamp":"2026-03-12 00:46:05"}
+{"level":"info","message":"\u001b[0mGET /api/v1/v1/roles \u001b[33m404\u001b[0m 17.665 ms - 46\u001b[0m","timestamp":"2026-03-12 00:46:05"}
+{"level":"info","message":"\u001b[0mGET /api/v1/permissions?per_page=200 \u001b[33m404\u001b[0m 15.444 ms - 46\u001b[0m","timestamp":"2026-03-12 00:46:56"}
+{"level":"info","message":"\u001b[0mGET /api/v1/permissions?per_page=200 \u001b[33m404\u001b[0m 36.330 ms - 46\u001b[0m","timestamp":"2026-03-12 00:46:56"}
+{"level":"info","message":"\u001b[0mGET /api/v1/roles \u001b[36m304\u001b[0m 583.988 ms - -\u001b[0m","timestamp":"2026-03-12 00:46:57"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 624.577 ms - -\u001b[0m","timestamp":"2026-03-12 00:46:57"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users \u001b[32m200\u001b[0m 589.430 ms - -\u001b[0m","timestamp":"2026-03-12 00:46:57"}
+{"level":"info","message":"\u001b[0mGET /api/v1/roles \u001b[36m304\u001b[0m 235.676 ms - -\u001b[0m","timestamp":"2026-03-12 00:46:57"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 300.144 ms - -\u001b[0m","timestamp":"2026-03-12 00:46:57"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users \u001b[36m304\u001b[0m 294.957 ms - -\u001b[0m","timestamp":"2026-03-12 00:46:57"}
+{"level":"info","message":"\u001b[0mGET /api/v1/permissions?per_page=200 \u001b[33m404\u001b[0m 447.517 ms - 46\u001b[0m","timestamp":"2026-03-12 00:50:42"}
+{"level":"info","message":"\u001b[0mGET /api/v1/roles \u001b[36m304\u001b[0m 1160.310 ms - -\u001b[0m","timestamp":"2026-03-12 00:50:42"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 1188.187 ms - -\u001b[0m","timestamp":"2026-03-12 00:50:42"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users \u001b[36m304\u001b[0m 1222.111 ms - -\u001b[0m","timestamp":"2026-03-12 00:50:42"}
+{"level":"info","message":"\nSIGINT received. Starting graceful shutdown...","timestamp":"2026-03-12 00:53:37"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-03-12 04:57:10"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-03-12 04:57:10"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-03-12 04:57:10"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-03-12 04:57:10"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-03-12 04:57:10"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-03-12 04:57:10"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[33m401\u001b[0m 27.403 ms - 44\u001b[0m","timestamp":"2026-03-12 04:57:15"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/login \u001b[32m200\u001b[0m 279.472 ms - -\u001b[0m","timestamp":"2026-03-12 04:57:28"}
+{"level":"info","message":"\u001b[0mGET /api/v1/me \u001b[32m200\u001b[0m 52.104 ms - -\u001b[0m","timestamp":"2026-03-12 04:57:28"}
+{"level":"info","message":"\u001b[0mGET /api/v1/reports/dashboard/summary \u001b[31m500\u001b[0m 117.361 ms - 965\u001b[0m","timestamp":"2026-03-12 04:57:31"}
+{"level":"info","message":"\u001b[0mGET /api/v1/reports/dashboard/summary \u001b[31m500\u001b[0m 109.946 ms - 965\u001b[0m","timestamp":"2026-03-12 04:57:31"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 192.048 ms - -\u001b[0m","timestamp":"2026-03-12 04:57:35"}
+{"level":"info","message":"\u001b[0mGET /api/v1/v1/roles \u001b[33m404\u001b[0m 43.628 ms - 46\u001b[0m","timestamp":"2026-03-12 04:57:35"}
+{"level":"info","message":"\u001b[0mGET /api/v1/v1/branches/active/list \u001b[33m404\u001b[0m 42.993 ms - 46\u001b[0m","timestamp":"2026-03-12 04:57:35"}
+{"level":"info","message":"\u001b[0mGET /api/v1/v1/roles \u001b[33m404\u001b[0m 9.359 ms - 46\u001b[0m","timestamp":"2026-03-12 04:57:35"}
+{"level":"info","message":"\u001b[0mGET /api/v1/v1/branches/active/list \u001b[33m404\u001b[0m 10.890 ms - 46\u001b[0m","timestamp":"2026-03-12 04:57:35"}
+{"level":"info","message":"\u001b[0mGET /api/v1/v1/users \u001b[33m404\u001b[0m 10.034 ms - 46\u001b[0m","timestamp":"2026-03-12 04:57:42"}
+{"level":"info","message":"\u001b[0mGET /api/v1/v1/users \u001b[33m404\u001b[0m 8.992 ms - 46\u001b[0m","timestamp":"2026-03-12 04:57:42"}
+{"level":"info","message":"\u001b[0mGET /api/v1/v1/users \u001b[33m404\u001b[0m 46.300 ms - 46\u001b[0m","timestamp":"2026-03-12 04:57:48"}
+{"level":"info","message":"\u001b[0mGET /api/v1/v1/users \u001b[33m404\u001b[0m 82.833 ms - 46\u001b[0m","timestamp":"2026-03-12 04:57:48"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 158.962 ms - -\u001b[0m","timestamp":"2026-03-12 04:57:48"}
+{"level":"info","message":"\u001b[0mGET /api/v1/v1/users \u001b[33m404\u001b[0m 23.024 ms - 46\u001b[0m","timestamp":"2026-03-12 04:58:02"}
+{"level":"info","message":"\u001b[0mGET /api/v1/v1/users \u001b[33m404\u001b[0m 17.243 ms - 46\u001b[0m","timestamp":"2026-03-12 04:58:02"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 297.020 ms - -\u001b[0m","timestamp":"2026-03-12 04:58:03"}
+{"level":"info","message":"\u001b[0mGET /api/v1/purchase-orders \u001b[32m200\u001b[0m 184.492 ms - -\u001b[0m","timestamp":"2026-03-12 04:59:50"}
+{"level":"info","message":"\u001b[0mGET /api/v1/purchase-orders \u001b[36m304\u001b[0m 196.540 ms - -\u001b[0m","timestamp":"2026-03-12 04:59:51"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users \u001b[32m200\u001b[0m 299.582 ms - -\u001b[0m","timestamp":"2026-03-12 05:00:00"}
+{"level":"info","message":"\u001b[0mGET /api/v1/permissions?per_page=200 \u001b[33m404\u001b[0m 36.621 ms - 46\u001b[0m","timestamp":"2026-03-12 05:00:00"}
+{"level":"info","message":"\u001b[0mGET /api/v1/roles \u001b[36m304\u001b[0m 376.069 ms - -\u001b[0m","timestamp":"2026-03-12 05:00:00"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users \u001b[36m304\u001b[0m 494.499 ms - -\u001b[0m","timestamp":"2026-03-12 05:00:00"}
+{"level":"info","message":"\u001b[0mGET /api/v1/permissions?per_page=200 \u001b[33m404\u001b[0m 515.336 ms - 46\u001b[0m","timestamp":"2026-03-12 05:00:00"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 625.147 ms - -\u001b[0m","timestamp":"2026-03-12 05:00:00"}
+{"level":"info","message":"\u001b[0mGET /api/v1/roles \u001b[36m304\u001b[0m 586.919 ms - -\u001b[0m","timestamp":"2026-03-12 05:00:01"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 106.489 ms - -\u001b[0m","timestamp":"2026-03-12 05:00:01"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 1138.257 ms - -\u001b[0m","timestamp":"2026-03-12 05:01:17"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users \u001b[36m304\u001b[0m 1166.892 ms - -\u001b[0m","timestamp":"2026-03-12 05:01:17"}
+{"level":"info","message":"\u001b[0mGET /api/v1/permissions?per_page=200 \u001b[33m404\u001b[0m 1221.252 ms - 46\u001b[0m","timestamp":"2026-03-12 05:01:17"}
+{"level":"info","message":"\u001b[0mGET /api/v1/roles \u001b[36m304\u001b[0m 1458.199 ms - -\u001b[0m","timestamp":"2026-03-12 05:01:17"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 1675.869 ms - -\u001b[0m","timestamp":"2026-03-12 05:01:17"}
+{"level":"info","message":"\u001b[0mGET /api/v1/permissions?per_page=200 \u001b[33m404\u001b[0m 403.469 ms - 46\u001b[0m","timestamp":"2026-03-12 05:01:17"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users \u001b[36m304\u001b[0m 448.328 ms - -\u001b[0m","timestamp":"2026-03-12 05:01:17"}
+{"level":"info","message":"\u001b[0mGET /api/v1/roles \u001b[36m304\u001b[0m 811.789 ms - -\u001b[0m","timestamp":"2026-03-12 05:01:18"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 598.370 ms - -\u001b[0m","timestamp":"2026-03-12 05:01:18"}
+{"level":"info","message":"\u001b[0mGET /api/v1/v1/users \u001b[33m404\u001b[0m 127.061 ms - 46\u001b[0m","timestamp":"2026-03-12 05:01:23"}
+{"level":"info","message":"\u001b[0mGET /api/v1/v1/users \u001b[33m404\u001b[0m 17.606 ms - 46\u001b[0m","timestamp":"2026-03-12 05:01:23"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 227.984 ms - -\u001b[0m","timestamp":"2026-03-12 05:03:56"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users \u001b[36m304\u001b[0m 279.130 ms - -\u001b[0m","timestamp":"2026-03-12 05:03:56"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users \u001b[36m304\u001b[0m 353.932 ms - -\u001b[0m","timestamp":"2026-03-12 05:03:56"}
+{"level":"info","message":"\u001b[0mGET /api/v1/roles \u001b[36m304\u001b[0m 201.702 ms - -\u001b[0m","timestamp":"2026-03-12 05:04:06"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches/active/list \u001b[36m304\u001b[0m 332.936 ms - -\u001b[0m","timestamp":"2026-03-12 05:04:06"}
+{"level":"info","message":"\u001b[0mGET /api/v1/roles \u001b[36m304\u001b[0m 350.957 ms - -\u001b[0m","timestamp":"2026-03-12 05:04:06"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches/active/list \u001b[36m304\u001b[0m 383.113 ms - -\u001b[0m","timestamp":"2026-03-12 05:04:06"}
+{"level":"info","message":"\u001b[0mGET /api/v1/roles \u001b[36m304\u001b[0m 967.106 ms - -\u001b[0m","timestamp":"2026-03-12 05:08:04"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches/active/list \u001b[36m304\u001b[0m 972.994 ms - -\u001b[0m","timestamp":"2026-03-12 05:08:04"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches/active/list \u001b[36m304\u001b[0m 372.782 ms - -\u001b[0m","timestamp":"2026-03-12 05:10:11"}
+{"level":"info","message":"\u001b[0mGET /api/v1/reports/sales/returns?start_date=2026-02-10&end_date=2026-03-12&branch_id=all&user_id=all \u001b[32m200\u001b[0m 402.771 ms - 184\u001b[0m","timestamp":"2026-03-12 05:10:11"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users/active-sellers \u001b[36m304\u001b[0m 407.364 ms - -\u001b[0m","timestamp":"2026-03-12 05:10:11"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches/active/list \u001b[36m304\u001b[0m 141.722 ms - -\u001b[0m","timestamp":"2026-03-12 05:10:11"}
+{"level":"info","message":"\u001b[0mGET /api/v1/reports/sales/returns?start_date=2026-02-10&end_date=2026-03-12&branch_id=all&user_id=all \u001b[36m304\u001b[0m 241.725 ms - -\u001b[0m","timestamp":"2026-03-12 05:10:11"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 368.388 ms - -\u001b[0m","timestamp":"2026-03-12 05:10:11"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users/active-sellers \u001b[36m304\u001b[0m 369.033 ms - -\u001b[0m","timestamp":"2026-03-12 05:10:11"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/login \u001b[32m200\u001b[0m 196.220 ms - -\u001b[0m","timestamp":"2026-03-12 05:19:35"}
+{"level":"info","message":"\u001b[0mGET /api/v1/me \u001b[32m200\u001b[0m 49.799 ms - -\u001b[0m","timestamp":"2026-03-12 05:19:35"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 68.849 ms - -\u001b[0m","timestamp":"2026-03-12 05:19:36"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches/active/list \u001b[36m304\u001b[0m 36.842 ms - -\u001b[0m","timestamp":"2026-03-12 05:19:36"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users/active-sellers \u001b[36m304\u001b[0m 77.534 ms - -\u001b[0m","timestamp":"2026-03-12 05:19:36"}
+{"level":"info","message":"\u001b[0mGET /api/v1/reports/sales/returns?start_date=2026-02-10&end_date=2026-03-12&branch_id=all&user_id=all \u001b[36m304\u001b[0m 139.384 ms - -\u001b[0m","timestamp":"2026-03-12 05:19:36"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches/active/list \u001b[36m304\u001b[0m 117.214 ms - -\u001b[0m","timestamp":"2026-03-12 05:19:36"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users/active-sellers \u001b[36m304\u001b[0m 102.039 ms - -\u001b[0m","timestamp":"2026-03-12 05:19:36"}
+{"level":"info","message":"\u001b[0mGET /api/v1/reports/sales/returns?start_date=2026-02-10&end_date=2026-03-12&branch_id=all&user_id=all \u001b[36m304\u001b[0m 133.286 ms - -\u001b[0m","timestamp":"2026-03-12 05:19:37"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 91.718 ms - -\u001b[0m","timestamp":"2026-03-12 05:19:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users \u001b[32m200\u001b[0m 135.296 ms - -\u001b[0m","timestamp":"2026-03-12 05:19:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users \u001b[36m304\u001b[0m 102.412 ms - -\u001b[0m","timestamp":"2026-03-12 05:19:44"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users \u001b[36m304\u001b[0m 89.054 ms - -\u001b[0m","timestamp":"2026-03-12 05:19:44"}
+{"level":"info","message":"\u001b[0mGET /api/v1/roles \u001b[36m304\u001b[0m 146.919 ms - -\u001b[0m","timestamp":"2026-03-12 05:19:47"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches/active/list \u001b[36m304\u001b[0m 186.766 ms - -\u001b[0m","timestamp":"2026-03-12 05:19:47"}
+{"level":"info","message":"\u001b[0mGET /api/v1/roles \u001b[36m304\u001b[0m 126.199 ms - -\u001b[0m","timestamp":"2026-03-12 05:19:47"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches/active/list \u001b[36m304\u001b[0m 107.691 ms - -\u001b[0m","timestamp":"2026-03-12 05:19:47"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 189.554 ms - -\u001b[0m","timestamp":"2026-03-12 05:20:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/roles \u001b[36m304\u001b[0m 488.802 ms - -\u001b[0m","timestamp":"2026-03-12 05:20:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches/active/list \u001b[36m304\u001b[0m 491.409 ms - -\u001b[0m","timestamp":"2026-03-12 05:20:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches/active/list \u001b[36m304\u001b[0m 214.519 ms - -\u001b[0m","timestamp":"2026-03-12 05:20:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/roles \u001b[36m304\u001b[0m 287.867 ms - -\u001b[0m","timestamp":"2026-03-12 05:20:44"}
+{"level":"info","message":"\u001b[0mGET /api/v1/roles \u001b[36m304\u001b[0m 288.845 ms - -\u001b[0m","timestamp":"2026-03-12 05:22:15"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches/active/list \u001b[36m304\u001b[0m 297.933 ms - -\u001b[0m","timestamp":"2026-03-12 05:22:15"}
+{"level":"info","message":"\u001b[0mGET /api/v1/roles \u001b[36m304\u001b[0m 197.594 ms - -\u001b[0m","timestamp":"2026-03-12 05:22:15"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches/active/list \u001b[36m304\u001b[0m 319.699 ms - -\u001b[0m","timestamp":"2026-03-12 05:22:15"}
+{"level":"info","message":"\u001b[0mGET /api/v1/roles \u001b[36m304\u001b[0m 257.126 ms - -\u001b[0m","timestamp":"2026-03-12 05:22:26"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches/active/list \u001b[36m304\u001b[0m 238.829 ms - -\u001b[0m","timestamp":"2026-03-12 05:22:26"}
+{"level":"info","message":"\u001b[0mGET /api/v1/roles \u001b[36m304\u001b[0m 248.148 ms - -\u001b[0m","timestamp":"2026-03-12 05:22:27"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches/active/list \u001b[36m304\u001b[0m 281.009 ms - -\u001b[0m","timestamp":"2026-03-12 05:22:27"}
+{"level":"info","message":"\u001b[0mGET /api/v1/audit-logs?page=1&size=20 \u001b[32m200\u001b[0m 79.094 ms - -\u001b[0m","timestamp":"2026-03-12 05:22:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/audit-logs?page=1&size=20 \u001b[36m304\u001b[0m 56.305 ms - -\u001b[0m","timestamp":"2026-03-12 05:22:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/audit-logs?page=1&size=20 \u001b[36m304\u001b[0m 92.881 ms - -\u001b[0m","timestamp":"2026-03-12 05:45:55"}
+{"level":"info","message":"\u001b[0mGET /api/v1/audit-logs?page=1&size=20 \u001b[36m304\u001b[0m 73.412 ms - -\u001b[0m","timestamp":"2026-03-12 05:45:56"}
+{"level":"info","message":"\u001b[0mGET /api/v1/permissions?per_page=200 \u001b[33m404\u001b[0m 19.117 ms - 46\u001b[0m","timestamp":"2026-03-12 05:46:31"}
+{"level":"info","message":"\u001b[0mGET /api/v1/permissions?per_page=200 \u001b[33m404\u001b[0m 31.155 ms - 46\u001b[0m","timestamp":"2026-03-12 05:46:31"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users \u001b[36m304\u001b[0m 338.572 ms - -\u001b[0m","timestamp":"2026-03-12 05:46:31"}
+{"level":"info","message":"\u001b[0mGET /api/v1/roles \u001b[36m304\u001b[0m 397.263 ms - -\u001b[0m","timestamp":"2026-03-12 05:46:31"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 404.290 ms - -\u001b[0m","timestamp":"2026-03-12 05:46:31"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users \u001b[36m304\u001b[0m 245.548 ms - -\u001b[0m","timestamp":"2026-03-12 05:46:31"}
+{"level":"info","message":"\u001b[0mGET /api/v1/roles \u001b[36m304\u001b[0m 391.302 ms - -\u001b[0m","timestamp":"2026-03-12 05:46:31"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 397.010 ms - -\u001b[0m","timestamp":"2026-03-12 05:46:31"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 102.946 ms - -\u001b[0m","timestamp":"2026-03-12 05:46:35"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 131.608 ms - -\u001b[0m","timestamp":"2026-03-12 05:46:35"}
+{"level":"info","message":"\u001b[0mGET /api/v1/permissions?per_page=200 \u001b[33m404\u001b[0m 7.314 ms - 46\u001b[0m","timestamp":"2026-03-12 05:46:37"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users \u001b[36m304\u001b[0m 60.164 ms - -\u001b[0m","timestamp":"2026-03-12 05:46:37"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 139.197 ms - -\u001b[0m","timestamp":"2026-03-12 05:46:37"}
+{"level":"info","message":"\u001b[0mGET /api/v1/permissions?per_page=200 \u001b[33m404\u001b[0m 132.499 ms - 46\u001b[0m","timestamp":"2026-03-12 05:46:37"}
+{"level":"info","message":"\u001b[0mGET /api/v1/roles \u001b[36m304\u001b[0m 203.709 ms - -\u001b[0m","timestamp":"2026-03-12 05:46:37"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users \u001b[36m304\u001b[0m 190.533 ms - -\u001b[0m","timestamp":"2026-03-12 05:46:37"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 97.575 ms - -\u001b[0m","timestamp":"2026-03-12 05:46:37"}
+{"level":"info","message":"\u001b[0mGET /api/v1/roles \u001b[36m304\u001b[0m 166.398 ms - -\u001b[0m","timestamp":"2026-03-12 05:46:37"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 62.806 ms - -\u001b[0m","timestamp":"2026-03-12 05:46:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 70.458 ms - -\u001b[0m","timestamp":"2026-03-12 05:46:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/organizations \u001b[36m304\u001b[0m 79.499 ms - -\u001b[0m","timestamp":"2026-03-12 05:46:46"}
+{"level":"info","message":"\u001b[0mGET /api/v1/organizations \u001b[36m304\u001b[0m 71.123 ms - -\u001b[0m","timestamp":"2026-03-12 05:46:46"}

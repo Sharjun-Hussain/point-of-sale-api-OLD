@@ -9,6 +9,14 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             allowNull: false
         },
+        first_name: {
+            type: DataTypes.STRING,
+            allowNull: true
+        },
+        last_name: {
+            type: DataTypes.STRING,
+            allowNull: true
+        },
         email: {
             type: DataTypes.STRING,
             allowNull: false,
@@ -27,6 +35,14 @@ module.exports = (sequelize, DataTypes) => {
         },
         phone: {
             type: DataTypes.STRING,
+            allowNull: true
+        },
+        nic: {
+            type: DataTypes.STRING,
+            allowNull: true
+        },
+        joined_date: {
+            type: DataTypes.DATE,
             allowNull: true
         },
         is_active: {

@@ -177,10 +177,12 @@ process.on('uncaughtException', (err) => {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-// Start the server
-startServer().catch(err => {
-    logger.error('CRITICAL: Failed to start server:', err);
-    process.exit(1);
-});
+// Start the server only if we are not in a test environment
+if (process.env.NODE_ENV !== 'test') {
+    startServer().catch(err => {
+        logger.error('CRITICAL: Failed to start server:', err);
+        process.exit(1);
+    });
+}
 
 module.exports = app;

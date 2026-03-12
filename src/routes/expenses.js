@@ -3,6 +3,7 @@ const router = express.Router();
 const expenseController = require('../controllers/expenseController');
 const authenticate = require('../middleware/auth');
 const { checkPermission } = require('../middleware/permission');
+const upload = require('../middleware/upload');
 
 router.use(authenticate);
 
@@ -12,7 +13,7 @@ router.post('/categories', checkPermission('expense:create'), expenseController.
 
 // Expenses
 router.get('/', checkPermission('expense:view'), expenseController.getAllExpenses);
-router.post('/', checkPermission('expense:create'), expenseController.createExpense);
+router.post('/', checkPermission('expense:create'), upload.single('attachment'), expenseController.createExpense);
 router.put('/:id', checkPermission('expense:edit'), expenseController.updateExpense);
 router.delete('/:id', checkPermission('expense:delete'), expenseController.deleteExpense);
 

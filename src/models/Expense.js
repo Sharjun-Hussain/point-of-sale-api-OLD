@@ -37,6 +37,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             allowNull: true
         },
+        reference_no: {
+            type: DataTypes.STRING,
+            allowNull: true
+        },
         notes: {
             type: DataTypes.TEXT,
             allowNull: true

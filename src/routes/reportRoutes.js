@@ -15,6 +15,7 @@ router.get('/sales/categories', checkPermission('report:view'), reportController
 router.get('/sales/item-count', checkPermission('report:view'), reportController.getSoldItemCount);
 router.get('/sales/supplier-profit', checkPermission('report:view'), reportController.getSupplierProfit);
 router.get('/sales/non-stock', checkPermission('report:view'), reportController.getNonStockSales);
+router.get('/sales/card-reconciliation', checkPermission('report:view'), reportController.getCardReconciliation);
 
 // Stock Reports
 router.get('/stocks/value', checkPermission('report:view'), reportController.getStockValue);

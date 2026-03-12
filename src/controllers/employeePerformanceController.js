@@ -5,7 +5,7 @@ const { successResponse, errorResponse } = require('../utils/responseHandler');
 
 const getEmployeePerformance = async (req, res, next) => {
     try {
-        const { start_date, end_date, user_id } = req.query;
+        const { start_date, end_date, user_id, page = 1, limit = 10 } = req.query;
         const organization_id = req.user.organization_id;
 
         const whereClause = {
@@ -15,7 +15,7 @@ const getEmployeePerformance = async (req, res, next) => {
 
         if (start_date && end_date) {
             whereClause.created_at = {
-                [Op.between]: [new Date(start_date), new Date(end_date)]
+                [Op.between]: [new Date(start_date + 'T00:00:00'), new Date(end_date + 'T23:59:59')]
             };
         }
 
@@ -68,14 +68,36 @@ const getEmployeePerformance = async (req, res, next) => {
 
         // Filter out employees with 0 sales if we are looking for leaderboard/all
         // unless a specific user was requested
-        const result = user_id
+        let filteredResults = user_id
             ? performanceData
             : performanceData.filter(p => p.total_sales > 0);
 
         // Sort by total amount descending
-        result.sort((a, b) => b.total_amount - a.total_amount);
+        filteredResults.sort((a, b) => b.total_amount - a.total_amount);
 
-        return successResponse(res, result, 'Employee performance fetched successfully');
+        // Calculate Summary Stats for the whole filtered set
+        const summary = filteredResults.reduce((acc, curr) => ({
+            totalSales: acc.totalSales + curr.total_sales,
+            totalRevenue: acc.totalRevenue + Number(curr.total_amount),
+            totalCustomers: acc.totalCustomers + curr.total_customers
+        }), { totalSales: 0, totalRevenue: 0, totalCustomers: 0 });
+
+        // Pagination
+        const total = filteredResults.length;
+        const totalPages = Math.ceil(total / limit);
+        const offset = (page - 1) * limit;
+        const paginatedData = filteredResults.slice(offset, offset + Number(limit));
+
+        return successResponse(res, {
+            data: paginatedData,
+            summary,
+            pagination: {
+                total,
+                page: Number(page),
+                limit: Number(limit),
+                totalPages
+            }
+        }, 'Employee performance fetched successfully');
     } catch (error) {
         next(error);
     }

@@ -1,0 +1,5 @@
+{"level":"error","message":"❌ Attempt 1/5 failed: Access denied for user 'root'@'localhost' (using password: NO)","timestamp":"2026-03-12 00:13:46"}
+{"level":"error","message":"❌ Attempt 2/5 failed: ConnectionManager.getConnection was called after the connection manager was closed!","timestamp":"2026-03-12 00:13:51"}
+{"level":"error","message":"❌ Attempt 3/5 failed: ConnectionManager.getConnection was called after the connection manager was closed!","timestamp":"2026-03-12 00:13:56"}
+{"level":"error","message":"❌ Attempt 4/5 failed: ConnectionManager.getConnection was called after the connection manager was closed!","timestamp":"2026-03-12 00:14:01"}
+{"level":"error","message":"❌ Attempt 5/5 failed: ConnectionManager.getConnection was called after the connection manager was closed!","timestamp":"2026-03-12 00:14:06"}
