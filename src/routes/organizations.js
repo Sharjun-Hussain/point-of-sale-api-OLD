@@ -9,6 +9,7 @@ router.use(authenticate);
 
 router.post('/create', upload.single('logo'), checkPermission('org:create'), orgController.createOrganization);
 // Super Admin should see all organizations
+router.get('/stats', checkPermission('org:view'), orgController.getSuperAdminStats);
 router.get('/', checkPermission('org:view'), orgController.getAllOrganizations); // Changed from getOrganization
 router.get('/me', checkPermission('org:view'), orgController.getOrganization);
 router.put('/', checkPermission('org:edit'), orgController.updateOrganization);

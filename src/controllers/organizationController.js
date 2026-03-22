@@ -440,8 +440,28 @@ const toggleBranchStatus = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const getSuperAdminStats = async (req, res, next) => {
+    try {
+        // Strict Super Admin Check
+        const isSuperAdmin = req.user.roles.some(role => role.name === 'Super Admin');
+        if (!isSuperAdmin) return errorResponse(res, 'Unauthorized: Super Admin only', 403);
+
+        const totalOrganizations = await Organization.count();
+        const totalBranches = await Branch.count({ where: { is_active: true } });
+        const totalUsers = await User.count({ where: { is_active: true } });
+
+        return successResponse(res, {
+            totalOrganizations,
+            totalBranches,
+            totalUsers,
+            systemHealth: 'Excellent' // Placeholder
+        }, 'Super admin stats fetched successfully');
+    } catch (error) { next(error); }
+};
+
 module.exports = {
     getOrganization, getAllOrganizations, updateOrganization, createOrganization,
     getOrganizationById, updateOrganizationById, toggleOrganizationStatus, getSubscriptionHistory,
-    getAllBranches, getActiveBranchesList, getBranchById, createBranch, updateBranch, toggleBranchStatus
+    getAllBranches, getActiveBranchesList, getBranchById, createBranch, updateBranch, toggleBranchStatus,
+    getSuperAdminStats
 };
