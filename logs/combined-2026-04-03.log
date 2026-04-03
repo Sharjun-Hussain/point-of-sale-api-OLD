@@ -586,3 +586,48 @@
 {"level":"info","message":"\u001b[0mGET /api/v1/customers/active/list \u001b[36m304\u001b[0m 104.689 ms - -\u001b[0m","timestamp":"2026-04-03 17:19:17"}
 {"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 109.143 ms - -\u001b[0m","timestamp":"2026-04-03 17:19:17"}
 {"level":"info","message":"\u001b[0mGET /api/v1/users/active-sellers \u001b[36m304\u001b[0m 150.298 ms - -\u001b[0m","timestamp":"2026-04-03 17:19:17"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/sales \u001b[32m201\u001b[0m 114.071 ms - 1006\u001b[0m","timestamp":"2026-04-03 17:19:58"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 224.258 ms - -\u001b[0m","timestamp":"2026-04-03 17:20:33"}
+{"level":"info","message":"\u001b[0mGET /api/v1/common/bulk-options \u001b[36m304\u001b[0m 272.411 ms - -\u001b[0m","timestamp":"2026-04-03 17:20:33"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 354.659 ms - -\u001b[0m","timestamp":"2026-04-03 17:20:33"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 177.432 ms - -\u001b[0m","timestamp":"2026-04-03 17:20:33"}
+{"level":"info","message":"\u001b[0mGET /api/v1/common/bulk-options \u001b[36m304\u001b[0m 196.025 ms - -\u001b[0m","timestamp":"2026-04-03 17:20:33"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[36m304\u001b[0m 177.220 ms - -\u001b[0m","timestamp":"2026-04-03 17:20:38"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[36m304\u001b[0m 196.067 ms - -\u001b[0m","timestamp":"2026-04-03 17:20:39"}
+{"level":"info","message":"\u001b[0mGET /api/v1/common/bulk-options \u001b[36m304\u001b[0m 146.486 ms - -\u001b[0m","timestamp":"2026-04-03 17:21:14"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 147.739 ms - -\u001b[0m","timestamp":"2026-04-03 17:21:14"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 171.260 ms - -\u001b[0m","timestamp":"2026-04-03 17:21:15"}
+{"level":"info","message":"\u001b[0mGET /api/v1/common/bulk-options \u001b[36m304\u001b[0m 189.570 ms - -\u001b[0m","timestamp":"2026-04-03 17:21:15"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[36m304\u001b[0m 162.753 ms - -\u001b[0m","timestamp":"2026-04-03 17:23:41"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[36m304\u001b[0m 262.911 ms - -\u001b[0m","timestamp":"2026-04-03 17:23:41"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 111.626 ms - -\u001b[0m","timestamp":"2026-04-03 17:23:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/common/bulk-options \u001b[36m304\u001b[0m 116.827 ms - -\u001b[0m","timestamp":"2026-04-03 17:23:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 59.309 ms - -\u001b[0m","timestamp":"2026-04-03 17:23:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/common/bulk-options \u001b[36m304\u001b[0m 95.660 ms - -\u001b[0m","timestamp":"2026-04-03 17:23:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[36m304\u001b[0m 79.677 ms - -\u001b[0m","timestamp":"2026-04-03 17:23:45"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[36m304\u001b[0m 66.683 ms - -\u001b[0m","timestamp":"2026-04-03 17:23:45"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 73.605 ms - -\u001b[0m","timestamp":"2026-04-03 17:23:48"}
+{"level":"info","message":"\u001b[0mGET /api/v1/common/bulk-options \u001b[36m304\u001b[0m 78.224 ms - -\u001b[0m","timestamp":"2026-04-03 17:23:48"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 66.201 ms - -\u001b[0m","timestamp":"2026-04-03 17:23:48"}
+{"level":"info","message":"\u001b[0mGET /api/v1/common/bulk-options \u001b[36m304\u001b[0m 75.983 ms - -\u001b[0m","timestamp":"2026-04-03 17:23:48"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[36m304\u001b[0m 188.638 ms - -\u001b[0m","timestamp":"2026-04-03 17:31:34"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[36m304\u001b[0m 168.624 ms - -\u001b[0m","timestamp":"2026-04-03 17:31:34"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 87.211 ms - -\u001b[0m","timestamp":"2026-04-03 17:31:37"}
+{"level":"info","message":"\u001b[0mGET /api/v1/common/bulk-options \u001b[36m304\u001b[0m 236.013 ms - -\u001b[0m","timestamp":"2026-04-03 17:31:37"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 237.146 ms - -\u001b[0m","timestamp":"2026-04-03 17:31:37"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 96.625 ms - -\u001b[0m","timestamp":"2026-04-03 17:31:37"}
+{"level":"info","message":"\u001b[0mGET /api/v1/common/bulk-options \u001b[36m304\u001b[0m 110.250 ms - -\u001b[0m","timestamp":"2026-04-03 17:31:37"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-03 17:36:27"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-03 17:36:27"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-03 17:36:27"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-03 17:36:27"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-03 17:36:27"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-03 17:36:27"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-03 17:36:52"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-03 17:36:52"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-03 17:36:52"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-03 17:36:52"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-03 17:36:52"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-03 17:36:52"}
+{"level":"info","message":"\u001b[0mGET /api/v1/common/bulk-options \u001b[36m304\u001b[0m 707.721 ms - -\u001b[0m","timestamp":"2026-04-03 17:38:31"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 632.090 ms - -\u001b[0m","timestamp":"2026-04-03 17:38:31"}

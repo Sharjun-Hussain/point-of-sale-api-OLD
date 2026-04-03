@@ -73,6 +73,13 @@ const createProduct = async (req, res, next) => {
             variants, product_attributes, suppliers // Added suppliers array
         } = req.body;
 
+        // Handle Image Upload
+        let imagePath = null;
+        if (req.files && req.files.length > 0) {
+            const imagePaths = req.files.map(file => file.path);
+            imagePath = JSON.stringify(imagePaths);
+        }
+
         // Create product
         const product = await Product.create({
             name,
@@ -88,7 +95,8 @@ const createProduct = async (req, res, next) => {
             container_id,
             supplier_id,
             is_variant,
-            is_active
+            is_active,
+            image: imagePath
         }, { transaction: t });
 
         // --- ATTR: Handle Product Attributes ---
@@ -257,7 +265,7 @@ const updateProduct = async (req, res, next) => {
             return errorResponse(res, 'Product not found', 404);
         }
 
-        await product.update({
+        const updates = {
             name,
             code,
             description,
@@ -271,7 +279,17 @@ const updateProduct = async (req, res, next) => {
             container_id,
             supplier_id,
             is_variant
-        }, { transaction: t });
+        };
+
+        // Handle Image Upload
+        if (req.files && req.files.length > 0) {
+            const imagePaths = req.files.map(file => file.path);
+            updates.image = JSON.stringify(imagePaths);
+        } else if (req.body.image === null || req.body.image === 'null') {
+            updates.image = null; // enable clearing images
+        }
+
+        await product.update(updates, { transaction: t });
 
         // --- ATTR: Handle Product Attributes ---
         if (product_attributes && Array.isArray(product_attributes)) {

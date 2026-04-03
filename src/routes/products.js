@@ -8,7 +8,7 @@ const upload = require('../middleware/upload');
 router.use(authenticate); // All product routes require authentication
 
 router.get('/', checkPermission('product:view'), productController.getAllProducts);
-router.post('/', checkPermission('product:create'), productController.createProduct);
+router.post('/', checkPermission('product:create'), upload.array('images[]', 10), productController.createProduct);
 router.get('/active/list', productController.getActiveProductsList);
 router.get('/variants/:variantId', checkPermission('product:view'), productController.getVariantById);
 router.get('/stock/check', productController.getProductStock);
@@ -16,7 +16,7 @@ router.get('/:id', checkPermission('product:view'), productController.getProduct
 router.post('/opening-stock', checkPermission('product:create'), productController.createOpeningStock);
 router.get('/export', checkPermission('product:view'), productController.exportProducts);
 router.post('/import', checkPermission('product:create'), productController.importProducts);
-router.put('/:id', checkPermission('product:edit'), productController.updateProduct);
+router.put('/:id', checkPermission('product:edit'), upload.array('images[]', 10), productController.updateProduct);
 router.delete('/:id', checkPermission('product:delete'), productController.deleteProduct);
 
 // Status toggles
