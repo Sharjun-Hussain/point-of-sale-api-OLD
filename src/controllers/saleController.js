@@ -127,7 +127,8 @@ const createSale = async (req, res, next) => {
             where: { organization_id, category: 'general' },
             transaction: t
         });
-        const taxRate = taxSetting?.settings_data?.finance?.taxRate ? parseFloat(taxSetting.settings_data.finance.taxRate) / 100 : 0.08;
+        const rawTaxRate = taxSetting?.settings_data?.finance?.taxRate;
+        const taxRate = (rawTaxRate !== undefined && rawTaxRate !== null && rawTaxRate !== '') ? parseFloat(rawTaxRate) / 100 : 0;
 
         let calculated_total_amount = 0;
         let calculated_total_discount = 0;
