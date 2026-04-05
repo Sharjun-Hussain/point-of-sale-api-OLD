@@ -4,6 +4,7 @@ const { successResponse, errorResponse, paginatedResponse } = require('../utils/
 const { getPagination } = require('../utils/pagination');
 const { Op } = require('sequelize');
 const PDFDocument = require('pdfkit');
+const { sendEmail } = require('../utils/mailer');
 
 const getAllPurchaseOrders = async (req, res, next) => {
     try {
@@ -367,6 +368,113 @@ const generatePOPDF = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const cancelPurchaseOrder = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const po = await PurchaseOrder.findOne({
+            where: { id: id, organization_id: req.user.organization_id }
+        });
+
+        if (!po) return errorResponse(res, 'Purchase Order not found', 404);
+
+        if (['received', 'cancelled'].includes(po.status)) {
+            return errorResponse(res, `Cannot cancel order that is already ${po.status}`, 400);
+        }
+
+        await po.update({ status: 'cancelled' });
+
+        // Add Audit Log
+        await AuditLog.create({
+            organization_id: po.organization_id,
+            user_id: req.user.id,
+            action: 'CANCEL',
+            entity_type: 'PurchaseOrder',
+            entity_id: po.id,
+            description: `Purchase Order ${po.po_number || '#' + po.id} was cancelled.`
+        });
+
+        return successResponse(res, po, 'Purchase Order cancelled successfully');
+    } catch (error) { next(error); }
+};
+
+const emailPurchaseOrder = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const po = await PurchaseOrder.findOne({
+            where: { id: id, organization_id: req.user.organization_id },
+            include: [
+                { model: Supplier, as: 'supplier' },
+                { model: Branch, as: 'branch' },
+                {
+                    model: PurchaseOrderItem, as: 'items',
+                    include: [{ model: Product, as: 'product' }, { model: ProductVariant, as: 'variant' }]
+                }
+            ]
+        });
+
+        if (!po) return errorResponse(res, 'Purchase Order not found', 404);
+        if (!po.supplier || !po.supplier.email) {
+            return errorResponse(res, 'Supplier does not have a registered email address', 400);
+        }
+
+        const itemsHtml = po.items.map(item => `
+            <tr>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd;">${item.product?.name || item.name}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${item.quantity}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">LKR ${Number(item.unit_cost).toFixed(2)}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">LKR ${Number(item.total_amount).toFixed(2)}</td>
+            </tr>
+        `).join('');
+
+        const emailHtml = `
+            <h2>Purchase Order: #${po.po_number}</h2>
+            <p><strong>Date:</strong> ${format(new Date(po.order_date), 'MMM dd, yyyy')}</p>
+            <p><strong>Supplier:</strong> ${po.supplier.name}</p>
+            <p><strong>Ship To:</strong> ${po.branch?.name || 'Main Warehouse'}</p>
+            <hr />
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background-color: #f2f2f2;">
+                        <th style="padding: 8px; text-align: left;">Item Description</th>
+                        <th style="padding: 8px; text-align: center;">Qty</th>
+                        <th style="padding: 8px; text-align: right;">Unit Price</th>
+                        <th style="padding: 8px; text-align: right;">Extension</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itemsHtml}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" style="padding: 8px; text-align: right; font-weight: bold;">Grand Total:</td>
+                        <td style="padding: 8px; text-align: right; font-weight: bold;">LKR ${Number(po.total_amount).toFixed(2)}</td>
+                    </tr>
+                </tfoot>
+            </table>
+            <p><strong>Notes:</strong> ${po.notes || 'N/A'}</p>
+            <p>Please acknowledge the receipt of this order.</p>
+        `;
+
+        await sendEmail({
+            to: po.supplier.email,
+            subject: `PURCHASE ORDER #${po.po_number || po.id} - ${process.env.APP_NAME || 'POS System'}`,
+            html: emailHtml
+        });
+
+        // Add Audit Log
+        await AuditLog.create({
+            organization_id: po.organization_id,
+            user_id: req.user.id,
+            action: 'EMAIL',
+            entity_type: 'PurchaseOrder',
+            entity_id: po.id,
+            description: `Purchase Order ${po.po_number} emailed to ${po.supplier.email}.`
+        });
+
+        return successResponse(res, null, `Purchase Order dispatching initiated to ${po.supplier.email}`);
+    } catch (error) { next(error); }
+};
+
 module.exports = {
     getAllPurchaseOrders,
     getPurchaseOrderById,
@@ -374,5 +482,7 @@ module.exports = {
     updatePurchaseOrder,
     deletePurchaseOrder,
     approvePurchaseOrder,
-    generatePOPDF
+    generatePOPDF,
+    cancelPurchaseOrder,
+    emailPurchaseOrder
 };
