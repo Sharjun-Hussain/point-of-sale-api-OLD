@@ -855,7 +855,17 @@ const reportController = {
     getStockSummary: async (req, res, next) => {
         try {
             const organization_id = req.user.organization_id;
-            const { branch_id, main_category_id, sub_category_id } = req.query;
+            const { 
+                branch_id, 
+                main_category_id, 
+                sub_category_id, 
+                page = 1, 
+                size = 20, 
+                search, 
+                status 
+            } = req.query;
+
+            const { limit, offset } = getPagination(page, size);
 
             const where = {};
             if (branch_id && branch_id !== 'all') where.branch_id = branch_id;
@@ -863,8 +873,28 @@ const reportController = {
             const productWhere = {};
             if (main_category_id && main_category_id !== 'all') productWhere.main_category_id = main_category_id;
             if (sub_category_id && sub_category_id !== 'all') productWhere.sub_category_id = sub_category_id;
+            
+            if (search) {
+                productWhere[Op.or] = [
+                    { name: { [Op.like]: `%${search}%` } },
+                    { code: { [Op.like]: `%${search}%` } },
+                    { '$variant.sku$': { [Op.like]: `%${search}%` } }
+                ];
+            }
 
-            const stocks = await db.Stock.findAll({
+            // Status Filtering
+            if (status === 'out') {
+                where.quantity = { [Op.lte]: 0 };
+            } else if (status === 'low') {
+                where[Op.and] = [
+                    { quantity: { [Op.gt]: 0 } },
+                    { quantity: { [Op.lte]: Sequelize.col('variant.low_stock_threshold') } }
+                ];
+            } else if (status === 'healthy') {
+                where.quantity = { [Op.gt]: Sequelize.col('variant.low_stock_threshold') };
+            }
+
+            const stocks = await db.Stock.findAndCountAll({
                 where,
                 include: [
                     {
@@ -877,7 +907,11 @@ const reportController = {
                             { model: db.SubCategory, as: 'sub_category', attributes: ['name'] }
                         ]
                     },
-                    { model: db.ProductVariant, as: 'variant', attributes: ['name', 'sku', 'low_stock_threshold'] },
+                    { 
+                        model: db.ProductVariant, 
+                        as: 'variant', 
+                        attributes: ['name', 'sku', 'low_stock_threshold'] 
+                    },
                     {
                         model: db.Branch,
                         as: 'branch',
@@ -885,10 +919,51 @@ const reportController = {
                         attributes: ['name']
                     }
                 ],
-                order: [['product', 'name', 'ASC']]
+                limit,
+                offset,
+                order: [['product', 'name', 'ASC']],
+                subQuery: false,
+                distinct: true
             });
 
-            return successResponse(res, stocks, 'Stock summary fetched successfully');
+            // Calculate Global Stats for the top cards (only if first page or specifically requested)
+            // In a real high-perf app, these would be cached or retrieved via a separate optimized query
+            const totalItems = await db.Stock.count({ where: { organization_id: req.user.organization_id } });
+            const totalQty = await db.Stock.sum('quantity', { where: { organization_id: req.user.organization_id } });
+            
+            // Logic for low/out matches the frontend behavior
+            const allStocks = await db.Stock.findAll({ 
+                where: { organization_id: req.user.organization_id }, 
+                attributes: ['quantity'],
+                include: [{ model: db.ProductVariant, as: 'variant', attributes: ['low_stock_threshold'] }]
+            });
+
+            const lowStockCount = allStocks.filter(s => {
+                const threshold = Number(s.variant?.low_stock_threshold || 10);
+                return Number(s.quantity) > 0 && Number(s.quantity) <= threshold;
+            }).length;
+
+            const outOfStockCount = allStocks.filter(s => Number(s.quantity) <= 0).length;
+
+            return res.status(200).json({
+                status: 'success',
+                message: 'Stock summary fetched successfully',
+                data: {
+                    data: stocks.rows,
+                    pagination: {
+                        total: stocks.count,
+                        page: parseInt(page),
+                        limit,
+                        pages: Math.ceil(stocks.count / limit),
+                        stats: {
+                            totalItems,
+                            totalQty: totalQty || 0,
+                            lowStock: lowStockCount,
+                            outOfStock: outOfStockCount
+                        }
+                    }
+                }
+            });
         } catch (error) { next(error); }
     },
 
