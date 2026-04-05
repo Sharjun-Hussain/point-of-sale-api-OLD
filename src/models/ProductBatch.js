@@ -49,6 +49,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.BOOLEAN,
             defaultValue: true
         },
+        expiration_status: {
+            type: DataTypes.ENUM('normal', 'warning', 'critical', 'expired'),
+            defaultValue: 'normal'
+        },
         opening_stock_id: {
             type: DataTypes.UUID,
             allowNull: true

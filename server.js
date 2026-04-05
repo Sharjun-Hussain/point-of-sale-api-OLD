@@ -21,6 +21,7 @@ const rateLimiter = require('./src/middleware/rateLimiter');
 
 // Import scheduled jobs
 const { scheduleSubscriptionCheck } = require('./src/jobs/subscriptionScheduler');
+const { scheduleExpiryWatcher } = require('./src/jobs/expiryWatcher');
 
 // Initialize Express app
 const app = express();
@@ -111,6 +112,7 @@ const startServer = async () => {
 
             // Start scheduled jobs
             await scheduleSubscriptionCheck();
+            await scheduleExpiryWatcher();
 
             // Start server
             server = app.listen(PORT, () => {
