@@ -547,3 +547,56 @@
 {"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-05 21:25:54"}
 {"level":"info","message":"📍 Environment: development","timestamp":"2026-04-05 21:25:54"}
 {"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-05 21:25:54"}
+{"level":"info","message":"\u001b[0mGET /api/v1/purchase-orders/15fd2927-8450-4d8d-9d1a-6b56bfb6ab5d \u001b[36m304\u001b[0m 363.641 ms - -\u001b[0m","timestamp":"2026-04-05 21:41:48"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/suppliers/grn \u001b[32m201\u001b[0m 247.585 ms - 646\u001b[0m","timestamp":"2026-04-05 21:42:32"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers?size=200 \u001b[36m304\u001b[0m 93.014 ms - -\u001b[0m","timestamp":"2026-04-05 21:42:32"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/grn?page=1&size=10 \u001b[32m200\u001b[0m 181.020 ms - -\u001b[0m","timestamp":"2026-04-05 21:42:32"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers?size=200 \u001b[36m304\u001b[0m 126.964 ms - -\u001b[0m","timestamp":"2026-04-05 21:42:33"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/grn?page=1&size=10 \u001b[36m304\u001b[0m 67.023 ms - -\u001b[0m","timestamp":"2026-04-05 21:42:33"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/grn/348b8c4c-b9c8-4236-ae75-02ef5a8aa2ea \u001b[32m200\u001b[0m 217.879 ms - -\u001b[0m","timestamp":"2026-04-05 21:42:44"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/grn/348b8c4c-b9c8-4236-ae75-02ef5a8aa2ea \u001b[36m304\u001b[0m 136.294 ms - -\u001b[0m","timestamp":"2026-04-05 21:42:44"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers?size=200 \u001b[36m304\u001b[0m 59.745 ms - -\u001b[0m","timestamp":"2026-04-05 21:42:53"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/grn?page=1&size=10 \u001b[36m304\u001b[0m 109.946 ms - -\u001b[0m","timestamp":"2026-04-05 21:42:53"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers?size=200 \u001b[36m304\u001b[0m 125.759 ms - -\u001b[0m","timestamp":"2026-04-05 21:42:53"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/grn?page=1&size=10 \u001b[36m304\u001b[0m 201.813 ms - -\u001b[0m","timestamp":"2026-04-05 21:42:53"}
+{"level":"info","message":"\u001b[0mGET /api/v1/purchase-orders \u001b[32m200\u001b[0m 98.088 ms - -\u001b[0m","timestamp":"2026-04-05 21:43:04"}
+{"level":"info","message":"\u001b[0mGET /api/v1/purchase-orders \u001b[36m304\u001b[0m 137.011 ms - -\u001b[0m","timestamp":"2026-04-05 21:43:04"}
+{"level":"info","message":"\u001b[0mGET /api/v1/purchase-returns \u001b[36m304\u001b[0m 76.430 ms - -\u001b[0m","timestamp":"2026-04-05 21:43:13"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers?size=200 \u001b[36m304\u001b[0m 105.094 ms - -\u001b[0m","timestamp":"2026-04-05 21:43:13"}
+{"level":"info","message":"\u001b[0mGET /api/v1/purchase-returns \u001b[36m304\u001b[0m 108.416 ms - -\u001b[0m","timestamp":"2026-04-05 21:43:13"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers?size=200 \u001b[36m304\u001b[0m 118.459 ms - -\u001b[0m","timestamp":"2026-04-05 21:43:13"}
+{"level":"info","message":"\nSIGINT received. Starting graceful shutdown...","timestamp":"2026-04-05 21:52:03"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-05 21:56:06"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-05 21:56:06"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-05 21:56:07"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-05 21:56:07"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-05 21:56:07"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-05 21:56:07"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 251.310 ms - -\u001b[0m","timestamp":"2026-04-05 21:56:18"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches/active/list \u001b[36m304\u001b[0m 274.104 ms - -\u001b[0m","timestamp":"2026-04-05 21:56:18"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=100 \u001b[32m200\u001b[0m 279.475 ms - -\u001b[0m","timestamp":"2026-04-05 21:56:18"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 131.776 ms - -\u001b[0m","timestamp":"2026-04-05 21:56:18"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches/active/list \u001b[36m304\u001b[0m 248.258 ms - -\u001b[0m","timestamp":"2026-04-05 21:56:18"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=100 \u001b[36m304\u001b[0m 326.879 ms - -\u001b[0m","timestamp":"2026-04-05 21:56:19"}
+{"level":"info","message":"\u001b[0mGET /api/v1/purchase-orders?supplier_id=6beb3d0b-e924-424c-8846-b4482fdf0e92 \u001b[36m304\u001b[0m 343.862 ms - -\u001b[0m","timestamp":"2026-04-05 21:56:24"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/grn?supplier_id=6beb3d0b-e924-424c-8846-b4482fdf0e92 \u001b[36m304\u001b[0m 348.890 ms - -\u001b[0m","timestamp":"2026-04-05 21:56:24"}
+{"level":"info","message":"\u001b[0mGET /api/v1/purchase-orders?supplier_id=7124cd97-cfcb-4e2e-9573-a1cab1ef0bc3 \u001b[32m200\u001b[0m 71.451 ms - -\u001b[0m","timestamp":"2026-04-05 21:56:27"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/grn?supplier_id=7124cd97-cfcb-4e2e-9573-a1cab1ef0bc3 \u001b[36m304\u001b[0m 125.787 ms - -\u001b[0m","timestamp":"2026-04-05 21:56:27"}
+{"level":"info","message":"\u001b[0mGET /api/v1/purchase-orders/a1d432c0-1e2f-46f7-9889-7b10ed7ac8f7 \u001b[32m200\u001b[0m 100.507 ms - -\u001b[0m","timestamp":"2026-04-05 21:56:29"}
+{"level":"info","message":"\u001b[0mGET /api/v1/purchase-orders/a1d432c0-1e2f-46f7-9889-7b10ed7ac8f7 \u001b[36m304\u001b[0m 89.121 ms - -\u001b[0m","timestamp":"2026-04-05 21:56:29"}
+{"level":"info","message":"\u001b[0mGET /api/v1/purchase-orders/a1d432c0-1e2f-46f7-9889-7b10ed7ac8f7 \u001b[36m304\u001b[0m 86.294 ms - -\u001b[0m","timestamp":"2026-04-05 21:56:29"}
+{"level":"info","message":"\u001b[0mGET /api/v1/expense-categories \u001b[36m304\u001b[0m 400.641 ms - -\u001b[0m","timestamp":"2026-04-05 21:57:21"}
+{"level":"info","message":"\u001b[0mGET /api/v1/expense-categories \u001b[36m304\u001b[0m 284.610 ms - -\u001b[0m","timestamp":"2026-04-05 21:57:21"}
+{"level":"info","message":"\u001b[0mGET /api/v1/accounts \u001b[32m200\u001b[0m 237.776 ms - -\u001b[0m","timestamp":"2026-04-05 21:57:33"}
+{"level":"info","message":"\u001b[0mGET /api/v1/accounts \u001b[36m304\u001b[0m 96.605 ms - -\u001b[0m","timestamp":"2026-04-05 21:57:33"}
+{"level":"info","message":"\u001b[0mGET /api/v1/accounts/9cdf1a4f-978a-42e3-8f87-2c6c9dba48cb/ledger \u001b[32m200\u001b[0m 236.646 ms - -\u001b[0m","timestamp":"2026-04-05 21:58:20"}
+{"level":"info","message":"\u001b[0mGET /api/v1/accounts/85956afa-d733-4c60-aebf-6493dd561f4b/ledger \u001b[32m200\u001b[0m 65.662 ms - -\u001b[0m","timestamp":"2026-04-05 21:58:30"}
+{"level":"info","message":"\u001b[0mGET /api/v1/customers/active/list \u001b[36m304\u001b[0m 114.658 ms - -\u001b[0m","timestamp":"2026-04-05 21:58:48"}
+{"level":"info","message":"\u001b[0mGET /api/v1/customers/active/list \u001b[36m304\u001b[0m 152.875 ms - -\u001b[0m","timestamp":"2026-04-05 21:58:48"}
+{"level":"info","message":"\u001b[0mGET /api/v1/customers/de943547-70f7-4109-a0a5-338b518dc729/ledger \u001b[36m304\u001b[0m 86.153 ms - -\u001b[0m","timestamp":"2026-04-05 21:58:52"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-05 22:18:32"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-05 22:18:32"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-05 22:18:32"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-05 22:18:32"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-05 22:18:32"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-05 22:18:32"}

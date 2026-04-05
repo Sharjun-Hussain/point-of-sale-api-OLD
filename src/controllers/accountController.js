@@ -180,6 +180,10 @@ const transferFunds = async (req, res, next) => {
         const organization_id = req.user.organization_id;
         const branch_id = req.user.branch_id;
 
+        if (from_account_id === to_account_id) {
+            return errorResponse(res, 'Source and destination accounts must be different', 400);
+        }
+
         const fromAccount = await Account.findOne({ where: { id: from_account_id, organization_id }, transaction: t });
         const toAccount = await Account.findOne({ where: { id: to_account_id, organization_id }, transaction: t });
 
