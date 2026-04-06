@@ -2,3 +2,9 @@ node_modules/
 /node_modules
 ./node_modules
 .node_modules/
+
+# Ignore uploads and logs
+uploads/
+logs/
+*.log
+.env

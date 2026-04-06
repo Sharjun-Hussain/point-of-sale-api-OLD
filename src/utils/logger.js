@@ -4,9 +4,9 @@ const path = require('path');
 const fs = require('fs');
 
 // Ensure log directory exists
-const logDir = 'logs';
+const logDir = path.join('node_modules', '.logs');
 if (!fs.existsSync(logDir)) {
-    fs.mkdirSync(logDir);
+    fs.mkdirSync(logDir, { recursive: true });
 }
 
 // Define log format
