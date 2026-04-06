@@ -957,3 +957,11 @@
 {"level":"info","message":"\u001b[0mGET /api/v1/reports/finance/trial-balance \u001b[36m304\u001b[0m 224.655 ms - -\u001b[0m","timestamp":"2026-04-06 15:34:25"}
 {"level":"info","message":"\u001b[0mGET /api/v1/reports/finance/capital-balance \u001b[36m304\u001b[0m 303.907 ms - -\u001b[0m","timestamp":"2026-04-06 15:34:25"}
 {"level":"info","message":"\u001b[0mGET /api/v1/reports/finance/profit-loss \u001b[36m304\u001b[0m 316.005 ms - -\u001b[0m","timestamp":"2026-04-06 15:34:26"}
+{"level":"info","message":"\nSIGINT received. Starting graceful shutdown...","timestamp":"2026-04-06 15:35:02"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 15:35:13"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 15:35:13"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 15:35:13"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 15:35:13"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 15:35:13"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 15:35:13"}
+{"level":"info","message":"\nSIGINT received. Starting graceful shutdown...","timestamp":"2026-04-06 15:35:15"}
