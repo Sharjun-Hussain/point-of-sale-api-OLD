@@ -331,7 +331,7 @@ fi
 
 # Test connection with app credentials
 print_status "Testing connection with application credentials..."
-if mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASSWORD" -e "SELECT 1;" 2>/dev/null; then
+if mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASSWORD" -e "SELECT 1;"; then
     print_status "Application credentials verified successfully"
 else
     print_error "Application credentials test failed!"
@@ -344,12 +344,12 @@ fi
 
 # Bootstrap Database (Schema & Essential Data)
 print_status "Bootstrapping database from models..."
-if pnpm run db:bootstrap; then
+if DB_USER="$DB_USER" DB_PASSWORD="$DB_PASSWORD" pnpm run db:bootstrap; then
     print_status "Database bootstrap completed successfully"
 else
     print_error "Database bootstrap failed!"
     print_warning "You may need to run bootstrap manually:"
-    echo -e "${YELLOW}  pnpm run db:bootstrap${NC}"
+    echo -e "${YELLOW}  DB_USER=\"$DB_USER\" DB_PASSWORD=\"$DB_PASSWORD\" pnpm run db:bootstrap${NC}"
 fi
 
 # ----------------------------------------------------------------------
@@ -431,6 +431,17 @@ server {
     
     # API Proxy
     location / {
+        # Preflight requests for CORS
+        if (\$request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' '\$http_origin' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE, PATCH' always;
+            add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization' always;
+            add_header 'Access-Control-Max-Age' 1728000 always;
+            add_header 'Content-Type' 'text/plain; charset=utf-8' always;
+            add_header 'Content-Length' 0 always;
+            return 204;
+        }
+
         proxy_pass http://localhost:$PORT;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
@@ -539,10 +550,7 @@ server {
     # Increase max upload size for image uploads
     client_max_body_size 10M;
     
-    # Rate limiting
-    limit_req_zone \$binary_remote_addr zone=api:10m rate=10r/s;
-    limit_req zone=api burst=20 nodelay;
-    
+   
     # Timeouts
     proxy_connect_timeout 60s;
     proxy_send_timeout 60s;

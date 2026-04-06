@@ -26,6 +26,14 @@ const { scheduleExpiryWatcher } = require('./src/jobs/expiryWatcher');
 // Initialize Express app
 const app = express();
 
+// CORS configuration - MUST BE FIRST
+const corsOptions = {
+    origin: process.env.FRONTEND_URL?.split(',').map(origin => origin.trim()) || ['http://localhost:3000', 'https://pos.inzeedo.com'],
+    credentials: true,
+    optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
+
 // Security middleware
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
@@ -36,14 +44,6 @@ app.use(helmet({
         },
     },
 }));
-
-// CORS configuration
-const corsOptions = {
-    origin: process.env.FRONTEND_URL?.split(',') || ['http://localhost:3000', 'https://pos.inzeedo.com'],
-    credentials: true,
-    optionsSuccessStatus: 200
-};
-app.use(cors(corsOptions));
 
 // Body parser middleware
 app.use(express.json({ limit: '10mb' }));

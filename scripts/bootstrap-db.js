@@ -6,8 +6,8 @@ const bcrypt = require('bcryptjs');
 
 async function bootstrap() {
     try {
-        console.log('🚀 Starting Database Bootstrap (Fresh Installation)...');
-
+        console.log(`📡 Connecting as user: ${process.env.DB_USER || 'root'}`);
+        
         // 1. Sync Schema (Create tables if they don't exist)
         // force: false ensures we don't drop tables if they already exist
         await db.sequelize.sync({ force: false });
