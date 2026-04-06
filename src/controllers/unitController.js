@@ -9,7 +9,8 @@ const getAllUnits = async (req, res, next) => {
     try {
         const { page, size, name } = req.query;
         const { limit, offset } = getPagination(page, size);
-        const where = name ? { name: { [Op.like]: `%${name}%` } } : {};
+        const where = { organization_id: req.user.organization_id };
+        if (name) where.name = { [Op.like]: `%${name}%` };
         const units = await Unit.findAndCountAll({ where, limit, offset, order: [['name', 'ASC']] });
         return paginatedResponse(res, units.rows, { total: units.count, page: parseInt(page) || 1, limit }, 'Units fetched');
     } catch (error) { next(error); }
@@ -17,7 +18,7 @@ const getAllUnits = async (req, res, next) => {
 
 const getActiveUnitsList = async (req, res, next) => {
     try {
-        const units = await Unit.findAll({ where: { is_active: true }, order: [['name', 'ASC']] });
+        const units = await Unit.findAll({ where: { is_active: true, organization_id: req.user.organization_id }, order: [['name', 'ASC']] });
         return successResponse(res, units, 'Active units fetched');
     } catch (error) { next(error); }
 };
@@ -45,7 +46,9 @@ const createUnit = async (req, res, next) => {
 
 const updateUnit = async (req, res, next) => {
     try {
-        const unit = await Unit.findByPk(req.params.id);
+        const unit = await Unit.findOne({
+            where: { id: req.params.id, organization_id: req.user.organization_id }
+        });
         if (!unit) return errorResponse(res, 'Not found', 404);
 
         const oldValues = { name: unit.name };
@@ -70,7 +73,9 @@ const updateUnit = async (req, res, next) => {
 
 const toggleUnitStatus = async (req, res, next) => {
     try {
-        const unit = await Unit.findByPk(req.params.id);
+        const unit = await Unit.findOne({
+            where: { id: req.params.id, organization_id: req.user.organization_id }
+        });
         if (!unit) return errorResponse(res, 'Not found', 404);
         const action = req.params.action || (unit.is_active ? 'deactivate' : 'activate');
         unit.is_active = (action === 'activate');
@@ -97,7 +102,8 @@ const getAllMeasurementUnits = async (req, res, next) => {
     try {
         const { page, size, name } = req.query;
         const { limit, offset } = getPagination(page, size);
-        const where = name ? { name: { [Op.like]: `%${name}%` } } : {};
+        const where = { organization_id: req.user.organization_id };
+        if (name) where.name = { [Op.like]: `%${name}%` };
         const units = await MeasurementUnit.findAndCountAll({ where, limit, offset, order: [['name', 'ASC']] });
         return paginatedResponse(res, units.rows, { total: units.count, page: parseInt(page) || 1, limit }, 'Measurement Units fetched');
     } catch (error) { next(error); }
@@ -105,7 +111,7 @@ const getAllMeasurementUnits = async (req, res, next) => {
 
 const getActiveMeasurementUnitsList = async (req, res, next) => {
     try {
-        const units = await MeasurementUnit.findAll({ where: { is_active: true }, order: [['name', 'ASC']] });
+        const units = await MeasurementUnit.findAll({ where: { is_active: true, organization_id: req.user.organization_id }, order: [['name', 'ASC']] });
         return successResponse(res, units, 'Active measurement units fetched');
     } catch (error) { next(error); }
 };
@@ -133,7 +139,9 @@ const createMeasurementUnit = async (req, res, next) => {
 
 const updateMeasurementUnit = async (req, res, next) => {
     try {
-        const unit = await MeasurementUnit.findByPk(req.params.id);
+        const unit = await MeasurementUnit.findOne({
+            where: { id: req.params.id, organization_id: req.user.organization_id }
+        });
         if (!unit) return errorResponse(res, 'Not found', 404);
 
         const oldValues = { name: unit.name };
@@ -158,7 +166,9 @@ const updateMeasurementUnit = async (req, res, next) => {
 
 const toggleMeasurementStatus = async (req, res, next) => {
     try {
-        const unit = await MeasurementUnit.findByPk(req.params.id);
+        const unit = await MeasurementUnit.findOne({
+            where: { id: req.params.id, organization_id: req.user.organization_id }
+        });
         if (!unit) return errorResponse(res, 'Not found', 404);
         const action = req.params.action || (unit.is_active ? 'deactivate' : 'activate');
         unit.is_active = (action === 'activate');

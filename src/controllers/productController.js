@@ -12,7 +12,7 @@ const getAllProducts = async (req, res, next) => {
         const { page, size, name, category_id } = req.query;
         const { limit, offset } = getPagination(page, size);
 
-        const where = {};
+        const where = { organization_id: req.user.organization_id };
         if (name) {
             where.name = { [Op.like]: `%${name}%` };
         }
@@ -80,13 +80,13 @@ const createProduct = async (req, res, next) => {
             imagePath = JSON.stringify(imagePaths);
         }
 
+        const organization_id = req.user.organization_id;
+
         // Create product
         const product = await Product.create({
             name,
-            code,
+            code: code === '' ? null : code,
             description,
-            sku,
-            barcode,
             main_category_id,
             sub_category_id,
             brand_id,
@@ -96,7 +96,8 @@ const createProduct = async (req, res, next) => {
             supplier_id,
             is_variant,
             is_active,
-            image: imagePath
+            image: imagePath,
+            organization_id
         }, { transaction: t });
 
         // --- ATTR: Handle Product Attributes ---
@@ -128,15 +129,15 @@ const createProduct = async (req, res, next) => {
                 // Link Attributes if provided (e.g., v.attributes = [{ name: 'Color', value: 'Red' }])
                 if (v.attributes && Array.isArray(v.attributes)) {
                     for (const attrData of v.attributes) {
-                        // 1. Find or Create Attribute
+                        // 1. Find or Create Attribute (Filtered by Org)
                         const [attribute] = await Attribute.findOrCreate({
-                            where: { name: attrData.name },
+                            where: { name: attrData.name, organization_id },
                             transaction: t
                         });
 
-                        // 2. Find or Create Attribute Value
+                        // 2. Find or Create Attribute Value (Filtered by Org)
                         const [attrValue] = await AttributeValue.findOrCreate({
-                            where: { attribute_id: attribute.id, value: attrData.value },
+                            where: { attribute_id: attribute.id, value: attrData.value, organization_id },
                             transaction: t
                         });
 
@@ -153,7 +154,7 @@ const createProduct = async (req, res, next) => {
         await t.commit();
 
         const createdProduct = await Product.findOne({
-            where: { id: product.id },
+            where: { id: product.id, organization_id },
             include: [
                 {
                     model: Attribute,
@@ -206,7 +207,8 @@ const createProduct = async (req, res, next) => {
 
 const getProductById = async (req, res, next) => {
     try {
-        const product = await Product.findByPk(req.params.id, {
+        const product = await Product.findOne({
+            where: { id: req.params.id, organization_id: req.user.organization_id },
             include: [
                 { model: MainCategory, as: 'main_category' },
                 { model: SubCategory, as: 'sub_category' },
@@ -259,7 +261,11 @@ const updateProduct = async (req, res, next) => {
             variants, product_attributes, suppliers // Added suppliers
         } = req.body;
 
-        const product = await Product.findByPk(id);
+        const organization_id = req.user.organization_id;
+
+        const product = await Product.findOne({
+            where: { id, organization_id }
+        });
         if (!product) {
             await t.rollback();
             return errorResponse(res, 'Product not found', 404);
@@ -267,10 +273,8 @@ const updateProduct = async (req, res, next) => {
 
         const updates = {
             name,
-            code,
+            code: code === '' ? null : code,
             description,
-            sku,
-            barcode,
             main_category_id,
             sub_category_id,
             brand_id,
@@ -324,7 +328,9 @@ const updateProduct = async (req, res, next) => {
             for (const variantData of variants) {
                 if (variantData.id) {
                     // Update existing variant
-                    const variant = await ProductVariant.findOne({ where: { id: variantData.id, product_id: id } });
+                    const variant = await ProductVariant.findOne({ 
+                        where: { id: variantData.id, product_id: id, organization_id } 
+                    });
                     if (variant) {
                         await variant.update(variantData, { transaction: t });
                     }
@@ -341,7 +347,8 @@ const updateProduct = async (req, res, next) => {
         await t.commit();
 
         // Fetch fresh product with all associations
-        const updatedProduct = await Product.findByPk(id, {
+        const updatedProduct = await Product.findOne({
+            where: { id, organization_id },
             include: [
                 {
                     model: Attribute,
@@ -383,7 +390,9 @@ const updateProduct = async (req, res, next) => {
 const deleteProduct = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const product = await Product.findByPk(id);
+        const product = await Product.findOne({
+            where: { id, organization_id: req.user.organization_id }
+        });
         if (!product) {
             return errorResponse(res, 'Product not found', 404);
         }
@@ -416,14 +425,14 @@ const deleteProduct = async (req, res, next) => {
 const getActiveProductsList = async (req, res, next) => {
     try {
         const products = await Product.findAll({
-            where: { is_active: true },
+            where: { is_active: true, organization_id: req.user.organization_id },
             include: [
                 { model: MainCategory, as: 'main_category' },
                 { model: Brand, as: 'brand' },
                 {
                     model: ProductVariant,
                     as: 'variants',
-                    where: { is_active: true },
+                    where: { is_active: true, organization_id: req.user.organization_id },
                     required: false,
                     include: [
                         {
@@ -444,12 +453,29 @@ const getActiveProductsList = async (req, res, next) => {
 
 const toggleProductStatus = async (req, res, next) => {
     try {
-        const product = await Product.findByPk(req.params.id);
+        const product = await Product.findOne({
+            where: { id: req.params.id, organization_id: req.user.organization_id }
+        });
         if (!product) return errorResponse(res, 'Product not found', 404);
 
         const action = req.params.action || (product.is_active ? 'deactivate' : 'activate');
+        const oldStatus = product.is_active;
         product.is_active = (action === 'activate');
         await product.save();
+
+        // Log product status toggle
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logUpdate(
+            req.user?.organization_id,
+            req.user?.id,
+            'Product',
+            product.id,
+            { is_active: oldStatus },
+            { is_active: product.is_active },
+            ipAddress,
+            userAgent,
+            { action: `Product ${action}d` }
+        );
 
         return successResponse(res, product, `Product ${action}d successfully`);
     } catch (error) {
@@ -460,13 +486,32 @@ const toggleProductStatus = async (req, res, next) => {
 const toggleVariantStatus = async (req, res, next) => {
     try {
         const variant = await ProductVariant.findOne({
-            where: { id: req.params.variantId, product_id: req.params.id }
+            where: { 
+                id: req.params.variantId, 
+                product_id: req.params.id,
+                organization_id: req.user.organization_id 
+            }
         });
         if (!variant) return errorResponse(res, 'Variant not found', 404);
 
         const action = req.params.action || (variant.is_active ? 'deactivate' : 'activate');
+        const oldStatus = variant.is_active;
         variant.is_active = (action === 'activate');
         await variant.save();
+
+        // Log variant status toggle
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logUpdate(
+            req.user?.organization_id,
+            req.user?.id,
+            'ProductVariant',
+            variant.id,
+            { is_active: oldStatus },
+            { is_active: variant.is_active },
+            ipAddress,
+            userAgent,
+            { action: `Variant ${action}d`, product_id: req.params.id }
+        );
 
         return successResponse(res, variant, `Variant ${action}d successfully`);
     } catch (error) {
@@ -486,7 +531,10 @@ const createVariant = async (req, res, next) => {
             attributes
         } = req.body;
 
-        const product = await Product.findByPk(id);
+        const organization_id = req.user.organization_id;
+        const product = await Product.findOne({
+            where: { id, organization_id }
+        });
         if (!product) return errorResponse(res, 'Product not found', 404);
 
         // Handle Image Upload
@@ -498,7 +546,11 @@ const createVariant = async (req, res, next) => {
 
         const variant = await ProductVariant.create({
             product_id: id,
-            name, sku, code, barcode,
+            organization_id,
+            name, 
+            sku: sku === '' ? null : sku, 
+            code: code === '' ? null : code, 
+            barcode: barcode === '' ? null : barcode,
             price: price || 0,
             cost_price: cost_price || 0,
             stock_quantity: stock_quantity || 0,
@@ -523,13 +575,18 @@ const createVariant = async (req, res, next) => {
                     if (!attrData.value) continue;
 
                     const [attrValue] = await AttributeValue.findOrCreate({
-                        where: { attribute_id: attrData.attribute_id, value: attrData.value },
+                        where: { 
+                            attribute_id: attrData.attribute_id, 
+                            value: attrData.value,
+                            organization_id
+                        },
                         transaction: t
                     });
 
                     await VariantAttributeValue.create({
                         product_variant_id: variant.id,
-                        attribute_value_id: attrValue.id
+                        attribute_value_id: attrValue.id,
+                        organization_id
                     }, { transaction: t });
                 }
             }
@@ -538,7 +595,8 @@ const createVariant = async (req, res, next) => {
         await t.commit();
 
         // Fetch the fresh variant with associations for the response
-        const freshVariant = await ProductVariant.findByPk(variant.id, {
+        const freshVariant = await ProductVariant.findOne({
+            where: { id: variant.id, organization_id },
             include: [
                 {
                     model: AttributeValue,
@@ -558,6 +616,23 @@ const createVariant = async (req, res, next) => {
             }))
         };
 
+        // Log variant creation
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logCreate(
+            req.user?.organization_id,
+            req.user?.id,
+            'ProductVariant',
+            variant.id,
+            {
+                name: variant.name,
+                sku: variant.sku,
+                code: variant.code,
+                product_id: id
+            },
+            ipAddress,
+            userAgent
+        );
+
         return successResponse(res, responseData, 'Variant created successfully', 201);
     } catch (error) {
         await t.rollback();
@@ -569,7 +644,8 @@ const createVariant = async (req, res, next) => {
 const getVariantById = async (req, res, next) => {
     try {
         const { variantId } = req.params;
-        const variant = await ProductVariant.findByPk(variantId, {
+        const variant = await ProductVariant.findOne({
+            where: { id: variantId, organization_id: req.user.organization_id },
             include: [
                 {
                     model: AttributeValue,
@@ -611,14 +687,21 @@ const updateVariant = async (req, res, next) => {
             attributes
         } = req.body;
 
-        const variant = await ProductVariant.findOne({ where: { id: variantId, product_id: id } });
+        const organization_id = req.user.organization_id;
+
+        const variant = await ProductVariant.findOne({ 
+            where: { id: variantId, product_id: id, organization_id } 
+        });
         if (!variant) {
             await t.rollback();
             return errorResponse(res, 'Variant not found', 404);
         }
 
         const updates = {
-            name, sku, code, barcode,
+            name, 
+            sku: sku === '' ? null : sku, 
+            code: code === '' ? null : code, 
+            barcode: barcode === '' ? null : barcode,
             price: price || variant.price,
             cost_price: cost_price || variant.cost_price,
             stock_quantity: stock_quantity || variant.stock_quantity,
@@ -649,7 +732,7 @@ const updateVariant = async (req, res, next) => {
             if (Array.isArray(parsedAttributes)) {
                 // Clear existing attributes first
                 await VariantAttributeValue.destroy({
-                    where: { product_variant_id: variant.id },
+                    where: { product_variant_id: variant.id, organization_id },
                     transaction: t
                 });
 
@@ -657,13 +740,18 @@ const updateVariant = async (req, res, next) => {
                     if (!attrData.value) continue;
 
                     const [attrValue] = await AttributeValue.findOrCreate({
-                        where: { attribute_id: attrData.attribute_id, value: attrData.value },
+                        where: { 
+                            attribute_id: attrData.attribute_id, 
+                            value: attrData.value,
+                            organization_id
+                        },
                         transaction: t
                     });
 
                     await VariantAttributeValue.create({
                         product_variant_id: variant.id,
-                        attribute_value_id: attrValue.id
+                        attribute_value_id: attrValue.id,
+                        organization_id
                     }, { transaction: t });
                 }
             }
@@ -672,7 +760,8 @@ const updateVariant = async (req, res, next) => {
         await t.commit();
 
         // Fetch the fresh variant with associations for the response
-        const freshVariant = await ProductVariant.findByPk(variant.id, {
+        const freshVariant = await ProductVariant.findOne({
+            where: { id: variant.id, organization_id },
             include: [
                 {
                     model: AttributeValue,
@@ -692,9 +781,78 @@ const updateVariant = async (req, res, next) => {
             }))
         };
 
+        // Log variant update
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logUpdate(
+            req.user?.organization_id,
+            req.user?.id,
+            'ProductVariant',
+            variant.id,
+            { name: variant.name, sku: variant.sku }, // Simplified old values
+            {
+                name,
+                sku: updates.sku,
+                code: updates.code,
+                barcode: updates.barcode
+            },
+            ipAddress,
+            userAgent,
+            { product_id: id }
+        );
+
         return successResponse(res, responseData, 'Variant updated successfully');
     } catch (error) {
         await t.rollback();
+        next(error);
+    }
+};
+
+const deleteVariant = async (req, res, next) => {
+    const t = await sequelize.transaction();
+    try {
+        const { id, variantId } = req.params;
+        const organization_id = req.user.organization_id;
+
+        const variant = await ProductVariant.findOne({ 
+            where: { id: variantId, product_id: id, organization_id } 
+        });
+
+        if (!variant) {
+            await t.rollback();
+            return errorResponse(res, 'Variant not found', 404);
+        }
+
+        // 1. Check for dependent records (Sales, Purchase Orders, etc.)
+        const stockCount = await Stock.count({ where: { product_variant_id: variant.id, organization_id } });
+        if (stockCount > 0) {
+            await t.rollback();
+            return errorResponse(res, 'Cannot delete variant with existing stock. Please adjust stock to zero first.', 400);
+        }
+
+        // 2. Log deletion before it's gone
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logDelete(
+            organization_id,
+            req.user?.id,
+            'ProductVariant',
+            variant.id,
+            { name: variant.name, sku: variant.sku, code: variant.code },
+            ipAddress,
+            userAgent,
+            { product_id: id }
+        );
+
+        // 3. Delete the variant
+        await variant.destroy({ transaction: t });
+
+        await t.commit();
+        return successResponse(res, null, 'Variant deleted successfully');
+    } catch (error) {
+        await t.rollback();
+        // Handle database constraint errors
+        if (error.name === 'SequelizeForeignKeyConstraintError') {
+            return errorResponse(res, 'Cannot delete variant because it is referenced by other records (e.g., Sales, Orders).', 400);
+        }
         next(error);
     }
 };
@@ -706,18 +864,19 @@ const createOpeningStock = async (req, res, next) => {
     const t = await sequelize.transaction();
     try {
         const { branch_id, opening_date, remarks, items } = req.body;
-        const user_id = req.user.id;
+        const organization_id = req.user.organization_id;
 
         if (!branch_id) return errorResponse(res, 'Branch ID is required', 400);
 
         // 1. Create Opening Stock Header
         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        const count = await StockOpening.count();
+        const count = await StockOpening.count({ where: { organization_id } });
         const reference_number = `OS-${dateStr}-${(count + 1).toString().padStart(4, '0')}`;
 
         const opening = await StockOpening.create({
+            organization_id,
             branch_id,
-            user_id,
+            user_id: req.user.id,
             reference_number,
             opening_date: opening_date || new Date(),
             notes: remarks,
@@ -733,6 +892,7 @@ const createOpeningStock = async (req, res, next) => {
 
             // Create/Update Product Batch
             const batch = await ProductBatch.create({
+                organization_id,
                 branch_id,
                 product_id: item.product_id,
                 product_variant_id: item.product_variant_id || null,
@@ -749,6 +909,7 @@ const createOpeningStock = async (req, res, next) => {
             // Update Global Stock
             const [stock, created] = await Stock.findOrCreate({
                 where: {
+                    organization_id,
                     branch_id,
                     product_id: item.product_id,
                     product_variant_id: item.product_variant_id || null
@@ -762,12 +923,12 @@ const createOpeningStock = async (req, res, next) => {
             if (item.product_variant_id) {
                 await ProductVariant.update(
                     { cost_price: cost, price: sell, wholesale_price: wholesale },
-                    { where: { id: item.product_variant_id }, transaction: t }
+                    { where: { id: item.product_variant_id, organization_id }, transaction: t }
                 );
             } else {
                 await Product.update(
                     { cost_price: cost, price: sell, wholesale_price: wholesale },
-                    { where: { id: item.product_id }, transaction: t }
+                    { where: { id: item.product_id, organization_id }, transaction: t }
                 );
             }
         }
@@ -848,11 +1009,13 @@ const getProductStock = async (req, res, next) => {
 
         // 1. Search Products
         const productsMatch = await Product.findAll({
-            where: searchCondition,
+            where: { ...searchCondition, organization_id: req.user.organization_id },
             include: [
                 {
                     model: ProductVariant,
                     as: 'variants',
+                    where: { organization_id: req.user.organization_id },
+                    required: false,
                     include: [
                         {
                             model: AttributeValue,
@@ -867,9 +1030,13 @@ const getProductStock = async (req, res, next) => {
 
         // 2. Search Variants specifically
         const variantsMatch = await ProductVariant.findAll({
-            where: searchCondition,
+            where: { ...searchCondition, organization_id: req.user.organization_id },
             include: [
-                { model: Product, as: 'product' },
+                { 
+                    model: Product, 
+                    as: 'product',
+                    where: { organization_id: req.user.organization_id }
+                },
                 {
                     model: AttributeValue,
                     as: 'attribute_values',
@@ -889,7 +1056,10 @@ const getProductStock = async (req, res, next) => {
             seenVariantIds.add(variant.id);
 
             const stocks = await Stock.findAll({
-                where: { product_variant_id: variant.id },
+                where: { 
+                    product_variant_id: variant.id, 
+                    organization_id: req.user.organization_id 
+                },
                 include: [{ model: Branch, as: 'branch', attributes: ['name'] }]
             });
 
@@ -917,7 +1087,10 @@ const getProductStock = async (req, res, next) => {
                     seenVariantIds.add(variant.id);
 
                     const stocks = await Stock.findAll({
-                        where: { product_variant_id: variant.id },
+                        where: { 
+                            product_variant_id: variant.id, 
+                            organization_id: req.user.organization_id 
+                        },
                         include: [{ model: Branch, as: 'branch', attributes: ['name'] }]
                     });
 
@@ -941,7 +1114,11 @@ const getProductStock = async (req, res, next) => {
                 seenProductIds.add(product.id);
 
                 const stocks = await Stock.findAll({
-                    where: { product_id: product.id, product_variant_id: null },
+                    where: { 
+                        product_id: product.id, 
+                        product_variant_id: null,
+                        organization_id: req.user.organization_id
+                    },
                     include: [{ model: Branch, as: 'branch', attributes: ['name'] }]
                 });
 
@@ -1024,6 +1201,7 @@ const importProducts = async (req, res, next) => {
 
                 // 5. Create Default Variant
                 await ProductVariant.create({
+                    organization_id,
                     product_id: product.id,
                     name: 'Default',
                     sku: product.sku,
@@ -1099,5 +1277,6 @@ module.exports = {
     createOpeningStock,
     getProductStock,
     importProducts,
-    exportProducts
+    exportProducts,
+    deleteVariant
 };

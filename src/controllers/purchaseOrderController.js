@@ -125,9 +125,11 @@ const createPurchaseOrder = async (req, res, next) => {
                 let variant = null;
                 let product = null;
 
+                const organization_id = req.user.organization_id;
+
                 // 1. Try to resolve variant
                 if (variantId) {
-                    variant = await ProductVariant.findByPk(variantId);
+                    variant = await ProductVariant.findOne({ where: { id: variantId, organization_id } });
                 }
 
                 // 2. If no variant, try lookup as Product or resolve default variant
@@ -135,15 +137,15 @@ const createPurchaseOrder = async (req, res, next) => {
                     const lookupId = variantId || productId;
                     if (lookupId) {
                         // Check if it's a Product ID
-                        product = await Product.findByPk(lookupId);
+                        product = await Product.findOne({ where: { id: lookupId, organization_id } });
                         if (product) {
                             // Try to find the first variant of this product if it exists
-                            variant = await ProductVariant.findOne({ where: { product_id: product.id } });
+                            variant = await ProductVariant.findOne({ where: { product_id: product.id, organization_id } });
                         }
                     }
                 } else {
                     // If variant found, we definitely have the product
-                    product = await Product.findByPk(variant.product_id);
+                    product = await Product.findOne({ where: { id: variant.product_id, organization_id } });
                 }
 
                 if (!product && !variant) {
@@ -164,6 +166,7 @@ const createPurchaseOrder = async (req, res, next) => {
                 totalAmount += itemTotal;
 
                 itemsToCreate.push({
+                    organization_id,
                     purchase_order_id: po.id,
                     product_id: resolvedProductId,
                     product_variant_id: resolvedVariantId,
@@ -190,7 +193,8 @@ const createPurchaseOrder = async (req, res, next) => {
             description: `Purchase Order ${po.po_number} created.`
         });
 
-        const createdPo = await PurchaseOrder.findByPk(po.id, {
+        const createdPo = await PurchaseOrder.findOne({
+            where: { id: po.id, organization_id: req.user.organization_id },
             include: [{ model: PurchaseOrderItem, as: 'items' }]
         });
 
@@ -244,7 +248,9 @@ const deletePurchaseOrder = async (req, res, next) => {
 const approvePurchaseOrder = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const po = await PurchaseOrder.findByPk(id);
+        const po = await PurchaseOrder.findOne({
+            where: { id, organization_id: req.user.organization_id }
+        });
 
         if (!po) {
             return errorResponse(res, 'Purchase Order not found', 404);
@@ -273,7 +279,8 @@ const approvePurchaseOrder = async (req, res, next) => {
 const generatePOPDF = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const po = await PurchaseOrder.findByPk(id, {
+        const po = await PurchaseOrder.findOne({
+            where: { id, organization_id: req.user.organization_id },
             include: [
                 { model: Supplier, as: 'supplier' },
                 { model: Branch, as: 'branch' },

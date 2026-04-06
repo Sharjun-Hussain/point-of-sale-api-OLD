@@ -7,12 +7,12 @@ const getFormData = async (req, res, next) => {
     try {
         const { MeasurementUnit, Unit } = require('../models');
         const mUnits = await MeasurementUnit.findAll({
-            where: { is_active: true },
+            where: { is_active: true, organization_id: req.user.organization_id },
             attributes: ['id', 'name', 'short_name'],
             order: [['name', 'ASC']]
         });
         const units = await Unit.findAll({
-            where: { is_active: true },
+            where: { is_active: true, organization_id: req.user.organization_id },
             attributes: ['id', 'name', 'short_name'],
             order: [['name', 'ASC']]
         });
@@ -28,7 +28,8 @@ const getAllContainers = async (req, res, next) => {
     try {
         const { page, size, name } = req.query;
         const { limit, offset } = getPagination(page, size);
-        const where = name ? { name: { [Op.like]: `%${name}%` } } : {};
+        const where = { organization_id: req.user.organization_id };
+        if (name) where.name = { [Op.like]: `%${name}%` };
         const { MeasurementUnit, Unit } = require('../models');
         const containers = await Container.findAndCountAll({
             where,
@@ -48,7 +49,7 @@ const getActiveContainersList = async (req, res, next) => {
     try {
         const { MeasurementUnit, Unit } = require('../models');
         const containers = await Container.findAll({
-            where: { is_active: true },
+            where: { is_active: true, organization_id: req.user.organization_id },
             order: [['name', 'ASC']],
             include: [
                 { model: MeasurementUnit, as: 'measurement_unit', attributes: ['id', 'name', 'short_name'] },
@@ -63,7 +64,8 @@ const getContainerById = async (req, res, next) => {
     try {
         const { id } = req.params;
         const { MeasurementUnit, Unit } = require('../models');
-        const container = await Container.findByPk(id, {
+        const container = await Container.findOne({
+            where: { id, organization_id: req.user.organization_id },
             include: [
                 { model: MeasurementUnit, as: 'measurement_unit', attributes: ['id', 'name', 'short_name'] },
                 { model: Unit, as: 'base_unit', attributes: ['id', 'name', 'short_name'] }
@@ -83,11 +85,14 @@ const getContainerById = async (req, res, next) => {
 const createContainer = async (req, res, next) => {
     try {
         const { name, description, measurement_unit_id, base_unit_id, capacity, slug, is_active } = req.body;
+        const organization_id = req.user.organization_id;
         const { MeasurementUnit, Unit } = require('../models');
 
         // Validate measurement_unit_id if provided and not null/empty
         if (measurement_unit_id && measurement_unit_id !== "null") {
-            const mUnit = await MeasurementUnit.findByPk(measurement_unit_id);
+            const mUnit = await MeasurementUnit.findOne({
+                where: { id: measurement_unit_id, organization_id }
+            });
             if (!mUnit) {
                 return resError(res, `Measurement Unit not found: ${measurement_unit_id}`, 400);
             }
@@ -95,7 +100,9 @@ const createContainer = async (req, res, next) => {
 
         // Validate base_unit_id if provided and not null/empty
         if (base_unit_id && base_unit_id !== "null") {
-            const bUnit = await Unit.findByPk(base_unit_id);
+            const bUnit = await Unit.findOne({
+                where: { id: base_unit_id, organization_id }
+            });
             if (!bUnit) {
                 return resError(res, `Base Unit not found: ${base_unit_id}`, 400);
             }
@@ -119,13 +126,15 @@ const createContainer = async (req, res, next) => {
             capacity: capacity || 0,
             measurement_unit_id: (measurement_unit_id === "" || measurement_unit_id === "null") ? null : (measurement_unit_id || null),
             base_unit_id: (base_unit_id === "" || base_unit_id === "null") ? null : (base_unit_id || null),
-            is_active: is_active !== undefined ? is_active : true
+            is_active: is_active !== undefined ? is_active : true,
+            organization_id
         };
 
         const container = await Container.create(containerData);
 
         // Reload with associations
-        const reloadedContainer = await Container.findByPk(container.id, {
+        const reloadedContainer = await Container.findOne({
+            where: { id: container.id, organization_id },
             include: [
                 { model: MeasurementUnit, as: 'measurement_unit', attributes: ['id', 'name', 'short_name'] },
                 { model: Unit, as: 'base_unit', attributes: ['id', 'name', 'short_name'] }
@@ -139,9 +148,12 @@ const createContainer = async (req, res, next) => {
 const updateContainer = async (req, res, next) => {
     try {
         const { id } = req.params;
+        const organization_id = req.user.organization_id;
         console.log(`[UPDATE] Attempting to find container with ID: "${id}"`);
 
-        const container = await Container.findByPk(id);
+        const container = await Container.findOne({
+            where: { id, organization_id }
+        });
         if (!container) {
             console.log(`[UPDATE] Container "${id}" not found in database.`);
             return resError(res, 'Container not found', 404);
@@ -155,7 +167,9 @@ const updateContainer = async (req, res, next) => {
 
         // Validate measurement_unit_id if provided and not null/empty
         if (measurement_unit_id) {
-            const mUnit = await MeasurementUnit.findByPk(measurement_unit_id);
+            const mUnit = await MeasurementUnit.findOne({
+                where: { id: measurement_unit_id, organization_id }
+            });
             if (!mUnit) {
                 console.log(`[UPDATE] Invalid measurement_unit_id: ${measurement_unit_id}`);
                 return resError(res, `Measurement Unit not found: ${measurement_unit_id}`, 400);
@@ -164,7 +178,9 @@ const updateContainer = async (req, res, next) => {
 
         // Validate base_unit_id if provided and not null/empty
         if (base_unit_id && base_unit_id !== "null") {
-            const bUnit = await Unit.findByPk(base_unit_id);
+            const bUnit = await Unit.findOne({
+                where: { id: base_unit_id, organization_id }
+            });
             if (!bUnit) {
                 console.log(`[UPDATE] Invalid base_unit_id: ${base_unit_id}`);
                 return resError(res, `Base Unit not found: ${base_unit_id}`, 400);
@@ -204,7 +220,8 @@ const updateContainer = async (req, res, next) => {
             await container.update(updateData);
 
             // Reload with associations
-            const reloadedContainer = await Container.findByPk(id, {
+            const reloadedContainer = await Container.findOne({
+                where: { id, organization_id },
                 include: [
                     { model: MeasurementUnit, as: 'measurement_unit', attributes: ['id', 'name', 'short_name'] },
                     { model: Unit, as: 'base_unit', attributes: ['id', 'name', 'short_name'] }
@@ -224,7 +241,9 @@ const updateContainer = async (req, res, next) => {
 
 const toggleStatus = async (req, res, next) => {
     try {
-        const container = await Container.findByPk(req.params.id);
+        const container = await Container.findOne({
+            where: { id: req.params.id, organization_id: req.user.organization_id }
+        });
         if (!container) return resError(res, 'Not found', 404);
         const action = req.params.action || (container.is_active ? 'deactivate' : 'activate');
         container.is_active = (action === 'activate');

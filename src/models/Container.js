@@ -42,6 +42,10 @@ module.exports = (sequelize, DataTypes) => {
         is_active: {
             type: DataTypes.BOOLEAN,
             defaultValue: true
+        },
+        organization_id: {
+            type: DataTypes.UUID,
+            allowNull: true
         }
     }, {
         tableName: 'containers',

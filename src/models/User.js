@@ -52,6 +52,14 @@ module.exports = (sequelize, DataTypes) => {
         last_login: {
             type: DataTypes.DATE,
             allowNull: true
+        },
+        organization_id: {
+            type: DataTypes.UUID,
+            allowNull: true
+        },
+        branch_id: {
+            type: DataTypes.UUID,
+            allowNull: true
         }
     }, {
         tableName: 'users',

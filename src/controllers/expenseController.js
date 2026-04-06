@@ -9,7 +9,10 @@ const auditService = require('../services/auditService');
 // --- Expense Categories ---
 const getAllExpenseCategories = async (req, res, next) => {
     try {
-        const categories = await ExpenseCategory.findAll({ order: [['name', 'ASC']] });
+        const categories = await ExpenseCategory.findAll({ 
+            where: { organization_id: req.user.organization_id },
+            order: [['name', 'ASC']] 
+        });
         return successResponse(res, categories, 'Expense categories fetched');
     } catch (error) { next(error); }
 };

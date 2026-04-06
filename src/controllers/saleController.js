@@ -141,7 +141,10 @@ const createSale = async (req, res, next) => {
 
             if (!product_id || !quantity) continue;
 
-            const product = await Product.findOne({ where: { id: product_id }, transaction: t });
+            const product = await Product.findOne({ 
+                where: { id: product_id, organization_id }, 
+                transaction: t 
+            });
             if (!product) {
                 await t.rollback();
                 return errorResponse(res, `Product not found: ${product_id}`, 400);
@@ -151,7 +154,10 @@ const createSale = async (req, res, next) => {
 
             // Check Variant if exists
             if (product_variant_id) {
-                const variant = await ProductVariant.findOne({ where: { id: product_variant_id, product_id }, transaction: t });
+                const variant = await ProductVariant.findOne({ 
+                    where: { id: product_variant_id, product_id, organization_id }, 
+                    transaction: t 
+                });
                 if (!variant) {
                     await t.rollback();
                     return errorResponse(res, `Variant not found: ${product_variant_id}`, 400);
@@ -261,7 +267,7 @@ const createSale = async (req, res, next) => {
                 amount: paid_amount,
                 received_issued_date: new Date(),
                 status: 'pending',
-                payee_payor_name: payee_payor_name || (sale.customer_id ? (await Customer.findByPk(sale.customer_id, { transaction: t })).name : 'Guest'),
+                payee_payor_name: payee_payor_name || (sale.customer_id ? (await Customer.findOne({ where: { id: sale.customer_id, organization_id }, transaction: t })).name : 'Guest'),
                 reference_type: 'sale',
                 reference_id: sale.id
             }, { transaction: t });
@@ -288,7 +294,7 @@ const createSale = async (req, res, next) => {
         if (sale.status === 'completed') {
             for (const pItem of processedItems) {
                 // A. Update Global Stock
-                const stockWhere = { branch_id, product_id: pItem.product_id };
+                const stockWhere = { organization_id, branch_id, product_id: pItem.product_id };
                 stockWhere.product_variant_id = pItem.product_variant_id || null;
 
                 const stock = await Stock.findOne({ where: stockWhere, transaction: t });
@@ -302,6 +308,7 @@ const createSale = async (req, res, next) => {
                 // Fetch batches with quantity > 0, ordered by expiry (asc) or creation (asc)
                 const batches = await ProductBatch.findAll({
                     where: {
+                        organization_id,
                         branch_id,
                         product_id: pItem.product_id,
                         product_variant_id: pItem.product_variant_id || null,
@@ -413,7 +420,8 @@ const createSale = async (req, res, next) => {
         await t.commit();
 
         // 7. Fetch full sale with details for response
-        const createdSale = await Sale.findByPk(sale.id, {
+        const createdSale = await Sale.findOne({
+            where: { id: sale.id, organization_id },
             include: [
                 { model: User, as: 'sellers', attributes: ['id', 'name', 'email'] },
                 { model: Customer, as: 'customer', attributes: ['id', 'name', 'phone'] }

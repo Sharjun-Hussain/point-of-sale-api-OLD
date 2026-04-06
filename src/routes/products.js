@@ -33,6 +33,7 @@ router.patch('/:id/:action', checkPermission('product:edit'), productController.
 // Variant CRUD
 router.post('/:id/variants', checkPermission('product_variant:create'), upload.array('images[]', 10), productController.createVariant);
 router.post('/:id/variants/:variantId', checkPermission('product_variant:edit'), upload.array('images[]', 10), productController.updateVariant);
+router.delete('/:id/variants/:variantId', checkPermission('product_variant:delete'), productController.deleteVariant);
 
 // Variant toggles
 router.patch('/:id/variants/:variantId/activate', checkPermission('product:edit'), (req, res, next) => {

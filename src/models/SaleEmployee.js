@@ -30,6 +30,10 @@ module.exports = (sequelize) => {
                 min: 0,
                 max: 100
             }
+        },
+        organization_id: {
+            type: DataTypes.UUID,
+            allowNull: true
         }
     }, {
         tableName: 'sale_employees',
@@ -49,6 +53,12 @@ module.exports = (sequelize) => {
         SaleEmployee.belongsTo(models.User, {
             foreignKey: 'user_id',
             as: 'employee'
+        });
+
+        // Belongs to Organization
+        SaleEmployee.belongsTo(models.Organization, {
+            foreignKey: 'organization_id',
+            as: 'organization'
         });
     };
 

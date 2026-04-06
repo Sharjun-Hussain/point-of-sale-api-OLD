@@ -4,6 +4,7 @@ const { successResponse, errorResponse } = require('../utils/responseHandler');
 const getAllRoles = async (req, res, next) => {
     try {
         const roles = await Role.findAll({
+            where: { organization_id: req.user.organization_id },
             include: [{ model: Permission, as: 'permissions' }]
         });
         // Frontend expects data.data.data for some reason even for roles
@@ -14,13 +15,15 @@ const getAllRoles = async (req, res, next) => {
 const createRole = async (req, res, next) => {
     try {
         const { name, description, permission_ids } = req.body;
-        const role = await Role.create({ name, description });
+        const organization_id = req.user.organization_id;
+        const role = await Role.create({ name, description, organization_id });
 
         if (permission_ids) {
             await role.setPermissions(permission_ids);
         }
 
-        const createdRole = await Role.findByPk(role.id, {
+        const createdRole = await Role.findOne({
+            where: { id: role.id, organization_id: req.user.organization_id },
             include: [{ model: Permission, as: 'permissions' }]
         });
         return successResponse(res, createdRole, 'Role created successfully', 201);
@@ -29,7 +32,9 @@ const createRole = async (req, res, next) => {
 
 const updateRole = async (req, res, next) => {
     try {
-        const role = await Role.findByPk(req.params.id);
+        const role = await Role.findOne({
+            where: { id: req.params.id, organization_id: req.user.organization_id }
+        });
         if (!role) return errorResponse(res, 'Role not found', 404);
 
         const { permission_ids, ...updateData } = req.body;

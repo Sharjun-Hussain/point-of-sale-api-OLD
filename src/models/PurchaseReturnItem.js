@@ -37,6 +37,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.DECIMAL(15, 2),
             allowNull: false
         },
+        organization_id: {
+            type: DataTypes.UUID,
+            allowNull: true
+        },
         reason: {
             type: DataTypes.STRING,
             allowNull: true

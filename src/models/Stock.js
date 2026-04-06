@@ -20,6 +20,10 @@ module.exports = (sequelize, DataTypes) => {
         quantity: {
             type: DataTypes.DECIMAL(15, 2),
             defaultValue: 0.00
+        },
+        organization_id: {
+            type: DataTypes.UUID,
+            allowNull: true
         }
     }, {
         tableName: 'stocks',

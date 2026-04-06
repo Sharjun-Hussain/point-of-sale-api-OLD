@@ -112,7 +112,10 @@ const updateChequeStatus = async (req, res, next) => {
                 return errorResponse(res, 'Account ID is required for clearing a cheque', 400);
             }
 
-            const bankAccount = await Account.findByPk(finalAccountId, { transaction: t });
+            const bankAccount = await Account.findOne({
+                where: { id: finalAccountId, organization_id: req.user.organization_id },
+                transaction: t
+            });
             if (!bankAccount) {
                 await t.rollback();
                 return errorResponse(res, 'Bank Account not found', 404);
@@ -204,7 +207,10 @@ const updateChequeStatus = async (req, res, next) => {
             let supplier_id = null;
 
             if (cheque.reference_id) {
-                const linkedTx = await Transaction.findByPk(cheque.reference_id, { transaction: t });
+                const linkedTx = await Transaction.findOne({
+                    where: { id: cheque.reference_id, organization_id: req.user.organization_id },
+                    transaction: t
+                });
                 if (linkedTx) {
                     customer_id = linkedTx.customer_id;
                     supplier_id = linkedTx.supplier_id;

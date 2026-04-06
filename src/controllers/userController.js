@@ -68,7 +68,8 @@ const createUser = async (req, res, next) => {
         if (role_ids) await user.setRoles(role_ids);
         if (branch_ids) await user.setBranches(branch_ids);
 
-        const createdUser = await User.findByPk(user.id, {
+        const createdUser = await User.findOne({
+            where: { id: user.id, organization_id: req.user.organization_id },
             include: [{ model: Role, as: 'roles' }, { model: Branch, as: 'branches' }]
         });
 
@@ -95,7 +96,9 @@ const createUser = async (req, res, next) => {
 
 const updateUser = async (req, res, next) => {
     try {
-        const user = await User.findByPk(req.params.id);
+        const user = await User.findOne({ 
+            where: { id: req.params.id, organization_id: req.user.organization_id } 
+        });
         if (!user) return errorResponse(res, 'User not found', 404);
 
         const { role_ids, branch_ids, password, first_name, last_name, name, ...updateData } = req.body;
@@ -144,7 +147,9 @@ const updateUser = async (req, res, next) => {
 
 const toggleUserStatus = async (req, res, next) => {
     try {
-        const user = await User.findByPk(req.params.id);
+        const user = await User.findOne({ 
+            where: { id: req.params.id, organization_id: req.user.organization_id } 
+        });
         if (!user) return errorResponse(res, 'User not found', 404);
 
         user.is_active = !user.is_active;

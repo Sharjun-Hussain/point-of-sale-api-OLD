@@ -55,6 +55,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.BOOLEAN,
             defaultValue: true
         },
+        organization_id: {
+            type: DataTypes.UUID,
+            allowNull: true
+        },
         // Industry standard fields mentioned by user
         imei_number: {
             type: DataTypes.STRING,

@@ -12,6 +12,10 @@ module.exports = (sequelize, DataTypes) => {
         attribute_value_id: {
             type: DataTypes.UUID,
             allowNull: false
+        },
+        organization_id: {
+            type: DataTypes.UUID,
+            allowNull: true
         }
     }, {
         tableName: 'variant_attr_values',

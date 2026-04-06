@@ -33,25 +33,31 @@ const getAllStocks = async (req, res, next) => {
         if (sku) variantWhere.sku = { [Op.like]: `%${sku}%` };
 
         const stocks = await Stock.findAndCountAll({
-            where,
+            where: { ...where, organization_id: req.user.organization_id },
             limit,
             offset,
             include: [
                 {
                     model: Product,
                     as: 'product',
-                    where: Object.keys(productWhere).length > 0 ? productWhere : null,
+                    where: { ...productWhere, organization_id: req.user.organization_id },
                     attributes: ['id', 'name', 'code', 'image']
                 },
                 {
                     model: ProductVariant,
                     as: 'variant',
-                    where: Object.keys(variantWhere).length > 0 ? variantWhere : null,
-                    attributes: ['id', 'name', 'sku', 'image']
+                    where: { ...variantWhere, organization_id: req.user.organization_id },
+                    attributes: ['id', 'name', 'sku', 'image'],
+                    required: Object.keys(variantWhere).length > 0 ? true : false
                 },
-                { model: Branch, as: 'branch', attributes: ['id', 'name'] }
+                { 
+                    model: Branch, 
+                    as: 'branch', 
+                    where: { organization_id: req.user.organization_id },
+                    attributes: ['id', 'name'] 
+                }
             ],
-            order: [['product', 'name', 'ASC']]
+            order: [[{ model: Product, as: 'product' }, 'name', 'ASC']]
         });
 
         return paginatedResponse(res, stocks.rows, {
@@ -79,8 +85,11 @@ const createStockAdjustment = async (req, res, next) => {
 
         const qtyValue = parseFloat(quantity);
 
+        const organization_id = req.user.organization_id;
+
         // 1. Create Adjustment Record
         const adjustment = await StockAdjustment.create({
+            organization_id,
             branch_id,
             product_id,
             product_variant_id: product_variant_id || null,
@@ -93,6 +102,7 @@ const createStockAdjustment = async (req, res, next) => {
         // 2. Update Stock aggregate
         const [stock, created] = await Stock.findOrCreate({
             where: {
+                organization_id,
                 branch_id,
                 product_id,
                 product_variant_id: product_variant_id || null
@@ -107,6 +117,7 @@ const createStockAdjustment = async (req, res, next) => {
 
             // Increment logic: Add to/Create a batch
             await ProductBatch.create({
+                organization_id,
                 branch_id,
                 product_id,
                 product_variant_id: product_variant_id || null,
@@ -128,6 +139,7 @@ const createStockAdjustment = async (req, res, next) => {
             if (diff > 0) {
                 // Increment
                 await ProductBatch.create({
+                    organization_id,
                     branch_id,
                     product_id,
                     product_variant_id: product_variant_id || null,
@@ -146,6 +158,7 @@ const createStockAdjustment = async (req, res, next) => {
         if (finalDeduction > 0) {
             const batches = await ProductBatch.findAll({
                 where: {
+                    organization_id,
                     branch_id,
                     product_id,
                     product_variant_id: product_variant_id || null,
@@ -222,6 +235,7 @@ const createStockTransfer = async (req, res, next) => {
             const qtyValue = parseFloat(quantity);
 
             await StockTransferItem.create({
+                organization_id,
                 stock_transfer_id: transfer.id,
                 product_id,
                 product_variant_id: product_variant_id || null,
@@ -230,7 +244,7 @@ const createStockTransfer = async (req, res, next) => {
 
             // FROM Branch: Deduct Stock
             const [fromStock] = await Stock.findOrCreate({
-                where: { branch_id: from_branch_id, product_id, product_variant_id: product_variant_id || null },
+                where: { organization_id, branch_id: from_branch_id, product_id, product_variant_id: product_variant_id || null },
                 defaults: { quantity: 0 },
                 transaction: t
             });
@@ -238,7 +252,7 @@ const createStockTransfer = async (req, res, next) => {
 
             // TO Branch: Add Stock
             const [toStock] = await Stock.findOrCreate({
-                where: { branch_id: to_branch_id, product_id, product_variant_id: product_variant_id || null },
+                where: { organization_id, branch_id: to_branch_id, product_id, product_variant_id: product_variant_id || null },
                 defaults: { quantity: 0 },
                 transaction: t
             });
@@ -247,6 +261,7 @@ const createStockTransfer = async (req, res, next) => {
             // Batch Deduction (FIFO) from source branch
             const batches = await ProductBatch.findAll({
                 where: {
+                    organization_id,
                     branch_id: from_branch_id,
                     product_id,
                     product_variant_id: product_variant_id || null,
@@ -266,6 +281,7 @@ const createStockTransfer = async (req, res, next) => {
 
                 // Create corresponding batch in destination branch
                 await ProductBatch.create({
+                    organization_id,
                     branch_id: to_branch_id,
                     product_id,
                     product_variant_id: product_variant_id || null,
@@ -285,6 +301,7 @@ const createStockTransfer = async (req, res, next) => {
             // If still remaining (negative stock movement), create a "Transfer" batch at dest
             if (remainingToDeduct > 0) {
                 await ProductBatch.create({
+                    organization_id,
                     branch_id: to_branch_id,
                     product_id,
                     product_variant_id: product_variant_id || null,

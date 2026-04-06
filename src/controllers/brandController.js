@@ -15,7 +15,7 @@ const getAllBrands = async (req, res, next) => {
         }
 
         const brands = await Brand.findAndCountAll({
-            where,
+            where: { ...where, organization_id: req.user.organization_id },
             limit,
             offset,
             order: [['name', 'ASC']]
@@ -34,7 +34,7 @@ const getAllBrands = async (req, res, next) => {
 const getActiveBrandsList = async (req, res, next) => {
     try {
         const brands = await Brand.findAll({
-            where: { is_active: true },
+            where: { is_active: true, organization_id: req.user.organization_id },
             order: [['name', 'ASC']]
         });
         return successResponse(res, brands, 'Active brands fetched successfully');
@@ -69,7 +69,9 @@ const createBrand = async (req, res, next) => {
 
 const updateBrand = async (req, res, next) => {
     try {
-        const brand = await Brand.findByPk(req.params.id);
+        const brand = await Brand.findOne({
+            where: { id: req.params.id, organization_id: req.user.organization_id }
+        });
         if (!brand) return errorResponse(res, 'Brand not found', 404);
 
         const oldValues = { name: brand.name, description: brand.description };
@@ -96,7 +98,9 @@ const updateBrand = async (req, res, next) => {
 
 const toggleStatus = async (req, res, next) => {
     try {
-        const brand = await Brand.findByPk(req.params.id);
+        const brand = await Brand.findOne({
+            where: { id: req.params.id, organization_id: req.user.organization_id }
+        });
         if (!brand) return errorResponse(res, 'Brand not found', 404);
 
         const action = req.params.action || (brand.is_active ? 'deactivate' : 'activate');
@@ -123,7 +127,9 @@ const toggleStatus = async (req, res, next) => {
 
 const deleteBrand = async (req, res, next) => {
     try {
-        const brand = await Brand.findByPk(req.params.id);
+        const brand = await Brand.findOne({
+            where: { id: req.params.id, organization_id: req.user.organization_id }
+        });
         if (!brand) return errorResponse(res, 'Brand not found', 404);
 
         // Log brand deletion

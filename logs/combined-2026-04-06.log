@@ -193,3 +193,653 @@
 {"level":"info","message":"\u001b[0mGET /api/v1/settings/business \u001b[36m304\u001b[0m 80.646 ms - -\u001b[0m","timestamp":"2026-04-06 01:03:26"}
 {"level":"info","message":"\u001b[0mGET /uploads/logos/logo-1770028207788-496095247.png \u001b[36m304\u001b[0m 2.589 ms - -\u001b[0m","timestamp":"2026-04-06 01:03:26"}
 {"level":"info","message":"\u001b[0mGET /api/v1/settings/general \u001b[36m304\u001b[0m 102.235 ms - -\u001b[0m","timestamp":"2026-04-06 01:03:28"}
+{"level":"info","message":"\u001b[0mGET /uploads/logos/logo-1770028207788-496095247.png \u001b[36m304\u001b[0m 0.299 ms - -\u001b[0m","timestamp":"2026-04-06 01:05:41"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/business \u001b[36m304\u001b[0m 132.536 ms - -\u001b[0m","timestamp":"2026-04-06 01:05:41"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/pos \u001b[36m304\u001b[0m 79.994 ms - -\u001b[0m","timestamp":"2026-04-06 01:05:42"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/general \u001b[36m304\u001b[0m 134.503 ms - -\u001b[0m","timestamp":"2026-04-06 01:05:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/business \u001b[36m304\u001b[0m 57.282 ms - -\u001b[0m","timestamp":"2026-04-06 01:05:45"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/pos \u001b[36m304\u001b[0m 73.089 ms - -\u001b[0m","timestamp":"2026-04-06 01:05:46"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/receipt \u001b[36m304\u001b[0m 60.604 ms - -\u001b[0m","timestamp":"2026-04-06 01:05:48"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/general \u001b[36m304\u001b[0m 44.351 ms - -\u001b[0m","timestamp":"2026-04-06 01:05:51"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/general \u001b[36m304\u001b[0m 92.426 ms - -\u001b[0m","timestamp":"2026-04-06 01:08:30"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/general \u001b[36m304\u001b[0m 263.081 ms - -\u001b[0m","timestamp":"2026-04-06 01:09:21"}
+{"level":"info","message":"\u001b[0mGET /uploads/logos/logo-1770028207788-496095247.png \u001b[36m304\u001b[0m 0.726 ms - -\u001b[0m","timestamp":"2026-04-06 01:09:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/business \u001b[36m304\u001b[0m 154.738 ms - -\u001b[0m","timestamp":"2026-04-06 01:09:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/general \u001b[36m304\u001b[0m 223.272 ms - -\u001b[0m","timestamp":"2026-04-06 01:09:46"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/business \u001b[36m304\u001b[0m 62.345 ms - -\u001b[0m","timestamp":"2026-04-06 01:09:47"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/pos \u001b[36m304\u001b[0m 78.041 ms - -\u001b[0m","timestamp":"2026-04-06 01:09:51"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/receipt \u001b[36m304\u001b[0m 60.784 ms - -\u001b[0m","timestamp":"2026-04-06 01:09:53"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/general \u001b[36m304\u001b[0m 44.141 ms - -\u001b[0m","timestamp":"2026-04-06 01:09:55"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/pos \u001b[36m304\u001b[0m 196.504 ms - -\u001b[0m","timestamp":"2026-04-06 01:10:48"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/receipt \u001b[36m304\u001b[0m 278.967 ms - -\u001b[0m","timestamp":"2026-04-06 01:11:51"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/pos \u001b[36m304\u001b[0m 145.292 ms - -\u001b[0m","timestamp":"2026-04-06 01:12:00"}
+{"level":"info","message":"\u001b[0mGET /uploads/logos/logo-1770028207788-496095247.png \u001b[36m304\u001b[0m 0.508 ms - -\u001b[0m","timestamp":"2026-04-06 01:12:01"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/business \u001b[36m304\u001b[0m 65.394 ms - -\u001b[0m","timestamp":"2026-04-06 01:12:02"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/general \u001b[36m304\u001b[0m 97.451 ms - -\u001b[0m","timestamp":"2026-04-06 01:12:03"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/communication \u001b[32m200\u001b[0m 109.118 ms - 73\u001b[0m","timestamp":"2026-04-06 01:16:46"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/receipt \u001b[36m304\u001b[0m 177.299 ms - -\u001b[0m","timestamp":"2026-04-06 01:17:31"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 01:18:22"}
+{"code":"EIO","errno":-5,"level":"error","message":"UNCAUGHT EXCEPTION! 💥 Shutting down... write EIO","stack":"Error: write EIO\n    at afterWriteDispatched (node:internal/stream_base_commons:159:15)\n    at writeGeneric (node:internal/stream_base_commons:150:3)\n    at Socket._writeGeneric (node:net:971:11)\n    at Socket._write (node:net:983:8)\n    at writeOrBuffer (node:internal/streams/writable:572:12)\n    at _write (node:internal/streams/writable:501:10)\n    at Writable.write (node:internal/streams/writable:510:10)\n    at console.value (node:internal/console/constructor:298:16)\n    at console.log (node:internal/console/constructor:384:26)\n    at Sequelize.log (/home/joon/pos/point-of-sale-api-OLD/node_modules/.pnpm/sequelize@6.37.7_mysql2@3.16.2/node_modules/sequelize/lib/sequelize.js:552:15)","syscall":"write","timestamp":"2026-04-06 01:18:22"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 08:33:21"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 08:33:21"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 08:33:21"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 08:33:21"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 08:33:21"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 08:33:21"}
+{"level":"info","message":"\nSIGINT received. Starting graceful shutdown...","timestamp":"2026-04-06 08:33:23"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 12:02:11"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 12:02:11"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 12:02:12"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 12:02:12"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 12:02:12"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 12:02:12"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 12:57:27"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 12:57:27"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 12:57:28"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 12:57:28"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 12:57:28"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 12:57:28"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 12:57:36"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 12:57:36"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 12:57:37"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 12:57:37"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 12:57:37"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 12:57:37"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 12:57:52"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 12:57:52"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 12:57:52"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 12:57:52"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 12:57:52"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 12:57:52"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 12:58:09"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 12:58:09"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 12:58:09"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 12:58:09"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 12:58:09"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 12:58:09"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 12:58:50"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 12:58:50"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 12:58:51"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 12:58:51"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 12:58:51"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 12:58:51"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 12:59:25"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 12:59:25"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 12:59:25"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 12:59:26"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 12:59:26"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 12:59:26"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 12:59:40"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 12:59:40"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 12:59:40"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 12:59:40"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 12:59:40"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 12:59:40"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 12:59:56"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 12:59:56"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 12:59:56"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 12:59:56"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 12:59:56"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 12:59:56"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:00:11"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:00:11"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:00:11"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:00:11"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:00:11"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:00:11"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:00:23"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:00:23"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:00:24"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:00:24"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:00:24"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:00:24"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:00:36"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:00:36"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:00:36"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:00:37"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:00:37"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:00:37"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:00:55"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:00:55"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:00:56"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:00:56"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:00:56"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:00:56"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/refresh \u001b[31m500\u001b[0m 18.841 ms - -\u001b[0m","timestamp":"2026-04-06 13:01:12"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[33m401\u001b[0m 20.315 ms - 44\u001b[0m","timestamp":"2026-04-06 13:01:13"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/receipt \u001b[33m401\u001b[0m 27.244 ms - 44\u001b[0m","timestamp":"2026-04-06 13:01:13"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:01:18"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:01:18"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:01:18"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:01:19"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:01:19"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:01:19"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/login \u001b[31m500\u001b[0m 233.222 ms - 1020\u001b[0m","timestamp":"2026-04-06 13:01:23"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:01:28"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:01:28"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:01:28"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:01:28"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:01:28"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:01:28"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/login \u001b[31m500\u001b[0m 266.124 ms - 1020\u001b[0m","timestamp":"2026-04-06 13:01:33"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/login \u001b[31m500\u001b[0m 206.846 ms - 1020\u001b[0m","timestamp":"2026-04-06 13:01:41"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/login \u001b[31m500\u001b[0m 172.163 ms - 1020\u001b[0m","timestamp":"2026-04-06 13:01:47"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:02:41"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:02:41"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:02:41"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:02:41"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:02:41"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:02:41"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:02:53"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:02:53"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:02:53"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:02:53"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:02:53"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:02:53"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/login \u001b[31m500\u001b[0m 265.004 ms - 1020\u001b[0m","timestamp":"2026-04-06 13:03:02"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:03:07"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:03:07"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:03:07"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:03:07"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:03:07"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:03:07"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:03:22"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:03:22"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:03:22"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:03:22"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:03:22"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:03:22"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:03:40"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:03:40"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:03:40"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:03:40"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:03:40"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:03:40"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:03:52"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:03:53"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:03:53"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:03:53"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:03:53"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:03:53"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:04:14"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:04:15"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:04:15"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:04:15"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:04:15"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:04:15"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:04:29"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:04:29"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:04:29"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:04:29"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:04:29"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:04:29"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:04:46"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:04:46"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:04:46"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:04:46"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:04:46"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:04:46"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:04:59"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:04:59"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:04:59"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:04:59"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:04:59"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:04:59"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:05:16"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:05:16"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:05:16"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:05:16"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:05:16"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:05:16"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:05:34"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:05:34"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:05:34"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:05:34"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:05:34"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:05:34"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:05:47"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:05:47"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:05:47"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:05:47"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:05:47"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:05:47"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:06:05"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:06:05"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:06:05"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:06:05"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:06:05"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:06:05"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:06:17"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:06:17"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:06:17"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:06:17"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:06:17"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:06:17"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:06:35"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:06:35"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:06:36"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:06:36"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:06:36"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:06:36"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:06:48"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:06:48"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:06:49"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:06:49"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:06:49"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:06:49"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:07:02"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:07:02"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:07:03"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:07:03"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:07:03"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:07:03"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:07:10"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:07:10"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:07:10"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:07:10"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:07:10"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:07:10"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/login \u001b[31m500\u001b[0m 239.279 ms - 1020\u001b[0m","timestamp":"2026-04-06 13:07:25"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/login \u001b[31m500\u001b[0m 194.385 ms - 1020\u001b[0m","timestamp":"2026-04-06 13:07:32"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:08:02"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:08:02"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:08:02"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:08:02"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:08:02"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:08:02"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:08:18"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:08:18"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:08:18"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:08:18"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:08:18"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:08:18"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:09:12"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:09:12"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:09:12"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:09:12"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:09:12"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:09:12"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:10:45"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:10:45"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:10:45"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:10:45"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:10:45"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:10:45"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/login \u001b[31m500\u001b[0m 281.400 ms - 1020\u001b[0m","timestamp":"2026-04-06 13:11:00"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:17:54"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:17:54"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:17:55"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:17:55"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:17:55"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:17:55"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:18:06"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:18:06"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:18:06"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:18:06"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:18:06"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:18:06"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/login \u001b[32m200\u001b[0m 340.916 ms - -\u001b[0m","timestamp":"2026-04-06 13:19:01"}
+{"level":"info","message":"\u001b[0mGET /api/v1/me \u001b[32m200\u001b[0m 78.231 ms - -\u001b[0m","timestamp":"2026-04-06 13:19:01"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/login \u001b[32m200\u001b[0m 193.952 ms - -\u001b[0m","timestamp":"2026-04-06 13:19:25"}
+{"level":"info","message":"\u001b[0mGET /api/v1/me \u001b[32m200\u001b[0m 55.474 ms - -\u001b[0m","timestamp":"2026-04-06 13:19:25"}
+{"level":"info","message":"\u001b[0mGET /api/v1/reports/dashboard/summary \u001b[36m304\u001b[0m 112.929 ms - -\u001b[0m","timestamp":"2026-04-06 13:19:28"}
+{"level":"info","message":"\u001b[0mGET /api/v1/reports/dashboard/summary \u001b[36m304\u001b[0m 113.935 ms - -\u001b[0m","timestamp":"2026-04-06 13:19:28"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/pos \u001b[36m304\u001b[0m 113.285 ms - -\u001b[0m","timestamp":"2026-04-06 13:19:33"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/business \u001b[32m200\u001b[0m 138.840 ms - 701\u001b[0m","timestamp":"2026-04-06 13:19:33"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/receipt \u001b[36m304\u001b[0m 233.555 ms - -\u001b[0m","timestamp":"2026-04-06 13:19:33"}
+{"level":"info","message":"\u001b[0mGET /api/v1/customers/active/list \u001b[36m304\u001b[0m 428.888 ms - -\u001b[0m","timestamp":"2026-04-06 13:19:34"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users/active-sellers \u001b[36m304\u001b[0m 492.265 ms - -\u001b[0m","timestamp":"2026-04-06 13:19:34"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[32m200\u001b[0m 313.140 ms - -\u001b[0m","timestamp":"2026-04-06 13:19:34"}
+{"level":"info","message":"\u001b[0mGET /api/v1/customers/active/list \u001b[36m304\u001b[0m 104.875 ms - -\u001b[0m","timestamp":"2026-04-06 13:19:34"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users/active-sellers \u001b[36m304\u001b[0m 177.993 ms - -\u001b[0m","timestamp":"2026-04-06 13:19:34"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 212.560 ms - -\u001b[0m","timestamp":"2026-04-06 13:19:34"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/pos \u001b[36m304\u001b[0m 420.240 ms - -\u001b[0m","timestamp":"2026-04-06 13:21:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/business \u001b[36m304\u001b[0m 610.817 ms - -\u001b[0m","timestamp":"2026-04-06 13:21:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/receipt \u001b[36m304\u001b[0m 735.974 ms - -\u001b[0m","timestamp":"2026-04-06 13:21:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 768.562 ms - -\u001b[0m","timestamp":"2026-04-06 13:21:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/customers/active/list \u001b[36m304\u001b[0m 945.932 ms - -\u001b[0m","timestamp":"2026-04-06 13:21:44"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users/active-sellers \u001b[36m304\u001b[0m 965.551 ms - -\u001b[0m","timestamp":"2026-04-06 13:21:44"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 256.763 ms - -\u001b[0m","timestamp":"2026-04-06 13:21:44"}
+{"level":"info","message":"\u001b[0mGET /api/v1/customers/active/list \u001b[36m304\u001b[0m 238.946 ms - -\u001b[0m","timestamp":"2026-04-06 13:21:44"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users/active-sellers \u001b[36m304\u001b[0m 308.565 ms - -\u001b[0m","timestamp":"2026-04-06 13:21:44"}
+{"level":"info","message":"\u001b[0mGET /api/v1/reports/dashboard/summary \u001b[36m304\u001b[0m 119.211 ms - -\u001b[0m","timestamp":"2026-04-06 13:22:26"}
+{"level":"info","message":"\u001b[0mGET /api/v1/reports/dashboard/summary \u001b[36m304\u001b[0m 110.479 ms - -\u001b[0m","timestamp":"2026-04-06 13:22:27"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[32m200\u001b[0m 80.722 ms - -\u001b[0m","timestamp":"2026-04-06 13:22:31"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[32m200\u001b[0m 154.020 ms - -\u001b[0m","timestamp":"2026-04-06 13:22:31"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[36m304\u001b[0m 97.681 ms - -\u001b[0m","timestamp":"2026-04-06 13:22:31"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 62.565 ms - -\u001b[0m","timestamp":"2026-04-06 13:22:41"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 92.592 ms - -\u001b[0m","timestamp":"2026-04-06 13:22:41"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[36m304\u001b[0m 81.638 ms - -\u001b[0m","timestamp":"2026-04-06 13:22:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[36m304\u001b[0m 63.929 ms - -\u001b[0m","timestamp":"2026-04-06 13:22:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/common/bulk-options \u001b[32m200\u001b[0m 148.936 ms - -\u001b[0m","timestamp":"2026-04-06 13:22:46"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 252.291 ms - -\u001b[0m","timestamp":"2026-04-06 13:22:47"}
+{"level":"info","message":"\u001b[0mGET /api/v1/common/bulk-options \u001b[36m304\u001b[0m 55.752 ms - -\u001b[0m","timestamp":"2026-04-06 13:22:47"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 72.187 ms - -\u001b[0m","timestamp":"2026-04-06 13:22:47"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/products \u001b[32m201\u001b[0m 101.081 ms - -\u001b[0m","timestamp":"2026-04-06 13:23:25"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[32m200\u001b[0m 122.558 ms - -\u001b[0m","timestamp":"2026-04-06 13:23:25"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[36m304\u001b[0m 127.126 ms - -\u001b[0m","timestamp":"2026-04-06 13:23:25"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/9e926b2b-22c8-42ce-9c4c-d0a4cf4006de \u001b[32m200\u001b[0m 108.384 ms - -\u001b[0m","timestamp":"2026-04-06 13:23:34"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/9e926b2b-22c8-42ce-9c4c-d0a4cf4006de \u001b[36m304\u001b[0m 109.350 ms - -\u001b[0m","timestamp":"2026-04-06 13:23:34"}
+{"level":"info","message":"\u001b[0mGET /api/v1/common/bulk-options \u001b[36m304\u001b[0m 177.967 ms - -\u001b[0m","timestamp":"2026-04-06 13:23:34"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 181.294 ms - -\u001b[0m","timestamp":"2026-04-06 13:23:34"}
+{"level":"info","message":"\u001b[0mGET /api/v1/common/bulk-options \u001b[36m304\u001b[0m 74.239 ms - -\u001b[0m","timestamp":"2026-04-06 13:23:34"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 75.413 ms - -\u001b[0m","timestamp":"2026-04-06 13:23:34"}
+{"level":"info","message":"\u001b[0mPUT /api/v1/products/9e926b2b-22c8-42ce-9c4c-d0a4cf4006de \u001b[32m200\u001b[0m 86.429 ms - 921\u001b[0m","timestamp":"2026-04-06 13:23:42"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[32m200\u001b[0m 92.491 ms - -\u001b[0m","timestamp":"2026-04-06 13:23:42"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[36m304\u001b[0m 117.625 ms - -\u001b[0m","timestamp":"2026-04-06 13:23:42"}
+{"level":"info","message":"\u001b[0mGET /uploads/images[]-1775462022309-287911443.webp \u001b[32m200\u001b[0m 7.970 ms - 3086\u001b[0m","timestamp":"2026-04-06 13:23:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[32m200\u001b[0m 61.011 ms - -\u001b[0m","timestamp":"2026-04-06 13:23:48"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 72.018 ms - -\u001b[0m","timestamp":"2026-04-06 13:23:48"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/active/list \u001b[32m200\u001b[0m 90.150 ms - -\u001b[0m","timestamp":"2026-04-06 13:23:51"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/active/list \u001b[36m304\u001b[0m 105.049 ms - -\u001b[0m","timestamp":"2026-04-06 13:23:51"}
+{"level":"info","message":"\u001b[0mGET /uploads/images[]-1775462022309-287911443.webp \u001b[36m304\u001b[0m 3.959 ms - -\u001b[0m","timestamp":"2026-04-06 13:23:53"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/9e926b2b-22c8-42ce-9c4c-d0a4cf4006de \u001b[32m200\u001b[0m 77.330 ms - -\u001b[0m","timestamp":"2026-04-06 13:23:59"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/products/9e926b2b-22c8-42ce-9c4c-d0a4cf4006de/variants \u001b[33m409\u001b[0m 104.533 ms - -\u001b[0m","timestamp":"2026-04-06 13:24:22"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/products/9e926b2b-22c8-42ce-9c4c-d0a4cf4006de/variants \u001b[33m409\u001b[0m 52.449 ms - -\u001b[0m","timestamp":"2026-04-06 13:24:37"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/products/9e926b2b-22c8-42ce-9c4c-d0a4cf4006de/variants \u001b[33m409\u001b[0m 196.630 ms - -\u001b[0m","timestamp":"2026-04-06 13:25:22"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/products/9e926b2b-22c8-42ce-9c4c-d0a4cf4006de/variants \u001b[33m409\u001b[0m 73.268 ms - -\u001b[0m","timestamp":"2026-04-06 13:25:33"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:30:54"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:30:54"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:30:54"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:30:54"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:30:54"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:30:54"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/products/9e926b2b-22c8-42ce-9c4c-d0a4cf4006de/variants \u001b[32m201\u001b[0m 237.347 ms - 672\u001b[0m","timestamp":"2026-04-06 13:31:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[32m200\u001b[0m 252.239 ms - -\u001b[0m","timestamp":"2026-04-06 13:31:44"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 453.347 ms - -\u001b[0m","timestamp":"2026-04-06 13:31:44"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 184.782 ms - -\u001b[0m","timestamp":"2026-04-06 13:31:50"}
+{"level":"info","message":"\u001b[0mGET /api/v1/customers/active/list \u001b[36m304\u001b[0m 203.150 ms - -\u001b[0m","timestamp":"2026-04-06 13:31:50"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users/active-sellers \u001b[36m304\u001b[0m 206.074 ms - -\u001b[0m","timestamp":"2026-04-06 13:31:50"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/pos \u001b[36m304\u001b[0m 135.831 ms - -\u001b[0m","timestamp":"2026-04-06 13:31:51"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 215.374 ms - -\u001b[0m","timestamp":"2026-04-06 13:31:51"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/business \u001b[36m304\u001b[0m 233.028 ms - -\u001b[0m","timestamp":"2026-04-06 13:31:51"}
+{"level":"info","message":"\u001b[0mGET /uploads/images%5B%5D-1775462022309-287911443.webp \u001b[32m200\u001b[0m 81.961 ms - 3086\u001b[0m","timestamp":"2026-04-06 13:31:51"}
+{"level":"info","message":"\u001b[0mGET /api/v1/customers/active/list \u001b[36m304\u001b[0m 257.322 ms - -\u001b[0m","timestamp":"2026-04-06 13:31:51"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users/active-sellers \u001b[36m304\u001b[0m 306.966 ms - -\u001b[0m","timestamp":"2026-04-06 13:31:51"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/receipt \u001b[36m304\u001b[0m 295.237 ms - -\u001b[0m","timestamp":"2026-04-06 13:31:51"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/sales \u001b[33m400\u001b[0m 67.356 ms - 74\u001b[0m","timestamp":"2026-04-06 13:32:01"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 151.063 ms - -\u001b[0m","timestamp":"2026-04-06 13:34:05"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 162.595 ms - -\u001b[0m","timestamp":"2026-04-06 13:34:05"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 269.684 ms - -\u001b[0m","timestamp":"2026-04-06 13:34:06"}
+{"level":"info","message":"\u001b[0mGET /api/v1/sales?start_date=2026-03-07&end_date=2026-04-06&status=completed \u001b[32m200\u001b[0m 286.196 ms - -\u001b[0m","timestamp":"2026-04-06 13:34:11"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 206.272 ms - -\u001b[0m","timestamp":"2026-04-06 13:34:11"}
+{"level":"info","message":"\u001b[0mGET /api/v1/sales?start_date=2026-03-07&end_date=2026-04-06&status=completed \u001b[36m304\u001b[0m 361.349 ms - -\u001b[0m","timestamp":"2026-04-06 13:34:11"}
+{"level":"info","message":"\u001b[0mGET /api/v1/reports/sales/returns?start_date=2026-03-07&end_date=2026-04-06 \u001b[32m200\u001b[0m 97.406 ms - 184\u001b[0m","timestamp":"2026-04-06 13:34:13"}
+{"level":"info","message":"\u001b[0mGET /api/v1/reports/sales/returns?start_date=2026-03-07&end_date=2026-04-06 \u001b[36m304\u001b[0m 159.302 ms - -\u001b[0m","timestamp":"2026-04-06 13:34:13"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches/active/list \u001b[36m304\u001b[0m 47.120 ms - -\u001b[0m","timestamp":"2026-04-06 13:34:15"}
+{"level":"info","message":"\u001b[0mGET /api/v1/reports/sales/returns?start_date=2026-03-07&end_date=2026-04-06&branch_id=all&user_id=all \u001b[32m200\u001b[0m 96.268 ms - 184\u001b[0m","timestamp":"2026-04-06 13:34:15"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches/active/list \u001b[36m304\u001b[0m 200.657 ms - -\u001b[0m","timestamp":"2026-04-06 13:34:15"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users/active-sellers \u001b[36m304\u001b[0m 257.792 ms - -\u001b[0m","timestamp":"2026-04-06 13:34:15"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 250.335 ms - -\u001b[0m","timestamp":"2026-04-06 13:34:15"}
+{"level":"info","message":"\u001b[0mGET /api/v1/reports/sales/returns?start_date=2026-03-07&end_date=2026-04-06&branch_id=all&user_id=all \u001b[36m304\u001b[0m 121.584 ms - -\u001b[0m","timestamp":"2026-04-06 13:34:15"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users/active-sellers \u001b[36m304\u001b[0m 224.524 ms - -\u001b[0m","timestamp":"2026-04-06 13:34:16"}
+{"level":"info","message":"\u001b[0mGET /api/v1/customers \u001b[36m304\u001b[0m 103.230 ms - -\u001b[0m","timestamp":"2026-04-06 13:34:19"}
+{"level":"info","message":"\u001b[0mGET /api/v1/customers \u001b[36m304\u001b[0m 114.466 ms - -\u001b[0m","timestamp":"2026-04-06 13:34:19"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 65.125 ms - -\u001b[0m","timestamp":"2026-04-06 13:34:19"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers \u001b[36m304\u001b[0m 106.423 ms - -\u001b[0m","timestamp":"2026-04-06 13:34:26"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers \u001b[36m304\u001b[0m 112.473 ms - -\u001b[0m","timestamp":"2026-04-06 13:34:26"}
+{"level":"info","message":"\u001b[0mPATCH /api/v1/suppliers/4070d9ae-de1d-482b-aca9-2e7cce992200/deactivate \u001b[33m404\u001b[0m 42.252 ms - 46\u001b[0m","timestamp":"2026-04-06 13:34:34"}
+{"level":"info","message":"\u001b[0mDELETE /api/v1/suppliers/b7722b94-080e-4b85-b041-df26c8682472 \u001b[32m200\u001b[0m 58.261 ms - 62\u001b[0m","timestamp":"2026-04-06 13:34:40"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers \u001b[32m200\u001b[0m 53.492 ms - -\u001b[0m","timestamp":"2026-04-06 13:34:40"}
+{"level":"info","message":"\u001b[0mGET /api/v1/purchase-orders \u001b[32m200\u001b[0m 76.086 ms - -\u001b[0m","timestamp":"2026-04-06 13:34:52"}
+{"level":"info","message":"\u001b[0mGET /api/v1/purchase-orders \u001b[36m304\u001b[0m 93.060 ms - -\u001b[0m","timestamp":"2026-04-06 13:34:52"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/grn?page=1&size=10 \u001b[36m304\u001b[0m 130.696 ms - -\u001b[0m","timestamp":"2026-04-06 13:34:58"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers?size=200 \u001b[32m200\u001b[0m 123.353 ms - -\u001b[0m","timestamp":"2026-04-06 13:34:58"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/grn?page=1&size=10 \u001b[36m304\u001b[0m 103.994 ms - -\u001b[0m","timestamp":"2026-04-06 13:34:58"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers?size=200 \u001b[36m304\u001b[0m 116.333 ms - -\u001b[0m","timestamp":"2026-04-06 13:34:58"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers?size=200 \u001b[36m304\u001b[0m 80.867 ms - -\u001b[0m","timestamp":"2026-04-06 13:35:02"}
+{"level":"info","message":"\u001b[0mGET /api/v1/purchase-returns \u001b[36m304\u001b[0m 114.364 ms - -\u001b[0m","timestamp":"2026-04-06 13:35:02"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers?size=200 \u001b[36m304\u001b[0m 176.669 ms - -\u001b[0m","timestamp":"2026-04-06 13:35:02"}
+{"level":"info","message":"\u001b[0mGET /api/v1/purchase-returns \u001b[36m304\u001b[0m 179.064 ms - -\u001b[0m","timestamp":"2026-04-06 13:35:03"}
+{"level":"info","message":"\u001b[0mGET /api/v1/expense-categories \u001b[36m304\u001b[0m 151.818 ms - -\u001b[0m","timestamp":"2026-04-06 13:35:09"}
+{"level":"info","message":"\u001b[0mGET /api/v1/expense-categories \u001b[36m304\u001b[0m 69.294 ms - -\u001b[0m","timestamp":"2026-04-06 13:35:09"}
+{"level":"info","message":"\u001b[0mGET /api/v1/reports/finance/trial-balance \u001b[32m200\u001b[0m 200.575 ms - -\u001b[0m","timestamp":"2026-04-06 13:35:14"}
+{"level":"info","message":"\u001b[0mGET /api/v1/reports/finance/capital-balance \u001b[36m304\u001b[0m 445.406 ms - -\u001b[0m","timestamp":"2026-04-06 13:35:14"}
+{"level":"info","message":"\u001b[0mGET /api/v1/reports/finance/profit-loss \u001b[32m200\u001b[0m 463.105 ms - 197\u001b[0m","timestamp":"2026-04-06 13:35:14"}
+{"level":"info","message":"\u001b[0mGET /api/v1/reports/finance/trial-balance \u001b[36m304\u001b[0m 105.929 ms - -\u001b[0m","timestamp":"2026-04-06 13:35:14"}
+{"level":"info","message":"\u001b[0mGET /api/v1/reports/finance/capital-balance \u001b[36m304\u001b[0m 206.020 ms - -\u001b[0m","timestamp":"2026-04-06 13:35:14"}
+{"level":"info","message":"\u001b[0mGET /api/v1/reports/finance/profit-loss \u001b[36m304\u001b[0m 235.581 ms - -\u001b[0m","timestamp":"2026-04-06 13:35:14"}
+{"level":"info","message":"\u001b[0mGET /api/v1/accounts \u001b[36m304\u001b[0m 187.093 ms - -\u001b[0m","timestamp":"2026-04-06 13:35:47"}
+{"level":"info","message":"\u001b[0mGET /api/v1/accounts \u001b[36m304\u001b[0m 142.035 ms - -\u001b[0m","timestamp":"2026-04-06 13:35:47"}
+{"level":"info","message":"\u001b[0mGET /api/v1/customers/active/list \u001b[36m304\u001b[0m 177.634 ms - -\u001b[0m","timestamp":"2026-04-06 13:35:56"}
+{"level":"info","message":"\u001b[0mGET /api/v1/customers/active/list \u001b[36m304\u001b[0m 178.430 ms - -\u001b[0m","timestamp":"2026-04-06 13:35:56"}
+{"level":"info","message":"\u001b[0mGET /api/v1/customers/de943547-70f7-4109-a0a5-338b518dc729/ledger \u001b[36m304\u001b[0m 50.336 ms - -\u001b[0m","timestamp":"2026-04-06 13:36:00"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 241.733 ms - -\u001b[0m","timestamp":"2026-04-06 13:47:16"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[32m200\u001b[0m 246.974 ms - -\u001b[0m","timestamp":"2026-04-06 13:47:16"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 144.938 ms - -\u001b[0m","timestamp":"2026-04-06 13:47:16"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/6beb3d0b-e924-424c-8846-b4482fdf0e92/ledger?start_date=2026-04-01&end_date=2026-04-06 \u001b[32m200\u001b[0m 46.644 ms - 466\u001b[0m","timestamp":"2026-04-06 13:47:19"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/7124cd97-cfcb-4e2e-9573-a1cab1ef0bc3/ledger?start_date=2026-04-01&end_date=2026-04-06 \u001b[32m200\u001b[0m 50.490 ms - -\u001b[0m","timestamp":"2026-04-06 13:47:25"}
+{"level":"info","message":"\u001b[0mGET /api/v1/cheques \u001b[36m304\u001b[0m 118.796 ms - -\u001b[0m","timestamp":"2026-04-06 13:47:32"}
+{"level":"info","message":"\u001b[0mGET /api/v1/accounts \u001b[36m304\u001b[0m 172.042 ms - -\u001b[0m","timestamp":"2026-04-06 13:47:32"}
+{"level":"info","message":"\u001b[0mGET /api/v1/cheques \u001b[36m304\u001b[0m 110.846 ms - -\u001b[0m","timestamp":"2026-04-06 13:47:32"}
+{"level":"info","message":"\u001b[0mGET /api/v1/accounts \u001b[36m304\u001b[0m 94.690 ms - -\u001b[0m","timestamp":"2026-04-06 13:47:32"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/general \u001b[36m304\u001b[0m 61.698 ms - -\u001b[0m","timestamp":"2026-04-06 13:47:39"}
+{"level":"info","message":"\u001b[0mGET /api/v1/organizations \u001b[32m200\u001b[0m 72.070 ms - -\u001b[0m","timestamp":"2026-04-06 13:47:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/organizations \u001b[36m304\u001b[0m 66.189 ms - -\u001b[0m","timestamp":"2026-04-06 13:47:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 72.953 ms - -\u001b[0m","timestamp":"2026-04-06 13:47:50"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 90.447 ms - -\u001b[0m","timestamp":"2026-04-06 13:47:50"}
+{"level":"info","message":"\u001b[0mGET /api/v1/roles \u001b[32m200\u001b[0m 207.096 ms - 78\u001b[0m","timestamp":"2026-04-06 13:47:57"}
+{"level":"info","message":"\u001b[0mGET /api/v1/permissions?per_page=200 \u001b[33m404\u001b[0m 199.241 ms - 46\u001b[0m","timestamp":"2026-04-06 13:47:57"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users \u001b[32m200\u001b[0m 218.432 ms - -\u001b[0m","timestamp":"2026-04-06 13:47:57"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 276.832 ms - -\u001b[0m","timestamp":"2026-04-06 13:47:57"}
+{"level":"info","message":"\u001b[0mGET /api/v1/permissions?per_page=200 \u001b[33m404\u001b[0m 180.120 ms - 46\u001b[0m","timestamp":"2026-04-06 13:47:57"}
+{"level":"info","message":"\u001b[0mGET /api/v1/roles \u001b[36m304\u001b[0m 211.919 ms - -\u001b[0m","timestamp":"2026-04-06 13:47:57"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users \u001b[36m304\u001b[0m 296.308 ms - -\u001b[0m","timestamp":"2026-04-06 13:47:57"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches \u001b[36m304\u001b[0m 310.217 ms - -\u001b[0m","timestamp":"2026-04-06 13:47:57"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users \u001b[36m304\u001b[0m 81.350 ms - -\u001b[0m","timestamp":"2026-04-06 13:48:01"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users \u001b[36m304\u001b[0m 78.621 ms - -\u001b[0m","timestamp":"2026-04-06 13:48:02"}
+{"level":"info","message":"\u001b[0mGET /api/v1/audit-logs?page=1&size=20 \u001b[32m200\u001b[0m 123.136 ms - -\u001b[0m","timestamp":"2026-04-06 13:48:06"}
+{"level":"info","message":"\u001b[0mGET /api/v1/audit-logs?page=1&size=20 \u001b[36m304\u001b[0m 92.994 ms - -\u001b[0m","timestamp":"2026-04-06 13:48:06"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 13:50:06"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 13:50:06"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 13:50:06"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 13:50:06"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 13:50:06"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 13:50:06"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[32m200\u001b[0m 308.913 ms - -\u001b[0m","timestamp":"2026-04-06 13:51:05"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[36m304\u001b[0m 189.636 ms - -\u001b[0m","timestamp":"2026-04-06 13:51:05"}
+{"level":"info","message":"\u001b[0mGET /uploads/images[]-1775462022309-287911443.webp \u001b[36m304\u001b[0m 8.152 ms - -\u001b[0m","timestamp":"2026-04-06 13:51:05"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 251.615 ms - -\u001b[0m","timestamp":"2026-04-06 13:51:07"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 241.043 ms - -\u001b[0m","timestamp":"2026-04-06 13:51:07"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=2000 \u001b[32m200\u001b[0m 91.042 ms - -\u001b[0m","timestamp":"2026-04-06 13:51:11"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=2000 \u001b[36m304\u001b[0m 71.428 ms - -\u001b[0m","timestamp":"2026-04-06 13:51:11"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 63.299 ms - -\u001b[0m","timestamp":"2026-04-06 13:51:11"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/refresh \u001b[32m200\u001b[0m 30.024 ms - 466\u001b[0m","timestamp":"2026-04-06 14:36:31"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 85.505 ms - -\u001b[0m","timestamp":"2026-04-06 14:36:31"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=2000 \u001b[36m304\u001b[0m 130.644 ms - -\u001b[0m","timestamp":"2026-04-06 14:36:32"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=2000 \u001b[36m304\u001b[0m 83.882 ms - -\u001b[0m","timestamp":"2026-04-06 14:36:32"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[36m304\u001b[0m 139.685 ms - -\u001b[0m","timestamp":"2026-04-06 14:36:44"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[36m304\u001b[0m 117.440 ms - -\u001b[0m","timestamp":"2026-04-06 14:36:44"}
+{"level":"info","message":"\u001b[0mGET /uploads/images[]-1775462022309-287911443.webp \u001b[36m304\u001b[0m 1.391 ms - -\u001b[0m","timestamp":"2026-04-06 14:36:44"}
+{"level":"info","message":"\u001b[0mGET /api/v1/common/bulk-options \u001b[36m304\u001b[0m 211.102 ms - -\u001b[0m","timestamp":"2026-04-06 14:36:50"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 194.037 ms - -\u001b[0m","timestamp":"2026-04-06 14:36:50"}
+{"level":"info","message":"\u001b[0mGET /api/v1/common/bulk-options \u001b[36m304\u001b[0m 157.657 ms - -\u001b[0m","timestamp":"2026-04-06 14:36:50"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 224.830 ms - -\u001b[0m","timestamp":"2026-04-06 14:36:50"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 819.997 ms - -\u001b[0m","timestamp":"2026-04-06 14:37:25"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 847.851 ms - -\u001b[0m","timestamp":"2026-04-06 14:37:25"}
+{"level":"info","message":"\u001b[0mGET /api/v1/common/bulk-options \u001b[36m304\u001b[0m 903.950 ms - -\u001b[0m","timestamp":"2026-04-06 14:37:25"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 275.620 ms - -\u001b[0m","timestamp":"2026-04-06 14:37:25"}
+{"level":"info","message":"\u001b[0mGET /api/v1/common/bulk-options \u001b[36m304\u001b[0m 526.947 ms - -\u001b[0m","timestamp":"2026-04-06 14:37:26"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/products \u001b[32m201\u001b[0m 194.901 ms - -\u001b[0m","timestamp":"2026-04-06 14:38:13"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[32m200\u001b[0m 221.134 ms - -\u001b[0m","timestamp":"2026-04-06 14:38:14"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[36m304\u001b[0m 215.046 ms - -\u001b[0m","timestamp":"2026-04-06 14:38:14"}
+{"level":"info","message":"\u001b[0mGET /uploads/images[]-1775462022309-287911443.webp \u001b[36m304\u001b[0m 0.622 ms - -\u001b[0m","timestamp":"2026-04-06 14:38:14"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/business \u001b[36m304\u001b[0m 412.519 ms - -\u001b[0m","timestamp":"2026-04-06 14:38:39"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/pos \u001b[36m304\u001b[0m 431.842 ms - -\u001b[0m","timestamp":"2026-04-06 14:38:39"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users/active-sellers \u001b[36m304\u001b[0m 418.130 ms - -\u001b[0m","timestamp":"2026-04-06 14:38:39"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/receipt \u001b[36m304\u001b[0m 446.601 ms - -\u001b[0m","timestamp":"2026-04-06 14:38:39"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[32m200\u001b[0m 436.886 ms - -\u001b[0m","timestamp":"2026-04-06 14:38:39"}
+{"level":"info","message":"\u001b[0mGET /api/v1/customers/active/list \u001b[36m304\u001b[0m 482.146 ms - -\u001b[0m","timestamp":"2026-04-06 14:38:39"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users/active-sellers \u001b[36m304\u001b[0m 143.537 ms - -\u001b[0m","timestamp":"2026-04-06 14:38:39"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 175.531 ms - -\u001b[0m","timestamp":"2026-04-06 14:38:39"}
+{"level":"info","message":"\u001b[0mGET /api/v1/customers/active/list \u001b[36m304\u001b[0m 311.331 ms - -\u001b[0m","timestamp":"2026-04-06 14:38:40"}
+{"level":"info","message":"\u001b[0mGET /uploads/images%5B%5D-1775462022309-287911443.webp \u001b[36m304\u001b[0m 2.756 ms - -\u001b[0m","timestamp":"2026-04-06 14:38:40"}
+{"level":"info","message":"\u001b[0mGET /api/v1/customers/active/list \u001b[36m304\u001b[0m 143.824 ms - -\u001b[0m","timestamp":"2026-04-06 14:38:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 208.475 ms - -\u001b[0m","timestamp":"2026-04-06 14:38:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users/active-sellers \u001b[36m304\u001b[0m 293.428 ms - -\u001b[0m","timestamp":"2026-04-06 14:38:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 80.888 ms - -\u001b[0m","timestamp":"2026-04-06 14:38:48"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 87.429 ms - -\u001b[0m","timestamp":"2026-04-06 14:38:48"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/active/list \u001b[32m200\u001b[0m 106.706 ms - -\u001b[0m","timestamp":"2026-04-06 14:38:53"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/active/list \u001b[36m304\u001b[0m 134.809 ms - -\u001b[0m","timestamp":"2026-04-06 14:38:53"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/b7937703-52a4-4877-9086-0f6a47ad55e7 \u001b[32m200\u001b[0m 86.734 ms - -\u001b[0m","timestamp":"2026-04-06 14:38:57"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/products/b7937703-52a4-4877-9086-0f6a47ad55e7/variants \u001b[33m409\u001b[0m 126.028 ms - -\u001b[0m","timestamp":"2026-04-06 14:39:31"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/products/b7937703-52a4-4877-9086-0f6a47ad55e7/variants \u001b[33m409\u001b[0m 74.791 ms - -\u001b[0m","timestamp":"2026-04-06 14:39:34"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/products/b7937703-52a4-4877-9086-0f6a47ad55e7/variants \u001b[33m409\u001b[0m 94.053 ms - -\u001b[0m","timestamp":"2026-04-06 14:39:35"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 14:45:09"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 14:45:09"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 14:45:09"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 14:45:09"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 14:45:09"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 14:45:09"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[36m304\u001b[0m 275.367 ms - -\u001b[0m","timestamp":"2026-04-06 14:45:11"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[36m304\u001b[0m 182.603 ms - -\u001b[0m","timestamp":"2026-04-06 14:45:11"}
+{"level":"info","message":"\u001b[0mGET /uploads/images[]-1775462022309-287911443.webp \u001b[36m304\u001b[0m 4.444 ms - -\u001b[0m","timestamp":"2026-04-06 14:45:11"}
+{"level":"info","message":"\u001b[0mDELETE /api/v1/products/b7937703-52a4-4877-9086-0f6a47ad55e7 \u001b[32m200\u001b[0m 115.345 ms - 61\u001b[0m","timestamp":"2026-04-06 14:45:16"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[32m200\u001b[0m 130.293 ms - -\u001b[0m","timestamp":"2026-04-06 14:45:16"}
+{"level":"info","message":"\u001b[0mGET /api/v1/common/bulk-options \u001b[36m304\u001b[0m 197.773 ms - -\u001b[0m","timestamp":"2026-04-06 14:45:52"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 246.846 ms - -\u001b[0m","timestamp":"2026-04-06 14:45:53"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 127.439 ms - -\u001b[0m","timestamp":"2026-04-06 14:45:53"}
+{"level":"info","message":"\u001b[0mGET /api/v1/common/bulk-options \u001b[36m304\u001b[0m 161.970 ms - -\u001b[0m","timestamp":"2026-04-06 14:45:53"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/products \u001b[32m201\u001b[0m 98.337 ms - -\u001b[0m","timestamp":"2026-04-06 14:46:12"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[32m200\u001b[0m 115.053 ms - -\u001b[0m","timestamp":"2026-04-06 14:46:12"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[36m304\u001b[0m 162.622 ms - -\u001b[0m","timestamp":"2026-04-06 14:46:12"}
+{"level":"info","message":"\u001b[0mGET /uploads/images[]-1775462022309-287911443.webp \u001b[36m304\u001b[0m 0.974 ms - -\u001b[0m","timestamp":"2026-04-06 14:46:13"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[32m200\u001b[0m 72.805 ms - -\u001b[0m","timestamp":"2026-04-06 14:46:16"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 90.310 ms - -\u001b[0m","timestamp":"2026-04-06 14:46:16"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/active/list \u001b[32m200\u001b[0m 101.613 ms - -\u001b[0m","timestamp":"2026-04-06 14:46:18"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/active/list \u001b[36m304\u001b[0m 126.043 ms - -\u001b[0m","timestamp":"2026-04-06 14:46:18"}
+{"level":"info","message":"\u001b[0mGET /uploads/images[]-1775462022309-287911443.webp \u001b[36m304\u001b[0m 0.714 ms - -\u001b[0m","timestamp":"2026-04-06 14:46:19"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/9e926b2b-22c8-42ce-9c4c-d0a4cf4006de \u001b[32m200\u001b[0m 82.174 ms - -\u001b[0m","timestamp":"2026-04-06 14:46:27"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/products/9e926b2b-22c8-42ce-9c4c-d0a4cf4006de/variants \u001b[32m201\u001b[0m 109.831 ms - 686\u001b[0m","timestamp":"2026-04-06 14:46:47"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[32m200\u001b[0m 102.177 ms - -\u001b[0m","timestamp":"2026-04-06 14:46:47"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 127.311 ms - -\u001b[0m","timestamp":"2026-04-06 14:46:48"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/active/list \u001b[32m200\u001b[0m 84.488 ms - -\u001b[0m","timestamp":"2026-04-06 14:46:51"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/active/list \u001b[36m304\u001b[0m 61.921 ms - -\u001b[0m","timestamp":"2026-04-06 14:46:51"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/305e8600-3d94-4158-baeb-daa2733fef85 \u001b[32m200\u001b[0m 88.079 ms - -\u001b[0m","timestamp":"2026-04-06 14:46:57"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/products/305e8600-3d94-4158-baeb-daa2733fef85/variants \u001b[32m201\u001b[0m 101.008 ms - 698\u001b[0m","timestamp":"2026-04-06 14:47:15"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[32m200\u001b[0m 132.528 ms - -\u001b[0m","timestamp":"2026-04-06 14:47:15"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 88.331 ms - -\u001b[0m","timestamp":"2026-04-06 14:47:15"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/active/list \u001b[32m200\u001b[0m 82.567 ms - -\u001b[0m","timestamp":"2026-04-06 14:47:37"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/active/list \u001b[36m304\u001b[0m 51.131 ms - -\u001b[0m","timestamp":"2026-04-06 14:47:37"}
+{"level":"info","message":"\u001b[0mGET /uploads/images[]-1775462022309-287911443.webp \u001b[36m304\u001b[0m 3.298 ms - -\u001b[0m","timestamp":"2026-04-06 14:47:38"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/c654e8c2-880b-4bdd-b014-4889158eea01 \u001b[32m200\u001b[0m 68.198 ms - -\u001b[0m","timestamp":"2026-04-06 14:47:40"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/products/c654e8c2-880b-4bdd-b014-4889158eea01/variants \u001b[32m201\u001b[0m 96.062 ms - 622\u001b[0m","timestamp":"2026-04-06 14:48:00"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[32m200\u001b[0m 136.250 ms - -\u001b[0m","timestamp":"2026-04-06 14:48:01"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 142.172 ms - -\u001b[0m","timestamp":"2026-04-06 14:48:01"}
+{"level":"info","message":"\u001b[0mDELETE /api/v1/products/305e8600-3d94-4158-baeb-daa2733fef85/variants/0c8acfee-c487-4e3f-b4cf-04779115f607 \u001b[33m404\u001b[0m 56.470 ms - 46\u001b[0m","timestamp":"2026-04-06 14:48:59"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 114.996 ms - -\u001b[0m","timestamp":"2026-04-06 14:48:59"}
+{"level":"info","message":"\u001b[0mDELETE /api/v1/products/305e8600-3d94-4158-baeb-daa2733fef85/variants/0c8acfee-c487-4e3f-b4cf-04779115f607 \u001b[33m404\u001b[0m 80.576 ms - 46\u001b[0m","timestamp":"2026-04-06 14:49:03"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 76.420 ms - -\u001b[0m","timestamp":"2026-04-06 14:49:03"}
+{"level":"info","message":"\u001b[0mDELETE /api/v1/products/305e8600-3d94-4158-baeb-daa2733fef85/variants/0c8acfee-c487-4e3f-b4cf-04779115f607 \u001b[33m404\u001b[0m 111.592 ms - 46\u001b[0m","timestamp":"2026-04-06 14:49:06"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 86.295 ms - -\u001b[0m","timestamp":"2026-04-06 14:49:06"}
+{"level":"info","message":"\u001b[0mDELETE /api/v1/products/305e8600-3d94-4158-baeb-daa2733fef85/variants/0c8acfee-c487-4e3f-b4cf-04779115f607 \u001b[33m404\u001b[0m 42.718 ms - 46\u001b[0m","timestamp":"2026-04-06 14:49:09"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 48.578 ms - -\u001b[0m","timestamp":"2026-04-06 14:49:09"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 149.217 ms - -\u001b[0m","timestamp":"2026-04-06 14:49:13"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 180.273 ms - -\u001b[0m","timestamp":"2026-04-06 14:49:13"}
+{"level":"info","message":"\u001b[0mGET /api/v1/customers/active/list \u001b[36m304\u001b[0m 185.357 ms - -\u001b[0m","timestamp":"2026-04-06 14:49:13"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users/active-sellers \u001b[36m304\u001b[0m 292.083 ms - -\u001b[0m","timestamp":"2026-04-06 14:49:13"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 136.332 ms - -\u001b[0m","timestamp":"2026-04-06 14:49:13"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 103.683 ms - -\u001b[0m","timestamp":"2026-04-06 14:49:13"}
+{"level":"info","message":"\u001b[0mDELETE /api/v1/products/305e8600-3d94-4158-baeb-daa2733fef85/variants/0c8acfee-c487-4e3f-b4cf-04779115f607 \u001b[33m404\u001b[0m 40.970 ms - 46\u001b[0m","timestamp":"2026-04-06 14:49:20"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 61.142 ms - -\u001b[0m","timestamp":"2026-04-06 14:49:20"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 14:51:18"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 14:51:18"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 14:51:18"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 14:51:18"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 14:51:18"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 14:51:18"}
+{"level":"info","message":"Attempting to connect to database... (Attempt 1/5)","timestamp":"2026-04-06 14:53:33"}
+{"level":"info","message":"✅ Database connection established successfully.","timestamp":"2026-04-06 14:53:33"}
+{"level":"info","message":"✅ Database synchronized.","timestamp":"2026-04-06 14:53:33"}
+{"level":"info","message":"🚀 Server running on port 5000","timestamp":"2026-04-06 14:53:33"}
+{"level":"info","message":"📍 Environment: development","timestamp":"2026-04-06 14:53:33"}
+{"level":"info","message":"🔗 API Base URL: http://localhost:5000/api/v1","timestamp":"2026-04-06 14:53:33"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 120.160 ms - -\u001b[0m","timestamp":"2026-04-06 14:53:52"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 191.610 ms - -\u001b[0m","timestamp":"2026-04-06 14:53:52"}
+{"level":"info","message":"\u001b[0mDELETE /api/v1/products/305e8600-3d94-4158-baeb-daa2733fef85/variants/0c8acfee-c487-4e3f-b4cf-04779115f607 \u001b[32m200\u001b[0m 79.354 ms - 61\u001b[0m","timestamp":"2026-04-06 14:53:57"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[32m200\u001b[0m 110.189 ms - -\u001b[0m","timestamp":"2026-04-06 14:53:57"}
+{"level":"info","message":"\u001b[0mDELETE /api/v1/products/9e926b2b-22c8-42ce-9c4c-d0a4cf4006de/variants/03cce544-8a4c-472a-acbf-73ccd897238c \u001b[32m200\u001b[0m 72.413 ms - 61\u001b[0m","timestamp":"2026-04-06 14:54:00"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[32m200\u001b[0m 83.105 ms - -\u001b[0m","timestamp":"2026-04-06 14:54:00"}
+{"level":"info","message":"\u001b[0mDELETE /api/v1/products/9e926b2b-22c8-42ce-9c4c-d0a4cf4006de/variants/7ba878dc-77ea-49c4-9937-abb3fd9c4511 \u001b[32m200\u001b[0m 72.644 ms - 61\u001b[0m","timestamp":"2026-04-06 14:54:03"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[32m200\u001b[0m 77.839 ms - -\u001b[0m","timestamp":"2026-04-06 14:54:03"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/active/list \u001b[32m200\u001b[0m 194.512 ms - -\u001b[0m","timestamp":"2026-04-06 14:54:31"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/active/list \u001b[36m304\u001b[0m 86.659 ms - -\u001b[0m","timestamp":"2026-04-06 14:54:31"}
+{"level":"info","message":"\u001b[0mGET /uploads/images[]-1775462022309-287911443.webp \u001b[36m304\u001b[0m 2.530 ms - -\u001b[0m","timestamp":"2026-04-06 14:54:32"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/8119883f-10c3-41cd-90fc-9e9c373a6329 \u001b[32m200\u001b[0m 82.260 ms - -\u001b[0m","timestamp":"2026-04-06 14:54:38"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/305e8600-3d94-4158-baeb-daa2733fef85 \u001b[36m304\u001b[0m 77.197 ms - -\u001b[0m","timestamp":"2026-04-06 14:54:43"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/9e926b2b-22c8-42ce-9c4c-d0a4cf4006de \u001b[32m200\u001b[0m 83.947 ms - -\u001b[0m","timestamp":"2026-04-06 14:54:46"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/8119883f-10c3-41cd-90fc-9e9c373a6329 \u001b[36m304\u001b[0m 68.808 ms - -\u001b[0m","timestamp":"2026-04-06 14:54:48"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/7c57a43b-3238-4da2-b435-759827c9b4ab \u001b[32m200\u001b[0m 45.806 ms - -\u001b[0m","timestamp":"2026-04-06 14:54:51"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/9dd9abff-12dd-4c6b-b4d5-30fbf9457b14 \u001b[32m200\u001b[0m 62.317 ms - -\u001b[0m","timestamp":"2026-04-06 14:54:54"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/305e8600-3d94-4158-baeb-daa2733fef85 \u001b[36m304\u001b[0m 59.544 ms - -\u001b[0m","timestamp":"2026-04-06 14:54:57"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 64.302 ms - -\u001b[0m","timestamp":"2026-04-06 14:55:02"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 82.928 ms - -\u001b[0m","timestamp":"2026-04-06 14:55:02"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/active/list \u001b[36m304\u001b[0m 79.135 ms - -\u001b[0m","timestamp":"2026-04-06 14:55:20"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/305e8600-3d94-4158-baeb-daa2733fef85 \u001b[36m304\u001b[0m 103.783 ms - -\u001b[0m","timestamp":"2026-04-06 14:55:20"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/active/list \u001b[36m304\u001b[0m 168.738 ms - -\u001b[0m","timestamp":"2026-04-06 14:55:20"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/8119883f-10c3-41cd-90fc-9e9c373a6329 \u001b[36m304\u001b[0m 60.711 ms - -\u001b[0m","timestamp":"2026-04-06 14:55:39"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/9aa175e3-ef6a-4f2a-8f32-7a667673aea4 \u001b[32m200\u001b[0m 73.014 ms - -\u001b[0m","timestamp":"2026-04-06 14:55:45"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/9dd9abff-12dd-4c6b-b4d5-30fbf9457b14 \u001b[36m304\u001b[0m 82.789 ms - -\u001b[0m","timestamp":"2026-04-06 14:55:51"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 93.350 ms - -\u001b[0m","timestamp":"2026-04-06 14:56:15"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 66.137 ms - -\u001b[0m","timestamp":"2026-04-06 14:56:15"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/variants/90d79179-b74f-458b-8c47-29e4bf9eb24c \u001b[32m200\u001b[0m 118.819 ms - -\u001b[0m","timestamp":"2026-04-06 14:56:21"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/variants/90d79179-b74f-458b-8c47-29e4bf9eb24c \u001b[36m304\u001b[0m 172.791 ms - -\u001b[0m","timestamp":"2026-04-06 14:56:21"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/active/list \u001b[36m304\u001b[0m 152.002 ms - -\u001b[0m","timestamp":"2026-04-06 14:56:21"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/9dd9abff-12dd-4c6b-b4d5-30fbf9457b14 \u001b[36m304\u001b[0m 229.721 ms - -\u001b[0m","timestamp":"2026-04-06 14:56:21"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/active/list \u001b[36m304\u001b[0m 241.963 ms - -\u001b[0m","timestamp":"2026-04-06 14:56:22"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/9dd9abff-12dd-4c6b-b4d5-30fbf9457b14 \u001b[36m304\u001b[0m 243.229 ms - -\u001b[0m","timestamp":"2026-04-06 14:56:22"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 64.375 ms - -\u001b[0m","timestamp":"2026-04-06 14:56:29"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 57.853 ms - -\u001b[0m","timestamp":"2026-04-06 14:56:29"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[32m200\u001b[0m 59.843 ms - -\u001b[0m","timestamp":"2026-04-06 14:56:32"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[36m304\u001b[0m 85.887 ms - -\u001b[0m","timestamp":"2026-04-06 14:56:32"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 227.465 ms - -\u001b[0m","timestamp":"2026-04-06 14:56:34"}
+{"level":"info","message":"\u001b[0mGET /api/v1/common/bulk-options \u001b[36m304\u001b[0m 235.181 ms - -\u001b[0m","timestamp":"2026-04-06 14:56:34"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 55.744 ms - -\u001b[0m","timestamp":"2026-04-06 14:56:34"}
+{"level":"info","message":"\u001b[0mGET /api/v1/common/bulk-options \u001b[36m304\u001b[0m 106.694 ms - -\u001b[0m","timestamp":"2026-04-06 14:56:34"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[36m304\u001b[0m 65.033 ms - -\u001b[0m","timestamp":"2026-04-06 14:56:38"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[36m304\u001b[0m 86.295 ms - -\u001b[0m","timestamp":"2026-04-06 14:56:38"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/9e926b2b-22c8-42ce-9c4c-d0a4cf4006de \u001b[36m304\u001b[0m 71.246 ms - -\u001b[0m","timestamp":"2026-04-06 14:56:44"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/9e926b2b-22c8-42ce-9c4c-d0a4cf4006de \u001b[36m304\u001b[0m 74.044 ms - -\u001b[0m","timestamp":"2026-04-06 14:56:44"}
+{"level":"info","message":"\u001b[0mGET /api/v1/common/bulk-options \u001b[36m304\u001b[0m 117.802 ms - -\u001b[0m","timestamp":"2026-04-06 14:56:45"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 138.236 ms - -\u001b[0m","timestamp":"2026-04-06 14:56:45"}
+{"level":"info","message":"\u001b[0mGET /api/v1/common/bulk-options \u001b[36m304\u001b[0m 43.587 ms - -\u001b[0m","timestamp":"2026-04-06 14:56:45"}
+{"level":"info","message":"\u001b[0mGET /api/v1/suppliers/active/list \u001b[36m304\u001b[0m 80.138 ms - -\u001b[0m","timestamp":"2026-04-06 14:56:45"}
+{"level":"info","message":"\u001b[0mPUT /api/v1/products/9e926b2b-22c8-42ce-9c4c-d0a4cf4006de \u001b[32m200\u001b[0m 103.140 ms - -\u001b[0m","timestamp":"2026-04-06 14:57:02"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[32m200\u001b[0m 119.971 ms - -\u001b[0m","timestamp":"2026-04-06 14:57:02"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?page=1 \u001b[36m304\u001b[0m 98.199 ms - -\u001b[0m","timestamp":"2026-04-06 14:57:03"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[32m200\u001b[0m 89.046 ms - -\u001b[0m","timestamp":"2026-04-06 14:57:10"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 100.590 ms - -\u001b[0m","timestamp":"2026-04-06 14:57:10"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/active/list \u001b[32m200\u001b[0m 114.386 ms - -\u001b[0m","timestamp":"2026-04-06 14:57:11"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/active/list \u001b[36m304\u001b[0m 96.380 ms - -\u001b[0m","timestamp":"2026-04-06 14:57:11"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/9e926b2b-22c8-42ce-9c4c-d0a4cf4006de \u001b[32m200\u001b[0m 64.675 ms - -\u001b[0m","timestamp":"2026-04-06 14:57:15"}
+{"level":"info","message":"\u001b[0mPOST /api/v1/products/9e926b2b-22c8-42ce-9c4c-d0a4cf4006de/variants \u001b[32m201\u001b[0m 94.320 ms - -\u001b[0m","timestamp":"2026-04-06 14:57:46"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[32m200\u001b[0m 77.569 ms - -\u001b[0m","timestamp":"2026-04-06 14:57:47"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 130.983 ms - -\u001b[0m","timestamp":"2026-04-06 14:57:47"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/variants/adf111e3-becb-48ae-9838-9f9dc86efdfe \u001b[32m200\u001b[0m 86.632 ms - -\u001b[0m","timestamp":"2026-04-06 14:57:56"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/variants/adf111e3-becb-48ae-9838-9f9dc86efdfe \u001b[36m304\u001b[0m 73.960 ms - -\u001b[0m","timestamp":"2026-04-06 14:57:56"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/active/list \u001b[32m200\u001b[0m 92.121 ms - -\u001b[0m","timestamp":"2026-04-06 14:57:57"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/9e926b2b-22c8-42ce-9c4c-d0a4cf4006de \u001b[32m200\u001b[0m 236.760 ms - -\u001b[0m","timestamp":"2026-04-06 14:57:57"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/active/list \u001b[36m304\u001b[0m 72.975 ms - -\u001b[0m","timestamp":"2026-04-06 14:57:57"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products/9e926b2b-22c8-42ce-9c4c-d0a4cf4006de \u001b[36m304\u001b[0m 103.692 ms - -\u001b[0m","timestamp":"2026-04-06 14:57:57"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 67.224 ms - -\u001b[0m","timestamp":"2026-04-06 14:58:07"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 63.990 ms - -\u001b[0m","timestamp":"2026-04-06 14:58:07"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users/active-sellers \u001b[36m304\u001b[0m 213.098 ms - -\u001b[0m","timestamp":"2026-04-06 14:58:23"}
+{"level":"info","message":"\u001b[0mGET /api/v1/reports/sales/returns?start_date=2026-03-07&end_date=2026-04-06&branch_id=all&user_id=all \u001b[36m304\u001b[0m 219.559 ms - -\u001b[0m","timestamp":"2026-04-06 14:58:23"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches/active/list \u001b[36m304\u001b[0m 236.800 ms - -\u001b[0m","timestamp":"2026-04-06 14:58:24"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users/active-sellers \u001b[36m304\u001b[0m 240.522 ms - -\u001b[0m","timestamp":"2026-04-06 14:58:24"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 260.933 ms - -\u001b[0m","timestamp":"2026-04-06 14:58:24"}
+{"level":"info","message":"\u001b[0mGET /api/v1/reports/sales/returns?start_date=2026-03-07&end_date=2026-04-06&branch_id=all&user_id=all \u001b[36m304\u001b[0m 257.700 ms - -\u001b[0m","timestamp":"2026-04-06 14:58:24"}
+{"level":"info","message":"\u001b[0mGET /api/v1/branches/active/list \u001b[36m304\u001b[0m 321.139 ms - -\u001b[0m","timestamp":"2026-04-06 14:58:24"}
+{"level":"info","message":"\u001b[0mGET /api/v1/customers \u001b[36m304\u001b[0m 96.185 ms - -\u001b[0m","timestamp":"2026-04-06 14:58:28"}
+{"level":"info","message":"\u001b[0mGET /api/v1/customers \u001b[36m304\u001b[0m 74.275 ms - -\u001b[0m","timestamp":"2026-04-06 14:58:28"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/global \u001b[36m304\u001b[0m 155.863 ms - -\u001b[0m","timestamp":"2026-04-06 14:58:28"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/pos \u001b[36m304\u001b[0m 189.998 ms - -\u001b[0m","timestamp":"2026-04-06 14:58:31"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/business \u001b[36m304\u001b[0m 343.480 ms - -\u001b[0m","timestamp":"2026-04-06 14:58:31"}
+{"level":"info","message":"\u001b[0mGET /api/v1/settings/receipt \u001b[36m304\u001b[0m 335.826 ms - -\u001b[0m","timestamp":"2026-04-06 14:58:31"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 451.176 ms - -\u001b[0m","timestamp":"2026-04-06 14:58:31"}
+{"level":"info","message":"\u001b[0mGET /api/v1/customers/active/list \u001b[36m304\u001b[0m 504.770 ms - -\u001b[0m","timestamp":"2026-04-06 14:58:31"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users/active-sellers \u001b[36m304\u001b[0m 532.817 ms - -\u001b[0m","timestamp":"2026-04-06 14:58:31"}
+{"level":"info","message":"\u001b[0mGET /api/v1/products?size=1000 \u001b[36m304\u001b[0m 108.989 ms - -\u001b[0m","timestamp":"2026-04-06 14:58:32"}
+{"level":"info","message":"\u001b[0mGET /api/v1/customers/active/list \u001b[36m304\u001b[0m 181.871 ms - -\u001b[0m","timestamp":"2026-04-06 14:58:32"}
+{"level":"info","message":"\u001b[0mGET /api/v1/users/active-sellers \u001b[36m304\u001b[0m 108.890 ms - -\u001b[0m","timestamp":"2026-04-06 14:58:32"}
+{"level":"info","message":"\u001b[0mGET /uploads/images%5B%5D-1775462022309-287911443.webp \u001b[36m304\u001b[0m 6.407 ms - -\u001b[0m","timestamp":"2026-04-06 14:58:32"}

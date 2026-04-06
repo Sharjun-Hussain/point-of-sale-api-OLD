@@ -68,6 +68,7 @@ const login = async (req, res, next) => {
         await RefreshToken.create({
             token: refreshTokenStr,
             user_id: user.id,
+            organization_id: user.organization_id, // Added organization_id
             expires_at: new Date(decoded.exp * 1000)
         });
 
@@ -150,6 +151,7 @@ const refresh = async (req, res, next) => {
         await RefreshToken.create({
             token: newRefreshTokenStr,
             user_id: user.id,
+            organization_id: user.organization_id, // Added organization_id
             expires_at: new Date(decoded.exp * 1000)
         });
 

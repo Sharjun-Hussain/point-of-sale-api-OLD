@@ -8,6 +8,7 @@ const { successResponse, errorResponse } = require('../utils/responseHandler');
 const getAllAttributes = async (req, res, next) => {
     try {
         const attributes = await Attribute.findAll({
+            where: { organization_id: req.user.organization_id },
             order: [['name', 'ASC']]
         });
         return successResponse(res, attributes, 'Attributes fetched successfully');
@@ -24,7 +25,8 @@ const createAttribute = async (req, res, next) => {
 
         const attribute = await Attribute.create({
             name,
-            is_active: is_active !== undefined ? is_active : true
+            is_active: is_active !== undefined ? is_active : true,
+            organization_id: req.user.organization_id
         });
 
         return successResponse(res, attribute, 'Attribute created successfully', 201);
@@ -39,7 +41,7 @@ const updateAttribute = async (req, res, next) => {
         const { name, is_active } = req.body;
 
         const attribute = await Attribute.findOne({
-            where: { id }
+            where: { id, organization_id: req.user.organization_id }
         });
 
         if (!attribute) return errorResponse(res, 'Attribute not found', 404);
@@ -55,7 +57,7 @@ const deleteAttribute = async (req, res, next) => {
     try {
         const { id } = req.params;
         const attribute = await Attribute.findOne({
-            where: { id }
+            where: { id, organization_id: req.user.organization_id }
         });
 
         if (!attribute) return errorResponse(res, 'Attribute not found', 404);

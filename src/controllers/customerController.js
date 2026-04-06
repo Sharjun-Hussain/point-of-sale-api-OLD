@@ -20,7 +20,7 @@ const getAllCustomers = async (req, res, next) => {
         }
 
         const customers = await Customer.findAndCountAll({
-            where,
+            where: { ...where, organization_id: req.user.organization_id },
             limit,
             offset,
             order: [['name', 'ASC']]
@@ -44,7 +44,9 @@ const getCustomerLedger = async (req, res, next) => {
         const { id } = req.params;
         const { from_date, to_date } = req.query;
 
-        const customer = await Customer.findByPk(id);
+        const customer = await Customer.findOne({
+            where: { id, organization_id: req.user.organization_id }
+        });
         if (!customer) {
             return errorResponse(res, 'Customer not found', 404);
         }
@@ -202,7 +204,9 @@ const createCustomerPayment = async (req, res, next) => {
         const organization_id = req.user.organization_id;
         const branch_id = req.user.branch_id;
 
-        const customer = await Customer.findByPk(customer_id);
+        const customer = await Customer.findOne({
+            where: { id: customer_id, organization_id }
+        });
         if (!customer) {
             return errorResponse(res, 'Customer not found', 404);
         }

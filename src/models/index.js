@@ -54,6 +54,7 @@ db.StockTransfer = require('./StockTransfer')(sequelize, DataTypes);
 db.StockTransferItem = require('./StockTransferItem')(sequelize, DataTypes);
 db.SubscriptionHistory = require('./SubscriptionHistory')(sequelize, DataTypes);
 db.RefreshToken = require('./RefreshToken')(sequelize, DataTypes);
+db.BusinessPlan = require('./BusinessPlan')(sequelize, DataTypes);
 
 // Associations
 // Many-to-Many: User and Role
@@ -97,6 +98,10 @@ db.Branch.belongsTo(db.Organization, { as: 'organization', foreignKey: 'organiza
 // Organization & SubscriptionHistory
 db.Organization.hasMany(db.SubscriptionHistory, { as: 'subscription_histories', foreignKey: 'organization_id' });
 db.SubscriptionHistory.belongsTo(db.Organization, { as: 'organization', foreignKey: 'organization_id' });
+
+// Organization & BusinessPlan
+db.Organization.belongsTo(db.BusinessPlan, { as: 'plan', foreignKey: 'plan_id' });
+db.BusinessPlan.hasMany(db.Organization, { as: 'organizations', foreignKey: 'plan_id' });
 
 // User associations with Organization and Branch
 db.User.belongsTo(db.Organization, { as: 'organization', foreignKey: 'organization_id' });

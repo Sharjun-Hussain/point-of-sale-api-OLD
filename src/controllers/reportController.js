@@ -208,6 +208,7 @@ const reportController = {
             const organization_id = req.user.organization_id;
 
             const stocks = await Stock.findAll({
+                where: { organization_id },
                 include: [
                     {
                         model: Product,
@@ -280,6 +281,7 @@ const reportController = {
             // Assuming Product has alert_quantity or similar. If not, we use default 5.
 
             const stocks = await Stock.findAll({
+                where: { organization_id },
                 include: [
                     {
                         model: Product,
@@ -1296,6 +1298,7 @@ const reportController = {
 
             // 3. Low Stock Items
             const stocks = await Stock.findAll({
+                where: { organization_id },
                 include: [
                     {
                         model: ProductVariant,
@@ -1303,10 +1306,6 @@ const reportController = {
                         attributes: ['low_stock_threshold']
                     }
                 ],
-                where: branch_id ? { branch_id } : {
-                    organization_id  // If no branch_id, we still need to filter by organization via associations or direct where if Stock had organization_id
-                    // Note: Stock model has organization_id according to previous view_file
-                }
             });
 
             const lowStockCount = stocks.filter(s => {

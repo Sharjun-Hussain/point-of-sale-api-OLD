@@ -36,6 +36,10 @@ module.exports = (sequelize, DataTypes) => {
         total_amount: {
             type: DataTypes.DECIMAL(15, 2),
             allowNull: false
+        },
+        organization_id: {
+            type: DataTypes.UUID,
+            allowNull: true
         }
     }, {
         tableName: 'sale_items',

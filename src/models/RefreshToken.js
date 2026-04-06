@@ -25,6 +25,14 @@ module.exports = (sequelize, DataTypes) => {
         replaced_by_token: {
             type: DataTypes.STRING(500),
             allowNull: true
+        },
+        is_active: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: true
+        },
+        organization_id: {
+            type: DataTypes.UUID,
+            allowNull: true
         }
     }, {
         tableName: 'refresh_tokens',

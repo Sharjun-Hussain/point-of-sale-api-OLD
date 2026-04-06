@@ -29,9 +29,17 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             allowNull: true
         },
+        reason_category: {
+            type: DataTypes.STRING,
+            allowNull: true
+        },
         user_id: {
             type: DataTypes.UUID,
             allowNull: false
+        },
+        organization_id: {
+            type: DataTypes.UUID,
+            allowNull: true
         }
     }, {
         tableName: 'stock_adjustments',

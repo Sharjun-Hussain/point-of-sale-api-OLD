@@ -26,6 +26,14 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.TEXT,
             allowNull: true
         },
+        is_active: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: true
+        },
+        organization_id: {
+            type: DataTypes.UUID,
+            allowNull: false
+        },
         total_value: {
             type: DataTypes.DECIMAL(15, 2),
             defaultValue: 0.00

@@ -141,7 +141,7 @@ const createSaleReturn = async (req, res, next) => {
             }, { transaction: t });
 
             // A. Increment Global Stock
-            const stockWhere = { branch_id, product_id: item.product_id, product_variant_id: item.product_variant_id || null };
+            const stockWhere = { organization_id, branch_id, product_id: item.product_id, product_variant_id: item.product_variant_id || null };
             const stock = await Stock.findOne({ where: stockWhere, transaction: t });
             if (stock) {
                 await stock.increment('quantity', { by: item.quantity, transaction: t });
@@ -153,6 +153,7 @@ const createSaleReturn = async (req, res, next) => {
             // We assume the returned item goes back to the most recent batch (LIFO for returns)
             const latestBatch = await ProductBatch.findOne({
                 where: {
+                    organization_id,
                     branch_id,
                     product_id: item.product_id,
                     product_variant_id: item.product_variant_id || null

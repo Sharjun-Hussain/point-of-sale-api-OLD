@@ -26,6 +26,10 @@ module.exports = (sequelize, DataTypes) => {
         is_default: {
             type: DataTypes.BOOLEAN,
             defaultValue: false
+        },
+        organization_id: {
+            type: DataTypes.UUID,
+            allowNull: true
         }
     }, {
         tableName: 'product_suppliers',

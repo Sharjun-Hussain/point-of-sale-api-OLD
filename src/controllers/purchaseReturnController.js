@@ -115,7 +115,10 @@ const createPurchaseReturn = async (req, res, next) => {
 
         // 2. Process Items (Create Items, Deduct Stock, Adjust Batches)
         for (const item of processedItems) {
-            const product = await Product.findByPk(item.product_id, { transaction: t });
+            const product = await Product.findOne({
+                where: { id: item.product_id, organization_id },
+                transaction: t
+            });
             const productName = product ? product.name : item.product_id;
 
             let product_batch_id = null;
@@ -123,6 +126,7 @@ const createPurchaseReturn = async (req, res, next) => {
             if (item.batch_number) {
                 const batch = await ProductBatch.findOne({
                     where: {
+                        organization_id,
                         branch_id,
                         product_id: item.product_id,
                         product_variant_id: item.product_variant_id || null,
@@ -156,6 +160,7 @@ const createPurchaseReturn = async (req, res, next) => {
             // A. Deduct from Global Stock
             const stock = await Stock.findOne({
                 where: {
+                    organization_id,
                     branch_id,
                     product_id: item.product_id,
                     product_variant_id: item.product_variant_id || null
@@ -177,6 +182,7 @@ const createPurchaseReturn = async (req, res, next) => {
             if (purchase_order_id) {
                 const poItem = await PurchaseOrderItem.findOne({
                     where: {
+                        organization_id,
                         purchase_order_id,
                         product_id: item.product_id,
                         product_variant_id: item.product_variant_id || null
@@ -191,7 +197,8 @@ const createPurchaseReturn = async (req, res, next) => {
 
         // Update Purchase Order status if linked (Re-evaluate status)
         if (purchase_order_id) {
-            const po = await PurchaseOrder.findByPk(purchase_order_id, {
+            const po = await PurchaseOrder.findOne({
+                where: { id: purchase_order_id, organization_id },
                 include: [{ model: PurchaseOrderItem, as: 'items' }],
                 transaction: t
             });
@@ -219,7 +226,10 @@ const createPurchaseReturn = async (req, res, next) => {
 
         // 3. Create Financial Transaction (Debit Note - Supplier owes us / Reduces our Liability)
         // Check if Supplier exists
-        const supplier = await Supplier.findByPk(supplier_id, { transaction: t });
+        const supplier = await Supplier.findOne({
+            where: { id: supplier_id, organization_id },
+            transaction: t
+        });
 
         // Find Accounts
         const [apAccount] = await Account.findOrCreate({

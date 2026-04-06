@@ -9,7 +9,8 @@ const getAllMainCategories = async (req, res, next) => {
     try {
         const { page, size, name } = req.query;
         const { limit, offset } = getPagination(page, size);
-        const where = name ? { name: { [Op.like]: `%${name}%` } } : {};
+        const where = { organization_id: req.user.organization_id };
+        if (name) where.name = { [Op.like]: `%${name}%` };
         const categories = await MainCategory.findAndCountAll({ where, limit, offset, order: [['name', 'ASC']] });
         return paginatedResponse(res, categories.rows, { total: categories.count, page: parseInt(page) || 1, limit }, 'Main Categories fetched');
     } catch (error) { next(error); }
@@ -17,7 +18,10 @@ const getAllMainCategories = async (req, res, next) => {
 
 const getActiveMainCategoriesList = async (req, res, next) => {
     try {
-        const categories = await MainCategory.findAll({ where: { is_active: true }, order: [['name', 'ASC']] });
+        const categories = await MainCategory.findAll({ 
+            where: { is_active: true, organization_id: req.user.organization_id }, 
+            order: [['name', 'ASC']] 
+        });
         return successResponse(res, categories, 'Active main categories fetched');
     } catch (error) { next(error); }
 };
@@ -45,7 +49,9 @@ const createMainCategory = async (req, res, next) => {
 
 const updateMainCategory = async (req, res, next) => {
     try {
-        const category = await MainCategory.findByPk(req.params.id);
+        const category = await MainCategory.findOne({
+            where: { id: req.params.id, organization_id: req.user.organization_id }
+        });
         if (!category) return errorResponse(res, 'Not found', 404);
 
         const oldValues = { name: category.name };
@@ -70,7 +76,9 @@ const updateMainCategory = async (req, res, next) => {
 
 const toggleMainStatus = async (req, res, next) => {
     try {
-        const category = await MainCategory.findByPk(req.params.id);
+        const category = await MainCategory.findOne({
+            where: { id: req.params.id, organization_id: req.user.organization_id }
+        });
         if (!category) return errorResponse(res, 'Not found', 404);
         const action = req.params.action || (category.is_active ? 'deactivate' : 'activate');
         category.is_active = (action === 'activate');
@@ -97,7 +105,8 @@ const getAllSubCategories = async (req, res, next) => {
     try {
         const { page, size, name } = req.query;
         const { limit, offset } = getPagination(page, size);
-        const where = name ? { name: { [Op.like]: `%${name}%` } } : {};
+        const where = { organization_id: req.user.organization_id };
+        if (name) where.name = { [Op.like]: `%${name}%` };
         const categories = await SubCategory.findAndCountAll({
             where, limit, offset, order: [['name', 'ASC']],
             include: [{ model: MainCategory, as: 'main_category' }]
@@ -108,7 +117,7 @@ const getAllSubCategories = async (req, res, next) => {
 
 const getActiveSubCategoriesList = async (req, res, next) => {
     try {
-        const where = { is_active: true };
+        const where = { is_active: true, organization_id: req.user.organization_id };
         if (req.query.main_category_id) where.main_category_id = req.query.main_category_id;
         const categories = await SubCategory.findAll({ where, order: [['name', 'ASC']] });
         return successResponse(res, categories, 'Active sub categories fetched');
@@ -138,7 +147,9 @@ const createSubCategory = async (req, res, next) => {
 
 const updateSubCategory = async (req, res, next) => {
     try {
-        const category = await SubCategory.findByPk(req.params.id);
+        const category = await SubCategory.findOne({
+            where: { id: req.params.id, organization_id: req.user.organization_id }
+        });
         if (!category) return errorResponse(res, 'Not found', 404);
 
         const oldValues = { name: category.name, main_category_id: category.main_category_id };
@@ -163,7 +174,9 @@ const updateSubCategory = async (req, res, next) => {
 
 const toggleSubStatus = async (req, res, next) => {
     try {
-        const category = await SubCategory.findByPk(req.params.id);
+        const category = await SubCategory.findOne({
+            where: { id: req.params.id, organization_id: req.user.organization_id }
+        });
         if (!category) return errorResponse(res, 'Not found', 404);
         const action = req.params.action || (category.is_active ? 'deactivate' : 'activate');
         category.is_active = (action === 'activate');

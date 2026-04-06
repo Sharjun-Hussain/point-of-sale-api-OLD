@@ -21,7 +21,7 @@ const getAllSuppliers = async (req, res, next) => {
         }
 
         const suppliers = await Supplier.findAndCountAll({
-            where,
+            where: { ...where, organization_id: req.user.organization_id },
             limit,
             offset,
             order: [['name', 'ASC']]
@@ -45,7 +45,9 @@ const getSupplierLedger = async (req, res, next) => {
         const { id } = req.params;
         const { from_date, to_date } = req.query;
 
-        const supplier = await Supplier.findByPk(id);
+        const supplier = await Supplier.findOne({
+            where: { id, organization_id: req.user.organization_id }
+        });
         if (!supplier) {
             return errorResponse(res, 'Supplier not found', 404);
         }
@@ -184,6 +186,7 @@ const createGRN = async (req, res, next) => {
             // 1. Create/Update Product Batch (Find by number, expiry, and price to support pricing-based batches)
             const [batch, createdBatch] = await db.ProductBatch.findOrCreate({
                 where: {
+                    organization_id,
                     branch_id,
                     product_id: item.product_id || item.productId,
                     product_variant_id: item.product_variant_id || item.productVariantId || null,
@@ -221,11 +224,12 @@ const createGRN = async (req, res, next) => {
             // 3. Update Global Stock (Cumulative)
             const [stock, createdStock] = await db.Stock.findOrCreate({
                 where: {
+                    organization_id,
                     branch_id,
                     product_id: item.product_id || item.productId,
                     product_variant_id: item.product_variant_id || item.productVariantId || null
                 },
-                defaults: { quantity: 0, organization_id },
+                defaults: { quantity: 0 },
                 transaction: t
             });
             await stock.increment('quantity', { by: qtyReceived + freeQty, transaction: t });
@@ -234,12 +238,12 @@ const createGRN = async (req, res, next) => {
             if (item.product_variant_id || item.productVariantId) {
                 await db.ProductVariant.update(
                     { cost_price: unitCost, price: sellingPrice, wholesale_price: wholesalePrice },
-                    { where: { id: item.product_variant_id || item.productVariantId }, transaction: t }
+                    { where: { id: item.product_variant_id || item.productVariantId, organization_id }, transaction: t }
                 );
             } else {
                 await db.Product.update(
                     { cost_price: unitCost, price: sellingPrice, wholesale_price: wholesalePrice },
-                    { where: { id: item.product_id || item.productId }, transaction: t }
+                    { where: { id: item.product_id || item.productId, organization_id }, transaction: t }
                 );
             }
 
@@ -247,6 +251,7 @@ const createGRN = async (req, res, next) => {
             if (purchase_order_id) {
                 const poItem = await db.PurchaseOrderItem.findOne({
                     where: {
+                        organization_id,
                         purchase_order_id,
                         product_id: item.product_id || item.productId,
                         product_variant_id: item.product_variant_id || item.productVariantId || null
@@ -307,7 +312,8 @@ const createGRN = async (req, res, next) => {
 
         // Update Purchase Order status if linked
         if (purchase_order_id) {
-            const po = await db.PurchaseOrder.findByPk(purchase_order_id, {
+            const po = await db.PurchaseOrder.findOne({
+                where: { id: purchase_order_id, organization_id },
                 include: [{ model: db.PurchaseOrderItem, as: 'items' }],
                 transaction: t
             });
@@ -588,7 +594,9 @@ const createSupplierPayment = async (req, res, next) => {
         const organization_id = req.user.organization_id;
         const branch_id = req.user.branch_id;
 
-        const supplier = await Supplier.findByPk(supplier_id);
+        const supplier = await Supplier.findOne({
+            where: { id: supplier_id, organization_id }
+        });
         if (!supplier) {
             return errorResponse(res, 'Supplier not found', 404);
         }
