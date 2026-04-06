@@ -252,7 +252,7 @@ if mysql -h "$DB_HOST" -u "$ADMIN_DB_USER" ${ADMIN_DB_PASS:+-p$ADMIN_DB_PASS} -e
                 exit 1
             fi
         else
-            print_status "Keeping existing database. Migrations will update schema."
+            print_status "Keeping existing database. Bootstrap will ensure consistency."
         fi
     fi
 
@@ -342,14 +342,14 @@ else
     echo -e "${YELLOW}  FLUSH PRIVILEGES;${NC}"
 fi
 
-# Run Migrations
-print_status "Running database migrations..."
-if pnpm run db:migrate; then
-    print_status "Database migrations completed successfully"
+# Bootstrap Database (Schema & Essential Data)
+print_status "Bootstrapping database from models..."
+if pnpm run db:bootstrap; then
+    print_status "Database bootstrap completed successfully"
 else
-    print_error "Database migrations failed!"
-    print_warning "You may need to run migrations manually:"
-    echo -e "${YELLOW}  pnpm run db:migrate${NC}"
+    print_error "Database bootstrap failed!"
+    print_warning "You may need to run bootstrap manually:"
+    echo -e "${YELLOW}  pnpm run db:bootstrap${NC}"
 fi
 
 # ----------------------------------------------------------------------
