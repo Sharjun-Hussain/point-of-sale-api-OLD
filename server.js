@@ -39,7 +39,7 @@ app.use(helmet({
 
 // CORS configuration
 const corsOptions = {
-    origin: process.env.FRONTEND_URL?.split(',') || ['http://localhost:3000'],
+    origin: process.env.FRONTEND_URL?.split(',') || ['http://localhost:3000', 'https://pos.inzeedo.com'],
     credentials: true,
     optionsSuccessStatus: 200
 };
