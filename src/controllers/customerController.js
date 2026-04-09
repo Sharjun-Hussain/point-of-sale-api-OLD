@@ -200,9 +200,31 @@ const createCustomerPayment = async (req, res, next) => {
     const t = await db.sequelize.transaction();
     try {
         const { id: customer_id } = req.params;
-        const { amount, payment_method, reference_number, transaction_date, description, cheque_details } = req.body;
+        const { amount, payment_method, reference_number, transaction_date, description, cheque_details, branch_id: payload_branch_id } = req.body;
         const organization_id = req.user.organization_id;
-        const branch_id = req.user.branch_id;
+        
+        let branch_id = payload_branch_id || req.user.branch_id;
+
+        // Fallback to main branch if no branch_id is found
+        if (!branch_id) {
+            const mainBranch = await db.Branch.findOne({
+                where: { organization_id, is_main: true }
+            });
+            if (mainBranch) {
+                branch_id = mainBranch.id;
+            } else {
+                // Last resort: find any active branch for this org
+                const anyBranch = await db.Branch.findOne({
+                    where: { organization_id, is_active: true }
+                });
+                if (anyBranch) branch_id = anyBranch.id;
+            }
+        }
+
+        if (!branch_id) {
+            if (t) await t.rollback();
+            return errorResponse(res, 'Branch ID is required but could not be determined.', 400);
+        }
 
         const customer = await Customer.findOne({
             where: { id: customer_id, organization_id }
@@ -216,9 +238,11 @@ const createCustomerPayment = async (req, res, next) => {
             where: {
                 organization_id,
                 code: '1100', // Accounts Receivable
-                name: 'Accounts Receivable'
             },
-            defaults: { type: 'asset' },
+            defaults: {
+                name: 'Accounts Receivable',
+                type: 'asset'
+            },
             transaction: t
         });
 
@@ -227,9 +251,11 @@ const createCustomerPayment = async (req, res, next) => {
             where: {
                 organization_id,
                 code: payment_method === 'cash' ? '1000' : (payment_method === 'cheque' ? '1050' : '1020'),
-                name: payment_method === 'cash' ? 'Cash' : (payment_method === 'cheque' ? 'Cheques in Hand' : 'Bank')
             },
-            defaults: { type: 'asset' },
+            defaults: {
+                name: payment_method === 'cash' ? 'Cash' : (payment_method === 'cheque' ? 'Cheques in Hand' : 'Bank'),
+                type: 'asset'
+            },
             transaction: t
         });
 

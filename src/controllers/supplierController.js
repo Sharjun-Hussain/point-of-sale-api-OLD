@@ -590,9 +590,30 @@ const createSupplierPayment = async (req, res, next) => {
     const t = await db.sequelize.transaction();
     try {
         const { id: supplier_id } = req.params;
-        const { amount, payment_method, reference_number, transaction_date, description, cheque_details } = req.body;
+        const { amount, payment_method, reference_number, transaction_date, description, cheque_details, branch_id: payload_branch_id } = req.body;
         const organization_id = req.user.organization_id;
-        const branch_id = req.user.branch_id;
+        
+        let branch_id = payload_branch_id || req.user.branch_id;
+
+        // Fallback to main branch if no branch_id is found
+        if (!branch_id) {
+            const mainBranch = await db.Branch.findOne({
+                where: { organization_id, is_main: true }
+            });
+            if (mainBranch) {
+                branch_id = mainBranch.id;
+            } else {
+                // Last resort: find any active branch for this org
+                const anyBranch = await db.Branch.findOne({
+                    where: { organization_id, is_active: true }
+                });
+                if (anyBranch) branch_id = anyBranch.id;
+            }
+        }
+
+        if (!branch_id) {
+            return errorResponse(res, 'Branch ID is required but could not be determined.', 400);
+        }
 
         const supplier = await Supplier.findOne({
             where: { id: supplier_id, organization_id }
@@ -606,9 +627,11 @@ const createSupplierPayment = async (req, res, next) => {
             where: {
                 organization_id,
                 code: '2100', // Accounts Payable
-                name: 'Accounts Payable'
             },
-            defaults: { type: 'liability' },
+            defaults: {
+                name: 'Accounts Payable',
+                type: 'liability'
+            },
             transaction: t
         });
 
@@ -617,9 +640,11 @@ const createSupplierPayment = async (req, res, next) => {
             where: {
                 organization_id,
                 code: payment_method === 'cash' ? '1010' : (payment_method === 'cheque' ? '2110' : '1020'), // Use Cheques Payable for cheque
-                name: payment_method === 'cash' ? 'Cash in Hand' : (payment_method === 'cheque' ? 'Cheques Payable' : 'Bank')
             },
-            defaults: { type: payment_method === 'cheque' ? 'liability' : 'asset' },
+            defaults: {
+                name: payment_method === 'cash' ? 'Cash in Hand' : (payment_method === 'cheque' ? 'Cheques Payable' : 'Bank'),
+                type: payment_method === 'cheque' ? 'liability' : 'asset'
+            },
             transaction: t
         });
 
