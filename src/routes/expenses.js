@@ -15,7 +15,7 @@ router.post('/categories', checkPermission('expense:create'), expenseController.
 router.get('/', checkPermission('expense:view'), expenseController.getAllExpenses);
 router.post('/', checkPermission('expense:create'), upload.single('attachment'), expenseController.createExpense);
 router.get('/:id', checkPermission('expense:view'), expenseController.getExpenseById);
-router.put('/:id', checkPermission('expense:edit'), expenseController.updateExpense);
+router.put('/:id', checkPermission('expense:edit'), upload.single('attachment'), expenseController.updateExpense);
 router.delete('/:id', checkPermission('expense:delete'), expenseController.deleteExpense);
 
 module.exports = router;

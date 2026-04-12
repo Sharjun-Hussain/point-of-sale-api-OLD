@@ -236,6 +236,16 @@ const updateExpense = async (req, res, next) => {
         }
 
         const oldValues = expense.toJSON();
+        // Handle potentially stringified data from FormData
+        let bodyData = req.body;
+        if (req.body.data) {
+            try {
+                bodyData = JSON.parse(req.body.data);
+            } catch (e) {
+                console.error("Failed to parse req.body.data", e);
+            }
+        }
+
         const {
             amount: newAmount,
             payment_method: newPaymentMethod,
@@ -245,7 +255,7 @@ const updateExpense = async (req, res, next) => {
             expense_category_id,
             note,
             notes
-        } = req.body;
+        } = bodyData;
 
         const actual_category_id = category_id || expense_category_id;
         const actual_notes = note || notes;
@@ -257,9 +267,10 @@ const updateExpense = async (req, res, next) => {
         const dateChanged = newExpenseDate !== undefined && new Date(newExpenseDate).getTime() !== new Date(expense.expense_date).getTime();
 
         await expense.update({
-            ...req.body,
+            ...bodyData,
             expense_category_id: actual_category_id,
-            notes: actual_notes
+            notes: actual_notes,
+            receipt_image: req.file ? req.file.path : expense.receipt_image
         }, { transaction: t });
 
         if (amountChanged || paymentMethodChanged || branchChanged || dateChanged) {
