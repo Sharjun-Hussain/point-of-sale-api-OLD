@@ -4,7 +4,12 @@ const { successResponse, errorResponse } = require('../utils/responseHandler');
 const getAllRoles = async (req, res, next) => {
     try {
         const roles = await Role.findAll({
-            where: { organization_id: req.user.organization_id },
+            where: {
+                [require('sequelize').Op.or]: [
+                    { organization_id: req.user.organization_id },
+                    { organization_id: null }
+                ]
+            },
             include: [{ model: Permission, as: 'permissions' }]
         });
         // Frontend expects data.data.data for some reason even for roles
