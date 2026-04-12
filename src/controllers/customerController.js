@@ -20,6 +20,30 @@ const getAllCustomers = async (req, res, next) => {
         }
 
         const customers = await Customer.findAndCountAll({
+            attributes: {
+                include: [
+                    [
+                        Sequelize.literal(`(
+                            SELECT COALESCE(SUM(payable_amount), 0)
+                            FROM sales AS sale
+                            WHERE
+                                sale.customer_id = Customer.id
+                                AND sale.status = 'completed'
+                        )`),
+                        'totalSpent'
+                    ],
+                    [
+                        Sequelize.literal(`(
+                            SELECT COUNT(*)
+                            FROM sales AS sale
+                            WHERE
+                                sale.customer_id = Customer.id
+                                AND sale.status = 'completed'
+                        )`),
+                        'visits'
+                    ]
+                ]
+            },
             where: { ...where, organization_id: req.user.organization_id },
             limit,
             offset,
