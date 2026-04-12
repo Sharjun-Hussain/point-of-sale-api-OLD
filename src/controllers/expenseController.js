@@ -412,7 +412,30 @@ const deleteExpense = async (req, res, next) => {
     }
 };
 
+const getExpenseById = async (req, res, next) => {
+    try {
+        const { organization_id } = req.user;
+        const { id } = req.params;
+
+        const expense = await Expense.findOne({
+            where: { id, organization_id },
+            include: [
+                { model: ExpenseCategory, as: 'category' },
+                { model: Branch, as: 'branch' },
+                { model: User, as: 'recorded_by_user' }
+            ]
+        });
+
+        if (!expense) {
+            return errorResponse(res, 'Expense not found', 404);
+        }
+
+        return successResponse(res, expense, 'Expense details fetched');
+    } catch (error) { next(error); }
+};
+
 module.exports = {
     getAllExpenseCategories, createExpenseCategory,
-    getAllExpenses, createExpense, updateExpense, deleteExpense
+    getAllExpenses, createExpense, updateExpense, deleteExpense,
+    getExpenseById
 };
