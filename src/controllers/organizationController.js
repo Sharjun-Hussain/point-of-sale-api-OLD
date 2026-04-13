@@ -3,6 +3,7 @@ const { successResponse, errorResponse, paginatedResponse } = require('../utils/
 const { getPagination } = require('../utils/pagination');
 const { hashPassword } = require('../utils/passwordHelper');
 const sequelize = require('../config/database');
+const auditService = require('../services/auditService');
 
 // --- Organization ---
 
@@ -175,8 +176,39 @@ const getAllOrganizations = async (req, res, next) => {
 const updateOrganization = async (req, res, next) => {
     try {
         const organization = await Organization.findByPk(req.user.organization_id);
-        await organization.update(req.body);
-        return successResponse(res, organization, 'Organization updated');
+        if (!organization) return errorResponse(res, 'Organization not found', 404);
+
+        // Capture previous state for audit log basis
+        const oldValues = organization.toJSON();
+        
+        // Filter req.body to only include valid Organization fields to avoid polluting the model
+        const allowedFields = [
+            'name', 'email', 'phone', 'address', 'tax_id', 'website', 
+            'business_type', 'city', 'state', 'zip_code'
+        ];
+        const updateData = Object.keys(req.body)
+            .filter(key => allowedFields.includes(key))
+            .reduce((obj, key) => {
+                obj[key] = req.body[key];
+                return obj;
+            }, {});
+
+        await organization.update(updateData);
+
+        // Detailed Audit Logging
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logUpdate(
+            req.user.organization_id,
+            req.user.id,
+            'Organization',
+            organization.id,
+            oldValues,
+            updateData,
+            ipAddress,
+            userAgent
+        );
+
+        return successResponse(res, organization, 'Organization identity synchronized successfully');
     } catch (error) { next(error); }
 };
 
@@ -196,16 +228,13 @@ const updateOrganizationById = async (req, res, next) => {
         const organization = await Organization.findByPk(req.params.id);
         if (!organization) return errorResponse(res, 'Organization not found', 404);
 
-        const oldTier = organization.subscription_tier;
-        const oldCycle = organization.billing_cycle;
+        const oldValues = organization.toJSON();
         const oldStatus = organization.subscription_status;
-
 
         // Auto-activate organization if subscription status is being set to Active
         if (req.body.subscription_status === 'Active') {
             req.body.is_active = true;
         }
-
 
         // Auto-suspend if subscription status is being set to Expired or Suspended
         if (req.body.subscription_status === 'Expired' || req.body.subscription_status === 'Suspended') {
@@ -224,12 +253,26 @@ const updateOrganizationById = async (req, res, next) => {
                 purchase_date: req.body.purchase_date || new Date(),
                 expiry_date: organization.subscription_expiry_date,
                 payment_status: req.body.payment_status || 'Paid',
-                notes: req.body.notes || `Subscription updated: ${oldStatus} → ${organization.subscription_status}`
+                notes: req.body.notes || `Subscription updated by Admin: ${oldStatus} → ${organization.subscription_status}`
             }, { transaction });
         }
 
+        // Detailed Audit Logging for Super Admin action
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logUpdate(
+            organization.id,
+            req.user.id,
+            'Organization',
+            organization.id,
+            oldValues,
+            req.body,
+            ipAddress,
+            userAgent,
+            { is_admin_action: true }
+        );
+
         await transaction.commit();
-        return successResponse(res, organization, 'Organization updated');
+        return successResponse(res, organization, 'Organization updated successfully');
     } catch (error) {
         await transaction.rollback();
         next(error);

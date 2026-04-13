@@ -4,12 +4,15 @@ const settingsController = require('../controllers/settingsController');
 const authenticate = require('../middleware/auth');
 const { checkPermission } = require('../middleware/permission');
 
+const { updateOrganizationValidationRules } = require('../validations/organizationValidation');
+const validate = require('../middleware/validate');
+const orgController = require('../controllers/organizationController');
+
 router.use(authenticate);
 
-// Business Profile Settings
-// Business Profile Settings
+// Business Profile Settings (Pointed to Centralized Organization Controller)
 router.get('/business', checkPermission('system:settings'), settingsController.getBusinessSettings);
-router.put('/business', checkPermission('system:settings'), settingsController.updateBusinessSettings);
+router.put('/business', updateOrganizationValidationRules, validate, checkPermission('system:settings'), orgController.updateOrganization);
 
 // Modular Settings (pos, receipt, communication, general)
 router.get('/global', checkPermission('system:settings'), settingsController.getGlobalSettings);

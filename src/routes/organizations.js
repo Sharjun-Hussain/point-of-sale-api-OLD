@@ -5,6 +5,9 @@ const authenticate = require('../middleware/auth');
 const { checkPermission } = require('../middleware/permission');
 const upload = require('../middleware/upload');
 
+const { updateOrganizationValidationRules } = require('../validations/organizationValidation');
+const validate = require('../middleware/validate');
+
 router.use(authenticate);
 
 router.post('/create', upload.single('logo'), checkPermission('org:create'), orgController.createOrganization);
@@ -12,8 +15,10 @@ router.post('/create', upload.single('logo'), checkPermission('org:create'), org
 router.get('/stats', checkPermission('org:view'), orgController.getSuperAdminStats);
 router.get('/', checkPermission('org:view'), orgController.getAllOrganizations); // Changed from getOrganization
 router.get('/me', checkPermission('org:view'), orgController.getOrganization);
-router.put('/', checkPermission('org:edit'), orgController.updateOrganization);
-router.put('/me', checkPermission('org:edit'), orgController.updateOrganization);
+
+// Synchronized Business Identity Updates
+router.put('/', updateOrganizationValidationRules, validate, checkPermission('org:edit'), orgController.updateOrganization);
+router.put('/me', updateOrganizationValidationRules, validate, checkPermission('org:edit'), orgController.updateOrganization);
 
 // Admin Routes for specific Organization ID
 router.get('/:id', checkPermission('org:view'), orgController.getOrganizationById);

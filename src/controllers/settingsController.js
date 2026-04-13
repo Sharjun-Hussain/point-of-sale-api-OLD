@@ -47,30 +47,8 @@ const getBusinessSettings = async (req, res, next) => {
 /**
  * Update Business Profile Settings
  */
-const updateBusinessSettings = async (req, res, next) => {
-    try {
-        const organization = await Organization.findByPk(req.user.organization_id);
-        if (!organization) return errorResponse(res, 'Organization not found', 404);
-
-        const oldValues = { name: organization.name, email: organization.email, currency: organization.currency };
-        await organization.update(req.body);
-
-        // Log settings update
-        const { ipAddress, userAgent } = auditService.getRequestContext(req);
-        await auditService.logUpdate(
-            req.user.organization_id,
-            req.user.id,
-            'Organization',
-            organization.id,
-            oldValues,
-            req.body,
-            ipAddress,
-            userAgent
-        );
-
-        return successResponse(res, organization, 'Business settings updated');
-    } catch (error) { next(error); }
-};
+// Business settings updates have been moved to organizationController.updateOrganization 
+// for centralized validation and audit tracking.
 
 /**
  * Helper to sanitize corrupted settings data (index-keyed objects or strings)
@@ -233,7 +211,6 @@ const updateLogo = async (req, res, next) => {
 
 module.exports = {
     getBusinessSettings,
-    updateBusinessSettings,
     getSettingsByCategory,
     updateSettingsByCategory,
     getGlobalSettings,
