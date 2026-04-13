@@ -202,8 +202,8 @@ const createSale = async (req, res, next) => {
         // --- 2. VALIDATE PAYMENTS (Logic Fix) ---
         let paid_amount = parseFloat(req.body.paid_amount || 0);
 
-        // Rule: Guest/Walk-in must pay in full
-        if (!customer_id && paid_amount < final_payable_amount) {
+        // Rule: Guest/Walk-in must pay in full (SKIP for drafts)
+        if (payload_status !== 'draft' && !customer_id && paid_amount < final_payable_amount) {
             // Allow small rounding diffs? e.g. 1.0
             if ((final_payable_amount - paid_amount) > 1.0) {
                 await t.rollback();
