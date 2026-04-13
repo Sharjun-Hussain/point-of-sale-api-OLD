@@ -283,9 +283,70 @@ const toggleStatus = async (req, res, next) => {
         if (employee.user) {
             await employee.user.update({ is_active: newStatus }, { transaction: t });
         }
-
         await t.commit();
         return successResponse(res, { id: employee.id, is_active: newStatus }, `Employee ${newStatus ? 'activated' : 'deactivated'} successfully`);
+    } catch (error) {
+        if (t) await t.rollback();
+        next(error);
+    }
+};
+
+const deleteEmployee = async (req, res, next) => {
+    const t = await sequelize.transaction();
+    try {
+        const employee = await Employee.findOne({
+            where: { id: req.params.id, organization_id: req.user.organization_id }
+        });
+
+        if (!employee) return errorResponse(res, 'Employee not found', 404);
+
+        const organization_id = req.user.organization_id;
+        const employeeId = employee.id;
+        const employeeName = employee.name;
+        const userId = employee.user_id;
+
+        // 1. Industrial History Check (Safety First)
+        if (userId) {
+            // Check for critical workstation history
+            const [hasSales, hasPurchases, hasStockMoves] = await Promise.all([
+                sequelize.models.SaleEmployee.findOne({ where: { user_id: userId } }),
+                sequelize.models.PurchaseOrder.findOne({ where: { user_id: userId } }),
+                sequelize.models.StockTransfer.findOne({ where: { user_id: userId } })
+            ]);
+
+            if (hasSales || hasPurchases || hasStockMoves) {
+                await t.rollback();
+                return errorResponse(res, 'Cannot remove staff with transactional history. Please deactivate their account instead to preserve audit trails.', 400);
+            }
+
+            // 2. Cleanup Non-Critical Dependencies
+            await sequelize.models.RefreshToken.destroy({ where: { user_id: userId }, transaction: t });
+        }
+
+        // 3. Clear multi-branch assignments
+        await sequelize.query('DELETE FROM employee_branches WHERE employee_id = ?', {
+            replacements: [employeeId],
+            transaction: t
+        });
+
+        // 4. Delete Employee Record
+        await employee.destroy({ transaction: t });
+
+        // 5. Delete Linked User if allowed
+        if (userId) {
+            const user = await User.findByPk(userId);
+            if (user) {
+                await user.destroy({ transaction: t });
+            }
+        }
+
+        await t.commit();
+
+        // Audit Log
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logDelete(organization_id, req.user.id, 'Employee', employeeId, { name: employeeName }, ipAddress, userAgent);
+
+        return successResponse(res, null, 'Employee removed successfully');
     } catch (error) {
         if (t) await t.rollback();
         next(error);
@@ -297,5 +358,6 @@ module.exports = {
     getEmployeeById,
     createEmployee,
     updateEmployee,
-    toggleStatus
+    toggleStatus,
+    deleteEmployee
 };
