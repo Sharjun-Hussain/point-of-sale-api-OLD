@@ -9,6 +9,7 @@ db.sequelize = sequelize;
 // Models will be imported here
 // Models will be imported here
 db.User = require('./User')(sequelize, DataTypes);
+db.Employee = require('./Employee')(sequelize, DataTypes);
 db.Role = require('./Role')(sequelize, DataTypes);
 db.Permission = require('./Permission')(sequelize, DataTypes);
 db.Organization = require('./Organization')(sequelize, DataTypes);
@@ -111,6 +112,30 @@ db.User.belongsTo(db.Branch, { as: 'branch', foreignKey: 'branch_id' });
 db.User.hasMany(db.RefreshToken, { as: 'refresh_tokens', foreignKey: 'user_id' });
 db.RefreshToken.belongsTo(db.User, { as: 'user', foreignKey: 'user_id' });
 db.Organization.hasMany(db.User, { as: 'users', foreignKey: 'organization_id' });
+
+// Employee Associations
+db.User.hasOne(db.Employee, { as: 'employee', foreignKey: 'user_id' });
+db.Employee.belongsTo(db.User, { as: 'user', foreignKey: 'user_id' });
+db.Organization.hasMany(db.Employee, { as: 'employees', foreignKey: 'organization_id' });
+db.Employee.belongsTo(db.Organization, { as: 'organization', foreignKey: 'organization_id' });
+
+// Primary Master Branch
+db.Branch.hasMany(db.Employee, { as: 'primaryEmployees', foreignKey: 'branch_id' });
+db.Employee.belongsTo(db.Branch, { as: 'primaryBranch', foreignKey: 'branch_id' });
+
+// Multi-Branch Assignments
+db.Employee.belongsToMany(db.Branch, {
+    through: 'employee_branches',
+    as: 'branches',
+    foreignKey: 'employee_id',
+    otherKey: 'branch_id'
+});
+db.Branch.belongsToMany(db.Employee, {
+    through: 'employee_branches',
+    as: 'employees',
+    foreignKey: 'branch_id',
+    otherKey: 'employee_id'
+});
 
 db.User.belongsToMany(db.Branch, {
     through: 'user_branches',

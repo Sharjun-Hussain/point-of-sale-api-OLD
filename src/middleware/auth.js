@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { User, Role, Permission, Branch } = require('../models');
+const { User, Role, Permission, Branch, Employee } = require('../models');
 
 /**
  * Authentication Middleware
@@ -38,6 +38,11 @@ const authenticate = async (req, res, next) => {
                 {
                     model: Branch,
                     as: 'branches'
+                },
+                {
+                    model: Employee,
+                    as: 'employee',
+                    include: [{ model: Branch, as: 'branches' }]
                 }
             ]
         });

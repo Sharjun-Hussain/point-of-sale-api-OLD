@@ -26,6 +26,12 @@ const permissionsSeed = [
     { name: 'user:edit', group_name: 'User', description: 'Edit user' },
     { name: 'user:delete', group_name: 'User', description: 'Delete user' },
 
+    // Employee
+    { name: 'employee:view', group_name: 'Employee', description: 'View employees' },
+    { name: 'employee:create', group_name: 'Employee', description: 'Create new employee' },
+    { name: 'employee:edit', group_name: 'Employee', description: 'Edit employee' },
+    { name: 'employee:delete', group_name: 'Employee', description: 'Delete employee' },
+
     // Product
     { name: 'product:view', group_name: 'Product', description: 'View products' },
     { name: 'product:create', group_name: 'Product', description: 'Create new product' },

@@ -1,4 +1,4 @@
-const { User, Role, Permission, Branch, RefreshToken } = require('../models');
+const { User, Role, Permission, Branch, RefreshToken, Employee } = require('../models');
 const { hashPassword, comparePassword } = require('../utils/passwordHelper');
 const { generateAccessToken, generateRefreshToken, verifyToken, decodeToken } = require('../utils/jwtHelper');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
@@ -23,6 +23,11 @@ const login = async (req, res, next) => {
                 {
                     model: Branch,
                     as: 'branches'
+                },
+                {
+                    model: Employee,
+                    as: 'employee',
+                    include: [{ model: Branch, as: 'branches' }]
                 }
             ]
         });
@@ -85,15 +90,31 @@ const login = async (req, res, next) => {
             true
         );
 
+        // Consolidate branches from both User (Super Admin) and Employee assignments
+        let allBranches = [...(user.branches || [])];
+        const isSuperAdmin = user.roles?.some(role => role.name === 'Super Admin');
+
+        // Industrial Logic: Super Admins automatically get access to ALL branches in their organization
+        if (isSuperAdmin && user.organization_id) {
+            allBranches = await Branch.findAll({
+                where: { organization_id: user.organization_id, is_active: true },
+                attributes: ['id', 'name']
+            });
+        } else if (user.employee && user.employee.branches) {
+            user.employee.branches.forEach(eb => {
+                if (!allBranches.find(b => b.id === eb.id)) allBranches.push(eb);
+            });
+        }
+
         return successResponse(res, {
             user: {
                 id: user.id,
-                name: user.name,
+                name: user.employee?.name || user.name,
                 email: user.email,
                 profile_image: user.profile_image,
                 organization_id: user.organization_id,
                 roles: user.roles,
-                branches: user.branches
+                branches: allBranches
             },
             auth_token: accessToken,
             refresh_token: refreshTokenStr
@@ -213,15 +234,33 @@ const register = async (req, res, next) => {
 };
 
 const me = async (req, res) => {
+    const user = req.user;
+    const isSuperAdmin = user.roles?.some(role => role.name === 'Super Admin');
+    
+    // Consolidate branches
+    let allBranches = [...(user.branches || [])];
+    
+    // Industrial Logic: Super Admins automatically get access to ALL branches in their organization
+    if (isSuperAdmin && user.organization_id) {
+        allBranches = await Branch.findAll({
+            where: { organization_id: user.organization_id, is_active: true },
+            attributes: ['id', 'name']
+        });
+    } else if (user.employee && user.employee.branches) {
+        user.employee.branches.forEach(eb => {
+            if (!allBranches.find(b => b.id === eb.id)) allBranches.push(eb);
+        });
+    }
+
     return successResponse(res, {
         user: {
-            id: req.user.id,
-            name: req.user.name,
-            email: req.user.email,
-            profile_image: req.user.profile_image,
-            organization_id: req.user.organization_id,
-            roles: req.user.roles,
-            branches: req.user.branches
+            id: user.id,
+            name: user.employee?.name || user.name,
+            email: user.email,
+            profile_image: user.profile_image,
+            organization_id: user.organization_id,
+            roles: user.roles,
+            branches: allBranches
         }
     }, 'User profile fetched');
 };
