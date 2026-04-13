@@ -10,6 +10,7 @@ db.sequelize = sequelize;
 // Models will be imported here
 db.User = require('./User')(sequelize, DataTypes);
 db.Employee = require('./Employee')(sequelize, DataTypes);
+db.EmployeeBranch = require('./EmployeeBranch')(sequelize, DataTypes);
 db.Role = require('./Role')(sequelize, DataTypes);
 db.Permission = require('./Permission')(sequelize, DataTypes);
 db.Organization = require('./Organization')(sequelize, DataTypes);
@@ -125,13 +126,13 @@ db.Employee.belongsTo(db.Branch, { as: 'primaryBranch', foreignKey: 'branch_id' 
 
 // Multi-Branch Assignments
 db.Employee.belongsToMany(db.Branch, {
-    through: 'employee_branches',
+    through: db.EmployeeBranch,
     as: 'branches',
     foreignKey: 'employee_id',
     otherKey: 'branch_id'
 });
 db.Branch.belongsToMany(db.Employee, {
-    through: 'employee_branches',
+    through: db.EmployeeBranch,
     as: 'employees',
     foreignKey: 'branch_id',
     otherKey: 'employee_id'
