@@ -3,6 +3,7 @@ const { hashPassword, comparePassword } = require('../utils/passwordHelper');
 const { generateAccessToken, generateRefreshToken, verifyToken, decodeToken } = require('../utils/jwtHelper');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const auditService = require('../services/auditService');
+const upload = require('../middleware/upload');
 
 /**
  * Auth Controller
@@ -280,10 +281,51 @@ const me = async (req, res) => {
     }, 'User profile fetched');
 };
 
+const updateMe = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+        const user = await User.findByPk(userId);
+        if (!user) return errorResponse(res, 'User not found', 404);
+
+        const { name, current_password, new_password } = req.body;
+        const updateData = {};
+
+        if (name) updateData.name = name;
+
+        // Handle profile image upload
+        if (req.file) {
+            updateData.profile_image = req.file.path;
+        }
+
+        // Handle password change
+        if (new_password) {
+            if (!current_password) {
+                return errorResponse(res, 'Current password is required to set a new password', 400);
+            }
+            const isMatch = await comparePassword(current_password, user.password);
+            if (!isMatch) {
+                return errorResponse(res, 'Current password is incorrect', 401);
+            }
+            updateData.password = await hashPassword(new_password);
+        }
+
+        await user.update(updateData);
+
+        const updatedUser = await User.findOne({
+            where: { id: userId },
+            attributes: ['id', 'name', 'email', 'profile_image', 'organization_id'],
+            include: [{ model: Organization, as: 'organization', attributes: ['id', 'name', 'logo'] }]
+        });
+
+        return successResponse(res, { user: updatedUser }, 'Profile updated successfully');
+    } catch (error) { next(error); }
+};
+
 module.exports = {
     login,
     refresh,
     logout,
     register,
-    me
+    me,
+    updateMe
 };
