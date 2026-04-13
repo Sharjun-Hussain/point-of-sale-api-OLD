@@ -1337,6 +1337,27 @@ const reportController = {
 
             const revenueTrend = calcTrend(todayRevenue, lastMonthRevenue / 30);
 
+            // 2. Pending Invoices Stats
+            const totalActiveInvoices = await Sale.count({
+                where: { organization_id, status: { [Op.ne]: 'cancelled' } }
+            });
+
+            // 3. Low Stock Stats
+            const totalStockItems = stocks.length;
+
+            // 4. Customer Comparison
+            const lastMonthCustomersStart = new Date(thisMonthStart);
+            lastMonthCustomersStart.setMonth(lastMonthCustomersStart.getMonth() - 1);
+            
+            const lastMonthCustomers = await Customer.count({
+                where: {
+                    organization_id,
+                    created_at: { [Op.between]: [lastMonthCustomersStart, thisMonthStart] }
+                }
+            });
+
+            const customerTrend = calcTrend(newCustomers, lastMonthCustomers);
+
             return successResponse(res, {
                 todayRevenue: {
                     value: todayRevenue,
@@ -1344,18 +1365,21 @@ const reportController = {
                 },
                 pendingInvoices: {
                     value: pendingInvoices,
-                    trend: 'stable',
-                    change: '0%'
+                    trend: pendingInvoices > 0 ? 'up' : 'stable',
+                    change: totalActiveInvoices > 0 
+                        ? `${((pendingInvoices / totalActiveInvoices) * 100).toFixed(0)}%` 
+                        : '0%'
                 },
                 lowStockCount: {
                     value: lowStockCount,
-                    trend: lowStockCount > 5 ? 'up' : 'down',
-                    change: 'Alert'
+                    trend: lowStockCount > 0 ? 'up' : 'down',
+                    change: totalStockItems > 0
+                        ? `${((lowStockCount / totalStockItems) * 100).toFixed(1)}%`
+                        : '0%'
                 },
                 newCustomers: {
                     value: newCustomers,
-                    trend: 'up',
-                    change: 'Monthly'
+                    ...customerTrend
                 }
             }, 'Dashboard summary fetched');
         } catch (error) { next(error); }
