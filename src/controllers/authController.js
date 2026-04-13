@@ -1,4 +1,4 @@
-const { User, Role, Permission, Branch, RefreshToken, Employee } = require('../models');
+const { User, Role, Permission, Branch, RefreshToken, Employee, Organization } = require('../models');
 const { hashPassword, comparePassword } = require('../utils/passwordHelper');
 const { generateAccessToken, generateRefreshToken, verifyToken, decodeToken } = require('../utils/jwtHelper');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
@@ -28,6 +28,11 @@ const login = async (req, res, next) => {
                     model: Employee,
                     as: 'employee',
                     include: [{ model: Branch, as: 'branches' }]
+                },
+                {
+                    model: Organization,
+                    as: 'organization',
+                    attributes: ['id', 'name', 'logo']
                 }
             ]
         });
@@ -113,6 +118,11 @@ const login = async (req, res, next) => {
                 email: user.email,
                 profile_image: user.profile_image,
                 organization_id: user.organization_id,
+                organization: user.organization ? {
+                    id: user.organization.id,
+                    name: user.organization.name,
+                    logo: user.organization.logo
+                } : null,
                 roles: user.roles,
                 branches: allBranches
             },
@@ -259,6 +269,11 @@ const me = async (req, res) => {
             email: user.email,
             profile_image: user.profile_image,
             organization_id: user.organization_id,
+            organization: user.organization ? {
+                id: user.organization.id,
+                name: user.organization.name,
+                logo: user.organization.logo
+            } : null,
             roles: user.roles,
             branches: allBranches
         }
