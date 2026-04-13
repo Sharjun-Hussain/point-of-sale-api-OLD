@@ -33,7 +33,7 @@ router.post('/', checkPermission('employee:create', 'user:create'), upload.singl
  * @desc    Update employee profile
  * @access  employee:edit
  */
-router.put('/:id', checkPermission('employee:edit', 'user:edit'), upload.single('profile_image'), employeeController.updateEmployee);
+router.patch('/:id', checkPermission('employee:edit', 'user:edit'), upload.single('profile_image'), employeeController.updateEmployee);
 
 /**
  * @route   PATCH /api/v1/employees/:id/toggle-status
