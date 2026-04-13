@@ -1070,8 +1070,12 @@ const getProductStock = async (req, res, next) => {
 
             results.push({
                 id: variant.id,
+                variantId: variant.id,
+                productId: variant.product_id,
                 name: `${variant.product?.name || 'Unknown'} - ${variantLabel || 'Default'}`,
                 barcode: variant.barcode || variant.product?.barcode,
+                retailPrice: parseFloat(variant.price) || 0,
+                wholesalePrice: parseFloat(variant.wholesale_price) || 0,
                 stocks: stocks.map(s => ({
                     branch: s.branch?.name || 'Unknown',
                     quantity: s.quantity
@@ -1101,8 +1105,12 @@ const getProductStock = async (req, res, next) => {
 
                     results.push({
                         id: variant.id,
+                        variantId: variant.id,
+                        productId: variant.product_id,
                         name: `${product.name} - ${variantLabel || 'Default'}`,
                         barcode: variant.barcode || product.barcode,
+                        retailPrice: parseFloat(variant.price) || 0,
+                        wholesalePrice: parseFloat(variant.wholesale_price) || 0,
                         stocks: stocks.map(s => ({
                             branch: s.branch?.name || 'Unknown',
                             quantity: s.quantity
@@ -1124,8 +1132,12 @@ const getProductStock = async (req, res, next) => {
 
                 results.push({
                     id: product.id,
+                    variantId: product.id,
+                    productId: product.id,
                     name: product.name,
                     barcode: product.barcode,
+                    retailPrice: parseFloat(product.price || product.variants?.[0]?.price) || 0,
+                    wholesalePrice: parseFloat(product.wholesale_price || product.variants?.[0]?.wholesale_price) || 0,
                     stocks: stocks.map(s => ({
                         branch: s.branch?.name || 'Unknown',
                         quantity: s.quantity
