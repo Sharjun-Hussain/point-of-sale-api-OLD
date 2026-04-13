@@ -267,6 +267,10 @@ const updateEmployee = async (req, res, next) => {
     }
 };
 
+/**
+ * Toggle Staff Enrollment Status (HR)
+ * Deactivating an employee also automatically deactivates their linked system user.
+ */
 const toggleStatus = async (req, res, next) => {
     const t = await sequelize.transaction();
     try {
@@ -280,11 +284,49 @@ const toggleStatus = async (req, res, next) => {
         const newStatus = !employee.is_active;
         await employee.update({ is_active: newStatus }, { transaction: t });
 
-        if (employee.user) {
-            await employee.user.update({ is_active: newStatus }, { transaction: t });
+        // Safety Cascade: If staff is deactivated, login access MUST be revoked.
+        if (employee.user && !newStatus) {
+            await employee.user.update({ is_active: false }, { transaction: t });
+            // Cleanup sessions
+            await sequelize.models.RefreshToken.destroy({ where: { user_id: employee.user.id }, transaction: t });
         }
+
         await t.commit();
         return successResponse(res, { id: employee.id, is_active: newStatus }, `Employee ${newStatus ? 'activated' : 'deactivated'} successfully`);
+    } catch (error) {
+        if (t) await t.rollback();
+        next(error);
+    }
+};
+
+/**
+ * Toggle System Workstation Access (Login Only)
+ * Allows revoking/granting access without affecting the employee's HR record.
+ */
+const toggleLoginAccess = async (req, res, next) => {
+    const t = await sequelize.transaction();
+    try {
+        const employee = await Employee.findOne({
+            where: { id: req.params.id, organization_id: req.user.organization_id },
+            include: [{ model: User, as: 'user' }]
+        });
+
+        if (!employee) return errorResponse(res, 'Staff member not found', 404);
+        if (!employee.user) {
+            await t.rollback();
+            return errorResponse(res, 'This staff member does not have a linked system account. Please edit their profile to grant access.', 400);
+        }
+
+        const newStatus = !employee.user.is_active;
+        await employee.user.update({ is_active: newStatus }, { transaction: t });
+
+        if (!newStatus) {
+            // Cleanup sessions if access is revoked
+            await sequelize.models.RefreshToken.destroy({ where: { user_id: employee.user.id }, transaction: t });
+        }
+
+        await t.commit();
+        return successResponse(res, { id: employee.id, login_access: newStatus }, `System access ${newStatus ? 'granted' : 'revoked'} successfully`);
     } catch (error) {
         if (t) await t.rollback();
         next(error);
@@ -359,5 +401,6 @@ module.exports = {
     createEmployee,
     updateEmployee,
     toggleStatus,
+    toggleLoginAccess,
     deleteEmployee
 };

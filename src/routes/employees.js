@@ -36,6 +36,20 @@ router.post('/', checkPermission('employee:create', 'user:create'), upload.singl
 router.put('/:id', checkPermission('employee:edit', 'user:edit'), upload.single('profile_image'), employeeController.updateEmployee);
 
 /**
+ * @route   PATCH /api/v1/employees/:id/toggle-status
+ * @desc    Toggle employee activation status
+ * @access  employee:edit
+ */
+router.patch('/:id/toggle-status', checkPermission('employee:edit', 'user:edit'), employeeController.toggleStatus);
+
+/**
+ * @route   PATCH /api/v1/employees/:id/toggle-access
+ * @desc    Toggle employee login access
+ * @access  employee:edit
+ */
+router.patch('/:id/toggle-access', checkPermission('employee:edit', 'user:edit'), employeeController.toggleLoginAccess);
+
+/**
  * @route   DELETE /api/v1/employees/:id
  * @desc    Delete employee record and linked user access
  * @access  employee:delete
