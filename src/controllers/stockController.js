@@ -27,10 +27,21 @@ const getAllStocks = async (req, res, next) => {
         if (branch_id) where.branch_id = branch_id;
 
         const productWhere = {};
-        if (product_name) productWhere.name = { [Op.like]: `%${product_name}%` };
+        if (product_name) {
+            productWhere[Op.or] = [
+                { name: { [Op.like]: `%${product_name}%` } },
+                { code: { [Op.like]: `%${product_name}%` } },
+                { barcode: { [Op.like]: `%${product_name}%` } }
+            ];
+        }
 
         const variantWhere = {};
-        if (sku) variantWhere.sku = { [Op.like]: `%${sku}%` };
+        if (sku) {
+            variantWhere[Op.or] = [
+                { sku: { [Op.like]: `%${sku}%` } },
+                { barcode: { [Op.like]: `%${sku}%` } }
+            ];
+        }
 
         const stocks = await Stock.findAndCountAll({
             where: { ...where, organization_id: req.user.organization_id },
