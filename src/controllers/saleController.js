@@ -98,7 +98,8 @@ const createSale = async (req, res, next) => {
             adjustment,
             status: payload_status,
             seller_ids,
-            cheque_details
+            cheque_details,
+            is_wholesale: payload_is_wholesale,
         } = req.body;
 
         const organization_id = req.user.organization_id;
@@ -150,9 +151,9 @@ const createSale = async (req, res, next) => {
                 return errorResponse(res, `Product not found: ${product_id}`, 400);
             }
 
-            let unit_price = parseFloat(product.price || 0);
+            let unit_price = 0;
+            const is_wholesale = payload_is_wholesale === true || payload_is_wholesale === 1 || payload_is_wholesale === 'true';
 
-            // Check Variant if exists
             if (product_variant_id) {
                 const variant = await ProductVariant.findOne({ 
                     where: { id: product_variant_id, product_id, organization_id }, 
@@ -162,7 +163,9 @@ const createSale = async (req, res, next) => {
                     await t.rollback();
                     return errorResponse(res, `Variant not found: ${product_variant_id}`, 400);
                 }
-                unit_price = parseFloat(variant.price || 0);
+                unit_price = parseFloat((is_wholesale ? variant.wholesale_price : variant.price) || 0);
+            } else {
+                unit_price = parseFloat((is_wholesale ? product.wholesale_price : product.price) || 0);
             }
 
             // Calculate Item Totals
@@ -243,7 +246,8 @@ const createSale = async (req, res, next) => {
             payment_status,
             payment_method,
             status: payload_status || 'completed',
-            notes
+            notes,
+            is_wholesale: !!payload_is_wholesale
         }, { transaction: t });
 
         // --- 5. CREATE ITEMS ---
