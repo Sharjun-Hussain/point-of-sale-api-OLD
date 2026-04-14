@@ -1,5 +1,5 @@
 const db = require('./src/models');
-db.sequelize.sync({ alter: true }).then(() => {
+db.sequelize.sync({ alter: false }).then(() => {
     console.log('Database synced with models successfully.');
     process.exit(0);
 }).catch((err) => {

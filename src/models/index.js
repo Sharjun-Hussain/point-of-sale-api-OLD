@@ -138,6 +138,10 @@ db.Branch.belongsToMany(db.Employee, {
     otherKey: 'employee_id'
 });
 
+// Explicit Branch-to-Manager Link
+db.Branch.belongsTo(db.Employee, { as: 'manager', foreignKey: 'manager_id' });
+db.Employee.hasMany(db.Branch, { as: 'managedBranches', foreignKey: 'manager_id' });
+
 db.User.belongsToMany(db.Branch, {
     through: 'user_branches',
     as: 'branches',

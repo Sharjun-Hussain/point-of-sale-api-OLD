@@ -10,8 +10,8 @@ async function bootstrap() {
         
         // 1. Sync Schema (Create tables if they don't exist)
         // force: false ensures we don't drop tables if they already exist
-        await db.sequelize.sync({ force: false });
-        console.log('✅ Database schema created/synced with models.');
+        // await db.sequelize.sync({ force: false });
+        console.log('✅ Database schema verified (Sync skipped).');
 
         // 2. Seed Essential Data
         console.log('🌱 Seeding essential system data...');

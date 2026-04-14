@@ -104,11 +104,13 @@ const startServer = async () => {
             await db.authenticate();
             logger.info('✅ Database connection established successfully.');
 
+            /* 
             // Sync database (in development only)
             if (process.env.NODE_ENV === 'development') {
                 await db.sync({ alter: false });
                 logger.info('✅ Database synchronized.');
             }
+            */
 
             // Start scheduled jobs
             await scheduleSubscriptionCheck();

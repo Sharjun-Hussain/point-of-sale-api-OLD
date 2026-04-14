@@ -9,10 +9,9 @@ const { addDays, startOfDay, endOfDay } = require('date-fns');
  * Runs daily at 00:05 AM
  */
 const scheduleExpiryWatcher = async () => {
-    
-    const runExpiryCheck = async () => {
+    const runExpiryCheck = async (isStartup = false) => {
         try {
-            console.log('🔍 [EXPIRY WATCHER] Initializing Daily Inventory Health Scan...');
+            if (!isStartup) console.log('🔍 [EXPIRY WATCHER] Initializing Daily Inventory Health Scan...');
             const now = new Date();
             const today = startOfDay(now);
             const thirtyDays = endOfDay(addDays(today, 30));
@@ -32,7 +31,7 @@ const scheduleExpiryWatcher = async () => {
                 }
             );
             totalUpdated += expiredCount;
-            if (expiredCount > 0) console.log(`   🚨 Expired: Marked ${expiredCount} batches as 'expired'.`);
+            if (expiredCount > 0 && !isStartup) console.log(`   🚨 Expired: Marked ${expiredCount} batches as 'expired'.`);
 
             // 2. Mark 'Critical' (0 - 30 days remaining)
             const [criticalCount] = await ProductBatch.update(
@@ -51,7 +50,7 @@ const scheduleExpiryWatcher = async () => {
                 }
             );
             totalUpdated += criticalCount;
-            if (criticalCount > 0) console.log(`   🟡 Critical: Marked ${criticalCount} batches as 'critical' (< 30 days).`);
+            if (criticalCount > 0 && !isStartup) console.log(`   🟡 Critical: Marked ${criticalCount} batches as 'critical' (< 30 days).`);
 
             // 3. Mark 'Warning' (31 - 90 days remaining)
             const [warningCount] = await ProductBatch.update(
@@ -70,7 +69,7 @@ const scheduleExpiryWatcher = async () => {
                 }
             );
             totalUpdated += warningCount;
-            if (warningCount > 0) console.log(`   🔵 Warning: Marked ${warningCount} batches as 'warning' (< 90 days).`);
+            if (warningCount > 0 && !isStartup) console.log(`   🔵 Warning: Marked ${warningCount} batches as 'warning' (< 90 days).`);
 
             // 4. Reset 'Normal' (If qty is 0 or date > 90 days)
             const [normalCount] = await ProductBatch.update(
@@ -88,22 +87,23 @@ const scheduleExpiryWatcher = async () => {
             );
             totalUpdated += normalCount;
 
-            console.log(`✅ [EXPIRY WATCHER] Scan complete. Total batches re-indexed: ${totalUpdated}.`);
+            if (isStartup) {
+                console.log(`✓ [EXPIRY WATCHER] Startup check complete (${totalUpdated} batches re-indexed).`);
+            } else {
+                console.log(`✅ [EXPIRY WATCHER] Scan complete. Total batches re-indexed: ${totalUpdated}.`);
+            }
         } catch (error) {
             console.error('❌ [EXPIRY WATCHER] Error during health scan:', error);
         }
     };
 
     // Immediate check on startup
-    await runExpiryCheck();
+    await runExpiryCheck(true);
 
     // Schedule daily check at 00:05 AM
-    // Pattern: minute hour day-of-month month day-of-week
     cron.schedule('5 0 * * *', async () => {
-        await runExpiryCheck();
+        await runExpiryCheck(false);
     });
-
-    console.log('✓ Product Expiry Watcher scheduled (runs daily at 00:05 AM)');
 };
 
 module.exports = { scheduleExpiryWatcher };

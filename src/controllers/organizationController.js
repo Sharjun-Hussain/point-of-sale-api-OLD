@@ -361,6 +361,11 @@ const getAllBranches = async (req, res, next) => {
                     as: 'employees',
                     attributes: ['id', 'name', 'phone', 'designation'],
                     through: { attributes: [] }
+                },
+                {
+                    model: Employee,
+                    as: 'manager',
+                    attributes: ['id', 'name', 'phone', 'designation']
                 }],
             distinct: true
         });
@@ -368,20 +373,27 @@ const getAllBranches = async (req, res, next) => {
         // Map the results to flatten the manager info
         const branchData = branches.rows.map(branch => {
             const branchJson = branch.toJSON();
-            // Business Logic: Find the employee who is designated as the manager
-            const manager = branchJson.employees && branchJson.employees.find(emp => 
-                emp.designation && (
-                    emp.designation.toLowerCase().includes('manager') || 
-                    emp.designation.toLowerCase().includes('in-charge') ||
-                    emp.designation.toLowerCase().includes('founder')
-                )
-            );
+            
+            // Priority 1: Use explicitly linked manager_id
+            let manager = branchJson.manager;
+            
+            // Priority 2: Fallback to dynamic lookup based on designation
+            if (!manager && branchJson.employees) {
+                manager = branchJson.employees.find(emp => 
+                    emp.designation && (
+                        emp.designation.toLowerCase().includes('manager') || 
+                        emp.designation.toLowerCase().includes('in-charge') ||
+                        emp.designation.toLowerCase().includes('founder')
+                    )
+                );
+            }
 
             return {
                 ...branchJson,
                 manager_name: manager ? manager.name : null,
                 manager_phone: manager ? manager.phone : null,
-                employees: undefined // Cleanup raw association from response
+                employees: undefined, // Cleanup
+                manager: undefined   // Cleanup for table view
             };
         });
 
@@ -454,7 +466,14 @@ const getBranchById = async (req, res, next) => {
             whereClause.organization_id = req.user.organization_id;
         }
 
-        const branch = await Branch.findOne({ where: whereClause });
+        const branch = await Branch.findOne({ 
+            where: whereClause,
+            include: [{
+                model: Employee,
+                as: 'manager',
+                attributes: ['id', 'name', 'designation']
+            }]
+        });
         if (!branch) return errorResponse(res, 'Branch not found', 404);
 
         return successResponse(res, branch, 'Branch fetched successfully');

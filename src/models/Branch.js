@@ -49,6 +49,14 @@ module.exports = (sequelize, DataTypes) => {
         is_active: {
             type: DataTypes.BOOLEAN,
             defaultValue: true
+        },
+        manager_id: {
+            type: DataTypes.UUID,
+            allowNull: true,
+            references: {
+                model: 'employees',
+                key: 'id'
+            }
         }
     }, {
         tableName: 'branches',
