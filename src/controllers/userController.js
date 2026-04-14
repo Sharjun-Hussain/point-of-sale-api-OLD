@@ -1,4 +1,4 @@
-const { User, Role, Organization, Branch } = require('../models');
+const { User, Role, Organization, Branch, Employee } = require('../models');
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
 const { hashPassword } = require('../utils/passwordHelper');
@@ -34,10 +34,11 @@ const getAllUsers = async (req, res, next) => {
             include: [
                 { model: Role, as: 'roles' },
                 { model: Organization, as: 'organization' },
-                { model: Branch, as: 'branches' }
+                { model: Branch, as: 'branches' },
+                { model: Employee, as: 'employee', attributes: ['id', 'designation', 'name'] }
             ],
             distinct: true,
-            order: [['created_at', 'DESC']] // Fixed sort order
+            order: [['created_at', 'DESC']]
         });
 
         return paginatedResponse(res, users.rows, {
