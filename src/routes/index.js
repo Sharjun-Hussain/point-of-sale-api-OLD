@@ -3,6 +3,9 @@ const router = express.Router();
 
 // Import sub-routes
 const authRoutes = require('./auth');
+const authController = require('../controllers/authController');
+const authenticate = require('../middleware/auth');
+const upload = require('../middleware/upload');
 const userRoutes = require('./users');
 const roleRoutes = require('./roles');
 const organizationRoutes = require('./organizations');
@@ -35,6 +38,11 @@ const maintenanceRoutes = require('./maintenance');
 
 // Use routes
 router.use('/auth', authRoutes);
+
+// High-Density Identity Aliases (Direct root access for Frontend compatibility)
+router.get('/me', authenticate, authController.me);
+router.put('/me', authenticate, upload.single('profile_image'), authController.updateMe);
+
 router.use('/stocks', stockRoutes);
 router.use('/accounts', accountRoutes);
 router.use('/organizations', organizationRoutes);
