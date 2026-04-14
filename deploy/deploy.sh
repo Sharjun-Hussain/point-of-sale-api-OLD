@@ -10,13 +10,9 @@ PROJECT_DIR="$(pwd)"
 ENV_FILE=".env.docker"
 BACKEND_CONTAINER="pos_api"
 
-echo "🚀 Starting professional deployment for Inzeedo POS..."
+echo "🚀 Starting local-build deployment for Inzeedo POS..."
 
-# 1. Pull Latest Changes
-echo "📥 pulling latest code from git..."
-git pull origin main
-
-# 2. Verify Environment
+# 1. Verify Environment
 if [ ! -f "$ENV_FILE" ]; then
     echo "❌ Error: $ENV_FILE not found! Please create it before deploying."
     exit 1
