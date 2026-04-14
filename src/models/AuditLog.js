@@ -7,7 +7,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         organization_id: {
             type: DataTypes.UUID,
-            allowNull: false,
+            allowNull: true, // Nullable for anonymous events (Login failures, system logs)
             references: {
                 model: 'organizations',
                 key: 'id'
