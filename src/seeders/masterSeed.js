@@ -134,8 +134,8 @@ const seed = async () => {
         const [org] = await Organization.findOrCreate({
             where: { name: 'Main Organization' },
             defaults: {
-                email: 'admin@emipos.com',
-                phone: '0112233445',
+                email: 'mrjoon005@gmail.com',
+                phone: '0757340891',
                 address: 'No 1, Main Street, Colombo',
                 business_type: 'Retail',
                 status: 'active'
@@ -145,7 +145,7 @@ const seed = async () => {
         const [branch] = await Branch.findOrCreate({
             where: { name: 'Central Branch', organization_id: org.id },
             defaults: {
-                email: 'central@emipos.com',
+                email: 'hello@inzeedo.com',
                 phone: '0112233446',
                 address: 'Colombo 01',
                 status: 'active'
@@ -156,7 +156,7 @@ const seed = async () => {
         // 4. Super Admin User
         const passwordHash = await bcrypt.hash('admin123', 10);
         const [adminUser] = await User.findOrCreate({
-            where: { email: 'admin@emipos.com' },
+            where: { email: 'mrjoon005@gmail.com' },
             defaults: {
                 name: 'Super Admin',
                 password: passwordHash,
@@ -167,7 +167,7 @@ const seed = async () => {
 
         await adminUser.setRoles([adminRole]);
         await adminUser.setBranches([branch]);
-        console.log('✅ Created Super Admin user (admin@emipos.com / admin123).');
+        console.log('✅ Created Super Admin user (mrjoon005@gmail.com / admin123).');
 
         // 5. Default Charts of Accounts
         const accounts = [
