@@ -195,7 +195,7 @@ async function bootstrap() {
                 phone: '0112233445',
                 address: 'No 1, Main Street, Colombo',
                 business_type: 'Retail',
-                status: 'active'
+                is_active: true
             }
         });
 
@@ -206,7 +206,7 @@ async function bootstrap() {
                 email: 'mrjoon005@gmail.com',
                 phone: '0112233446',
                 address: 'Colombo 01',
-                status: 'active',
+                is_active: true,
                 organization_id: org.id
             }
         });
@@ -222,7 +222,7 @@ async function bootstrap() {
                 email: 'mrjoon005@gmail.com',
                 password: passwordHash,
                 organization_id: org.id,
-                status: 'active'
+                is_active: true
             }
         });
 
@@ -245,7 +245,7 @@ async function bootstrap() {
         for (const acc of accounts) {
             await db.Account.findOrCreate({
                 where: { code: acc.code, organization_id: org.id },
-                defaults: { ...acc, organization_id: org.id, status: 'active' }
+                defaults: { ...acc, organization_id: org.id, is_active: true }
             });
         }
         console.log('✅ Seeded default Charts of Accounts.');
