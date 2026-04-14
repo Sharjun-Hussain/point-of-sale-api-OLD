@@ -19,6 +19,12 @@ router.use(authenticate);
 router.get('/stats', checkPermission('system:maintenance'), maintenanceController.getHealthStats);
 
 /**
+ * @route GET /api/v1/maintenance/telemetry
+ * @desc Fetch historical system telemetry for charts (Super Admin Only)
+ */
+router.get('/telemetry', checkPermission('system:maintenance'), maintenanceController.getTelemetry);
+
+/**
  * @route POST /api/v1/maintenance/optimize
  * @desc Trigger manual database table optimization (Super Admin Only)
  */

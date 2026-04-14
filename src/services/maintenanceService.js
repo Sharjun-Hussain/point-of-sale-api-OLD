@@ -1,6 +1,7 @@
 const { sequelize } = require('../models');
 const { QueryTypes } = require('sequelize');
 const redisService = require('./redisService');
+const logger = require('../utils/logger');
 
 /**
  * INDUSTRIAL MAINTENANCE SERVICE
@@ -150,6 +151,47 @@ class MaintenanceService {
             before,
             after
         };
+    }
+
+    /**
+     * Record system metrics to Redis (Called automatically by Cron)
+     */
+    async recordSystemMetrics() {
+        if (!redisService.isConnected) return;
+        
+        try {
+            const health = await this.getSystemHealth();
+            const point = {
+                timestamp: new Date().toISOString(),
+                heapUsed: parseInt(health.memory.heapUsed),
+                rss: parseInt(health.memory.rss),
+                threads: health.db.threadsConnected || 0,
+                slowQueries: health.db.slowQueries || 0
+            };
+
+            const listKey = 'pos:telemetry:health';
+            const pipeline = redisService.client.pipeline();
+            pipeline.lpush(listKey, JSON.stringify(point));
+            pipeline.ltrim(listKey, 0, 1439); // Keep last 24 hours (1440 points)
+            await pipeline.exec();
+        } catch (err) {
+            logger.error(`Telemetry Record Error: ${err.message}`);
+        }
+    }
+
+    /**
+     * Fetch historical telemetry for charts
+     */
+    async getTelemetryHistory(minutes = 60) {
+        if (!redisService.isConnected) return [];
+        try {
+            const limit = Math.min(minutes, 1440) - 1; // 0-indexed range
+            const data = await redisService.client.lrange('pos:telemetry:health', 0, limit);
+            return data.map(d => JSON.parse(d)).reverse(); // Return in chronological order
+        } catch (err) {
+            logger.error(`Telemetry Fetch Error: ${err.message}`);
+            return [];
+        }
     }
 }
 

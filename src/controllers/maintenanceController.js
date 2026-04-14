@@ -25,6 +25,19 @@ class MaintenanceController {
     }
 
     /**
+     * Fetch historical telemetry for system charts.
+     */
+    async getTelemetry(req, res, next) {
+        try {
+            // Default to 60 minutes if not provided
+            const minutes = parseInt(req.query.minutes) || 60;
+            const history = await maintenanceService.getTelemetryHistory(minutes);
+            
+            return successResponse(res, history, 'Telemetry history fetched successfully.');
+        } catch (error) { next(error); }
+    }
+
+    /**
      * Trigger a full database table optimization.
      */
     async optimizeDatabase(req, res, next) {
