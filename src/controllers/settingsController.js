@@ -279,8 +279,34 @@ const testConnection = async (req, res, next) => {
     try {
         const { type, provider, config } = req.body;
 
+        // INDUSTRIAL FIX: If any field is masked (********), we reach into the DB to get the real encrypted value
+        let finalConfig = { ...config };
+        const hasMaskedFields = Object.values(config).some(v => isMasked(v));
+
+        if (hasMaskedFields) {
+            const existingSetting = await Setting.findOne({
+                where: {
+                    organization_id: req.user.organization_id,
+                    category: 'communication'
+                }
+            });
+
+            if (existingSetting) {
+                const existingData = sanitizeSettings(existingSetting.settings_data);
+                const categoryData = type === 'email' ? existingData?.email?.config : existingData?.sms?.config;
+
+                if (categoryData) {
+                    for (const key in finalConfig) {
+                        if (isMasked(finalConfig[key]) && categoryData[key]) {
+                            finalConfig[key] = categoryData[key];
+                        }
+                    }
+                }
+            }
+        }
+
         if (type === 'email') {
-            const result = await verifyEmailConnection(provider, config);
+            const result = await verifyEmailConnection(provider, finalConfig);
             if (result.success) return successResponse(res, null, result.message);
             else return errorResponse(res, result.message, 400);
         }
@@ -288,7 +314,7 @@ const testConnection = async (req, res, next) => {
         if (type === 'sms') {
             try {
                 // DECRYPT: Decrypt config before testing
-                const decConfig = processSecrets(config, 'decrypt');
+                const decConfig = processSecrets(finalConfig, 'decrypt');
 
                 if (provider === 'twilio') {
                     const sid = decConfig['Account SID'];

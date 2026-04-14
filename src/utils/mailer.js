@@ -1,6 +1,7 @@
 const nodemailer = require('nodemailer');
 const dotenv = require('dotenv');
 const { decrypt } = require('./security');
+const logger = require('./logger');
 
 dotenv.config();
 
@@ -19,66 +20,95 @@ const transporter = nodemailer.createTransport({
 
 /**
  * Helper to generate nodemailer transport configuration based on provider
+ * Robustness: Handles variations in key naming (spaces, casing, underscores)
  */
 const getTransportConfig = (provider, config) => {
+    if (!config) return null;
+
     // Decrypt sensitive fields if they are encrypted
     const decConfig = {};
     for (const key in config) {
         decConfig[key] = decrypt(config[key]);
     }
 
+    // Normalization helper: find a value by multiple possible key variations
+    const getVal = (keys) => {
+        for (const k of keys) {
+            if (decConfig[k] !== undefined) return decConfig[k];
+            // Also check normalized versions
+            const normalizedK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+            for (const actualKey in decConfig) {
+                const normalizedActual = actualKey.toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (normalizedActual === normalizedK) return decConfig[actualKey];
+            }
+        }
+        return null;
+    };
+
     switch (provider) {
         case 'smtp':
-            if (!decConfig.Host || !decConfig.Port) return null;
+            const host = getVal(['Host', 'smtpHost', 'smtp_host']);
+            const port = getVal(['Port', 'smtpPort', 'smtp_port']);
+            if (!host || !port) return null;
             return {
-                host: decConfig.Host,
-                port: parseInt(decConfig.Port),
-                secure: decConfig.Encryption === 'SSL/TLS' || decConfig.Port === '465',
-                auth: { user: decConfig.Username, pass: decConfig.Password }
+                host,
+                port: parseInt(port),
+                secure: getVal(['Encryption']) === 'SSL/TLS' || port === '465',
+                auth: { 
+                    user: getVal(['Username', 'user', 'smtp_user']), 
+                    pass: getVal(['Password', 'pass', 'smtp_pass']) 
+                }
             };
 
         case 'brevo':
-            if (!decConfig['API Key']) return null;
+            const brevoKey = getVal(['API Key', 'apiKey', 'api_key']);
+            if (!brevoKey) return null;
             return {
                 host: 'smtp-relay.brevo.com',
                 port: 587,
                 auth: { 
-                    user: decConfig['From Email'], 
-                    pass: decConfig['API Key'] 
+                    user: getVal(['Username', 'user', 'fromEmail', 'From Email', 'from_email']), 
+                    pass: brevoKey 
                 }
             };
 
         case 'sendgrid':
-            if (!decConfig['API Key']) return null;
+            const sgKey = getVal(['API Key', 'apiKey', 'api_key']);
+            if (!sgKey) return null;
             return {
                 host: 'smtp.sendgrid.net',
                 port: 587,
                 auth: { 
                     user: 'apikey', 
-                    pass: decConfig['API Key'] 
+                    pass: sgKey 
                 }
             };
 
         case 'ses':
-            if (!decConfig['Access Key'] || !decConfig['Secret Key']) return null;
-            const region = decConfig['Region'] || 'us-east-1';
+            const accessKey = getVal(['Access Key', 'accessKey', 'access_key']);
+            const secretKey = getVal(['Secret Key', 'secretKey', 'secret_key']);
+            if (!accessKey || !secretKey) return null;
+            const region = getVal(['Region', 'region']) || 'us-east-1';
             return {
                 host: `email-smtp.${region}.amazonaws.com`,
                 port: 587,
                 auth: { 
-                    user: decConfig['Access Key'], 
-                    pass: decConfig['Secret Key'] 
+                    user: accessKey, 
+                    pass: secretKey 
                 }
             };
 
         case 'mailgun':
-            if (!decConfig['API Key'] || !decConfig['Domain']) return null;
+            const mgKey = getVal(['API Key', 'apiKey', 'api_key']);
+            const domain = getVal(['Domain', 'domain']);
+            if (!mgKey || !domain) return null;
+            const mgRegion = getVal(['Region', 'region']);
             return {
-                host: decConfig.Region === 'EU' ? 'smtp.eu.mailgun.org' : 'smtp.mailgun.org',
+                host: mgRegion === 'EU' ? 'smtp.eu.mailgun.org' : 'smtp.mailgun.org',
                 port: 587,
                 auth: { 
-                    user: decConfig['Username'] || `postmaster@${decConfig['Domain']}`, 
-                    pass: decConfig['Password'] || decConfig['API Key'] 
+                    user: getVal(['Username']) || `postmaster@${domain}`, 
+                    pass: getVal(['Password']) || mgKey 
                 }
             };
 
@@ -102,17 +132,40 @@ const sendEmailWithSettings = async (options, organizationId) => {
                 where: { organization_id: organizationId, category: 'communication' }
             });
 
-            if (setting?.settings_data?.email?.enabled) {
-                const { provider, config, fromName: customFromName } = setting.settings_data.email;
+            // Parse settings_data if it comes as a string (industrial serialization handling)
+            let settingsData = setting?.settings_data;
+            if (settingsData && typeof settingsData === 'string') {
+                try {
+                    settingsData = JSON.parse(settingsData);
+                    // Handle double-escaped strings if they exist
+                    if (typeof settingsData === 'string') settingsData = JSON.parse(settingsData);
+                } catch (e) {
+                    console.error('[MAILER] Failed to parse settings_data string:', e);
+                }
+            }
+
+            if (settingsData?.email?.enabled) {
+                const { provider, config, fromName: customFromName } = settingsData.email;
                 const transportConfig = getTransportConfig(provider, config);
 
                 if (transportConfig) {
                     activeTransporter = nodemailer.createTransport(transportConfig);
-                    fromEmail = transportConfig.auth.user || fromEmail;
+                    
+                    // Logic: Priority for From Email in the HEADER, but use Auth User as fallback
+                    const displayEmail = getVal(['From Email', 'fromEmail', 'from_email']);
+                    if (displayEmail) fromEmail = displayEmail;
+                    else fromEmail = transportConfig.auth.user || fromEmail;
+
                     if (customFromName) fromName = customFromName;
-                    console.log(`Using custom ${provider} transport for organization: ${organizationId}`);
+                    logger.info(`[MAILER] Initializing custom ${provider} gateway for Org: ${organizationId}. Mode: Authenticated Sender.`);
+                } else {
+                    logger.warn(`[MAILER] Custom ${provider} config was found for Org: ${organizationId} but was INCOMPLETE. Falling back to default.`);
                 }
+            } else {
+                logger.info(`[MAILER] No active custom email setting found for Org: ${organizationId}. Using system default.`);
             }
+        } else {
+            logger.info(`[MAILER] No organizationId provided. Using system default.`);
         }
 
         const mailOptions = {
@@ -125,10 +178,10 @@ const sendEmailWithSettings = async (options, organizationId) => {
         };
 
         const info = await activeTransporter.sendMail(mailOptions);
-        console.log('Email dispatched successfully: %s', info.messageId);
+        logger.info('[MAILER] Email dispatched successfully: id=%s, from=%s, to=%s', info.messageId, mailOptions.from, mailOptions.to);
         return info;
     } catch (error) {
-        console.error('Mail generation failed:', error);
+        logger.error('[MAILER] Execution failed: %s', error.message);
         throw new Error(`Could not dispatch email: ${error.message}`);
     }
 };
@@ -145,7 +198,7 @@ const verifyEmailConnection = async (provider, config) => {
         await testTransporter.verify();
         return { success: true, message: 'Connection established successfully' };
     } catch (error) {
-        console.error('Connection verification failed:', error);
+        logger.error('[MAILER] Connection verification failed: %s', error.message);
         return { success: false, message: error.message };
     }
 };
