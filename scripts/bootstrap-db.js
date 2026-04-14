@@ -9,9 +9,10 @@ async function bootstrap() {
         console.log(`📡 Connecting as user: ${process.env.DB_USER || 'root'}`);
         
         // 1. Sync Schema (Create tables if they don't exist)
-        // force: false ensures we don't drop tables if they already exist
-        // await db.sequelize.sync({ force: false });
-        console.log('✅ Database schema verified (Sync skipped).');
+        // We use sync() here to ensure the tables exist before seeding.
+        // The migration baseline will also handle this, but sync() is a safety net for bootstrapping.
+        await db.sequelize.sync({ force: false });
+        console.log('✅ Database schema synchronized and verified.');
 
         // 2. Seed Essential Data
         console.log('🌱 Seeding essential system data...');
