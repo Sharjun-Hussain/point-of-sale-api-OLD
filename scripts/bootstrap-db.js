@@ -79,13 +79,10 @@ async function bootstrap() {
         // already created by a BelongsToMany association (which only creates FK columns)
         await db.sequelize.sync({ alter: true });
 
-        // Post-sync guarantee: BelongsToMany join tables ignore alter:true for extra columns.
-        // Explicitly ensure is_primary exists in employee_branches.
-        try {
-            await db.sequelize.query(
-                'ALTER TABLE employee_branches ADD COLUMN IF NOT EXISTS is_primary BOOLEAN NOT NULL DEFAULT FALSE'
-            );
-        } catch (e) { /* column already exists, safe to ignore */ }
+        // BelongsToMany associations skip extra columns (like is_primary) when creating the
+        // join table. Force-sync the model explicitly so Sequelize adds all missing columns.
+        await db.EmployeeBranch.sync({ alter: true });
+
 
         console.log('✅ Database schema synchronized.');
         console.log('🌱 Seeding master enterprise data...');
