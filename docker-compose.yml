@@ -2,57 +2,16 @@ services:
   # --- Backend API (Industrial POS) ---
   api:
     build:
-      context: . # Now inside the actual repo
+      context: .
       dockerfile: Dockerfile
     container_name: pos_api
     restart: always
     env_file:
       - .env.docker
-    ports:
-      - "5000:5000" # Exposes API to host Nginx
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
+    # Host Networking allows the API to reach your native MySQL/Redis on localhost
+    network_mode: "host"
     volumes:
       - uploads_data:/app/uploads
-    networks:
-      - pos_network
-
-  # --- Database (MySQL 8) ---
-  db:
-    image: mysql:8.0
-    container_name: pos_db
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-1234}
-      MYSQL_DATABASE: ${DB_NAME:-pos_system}
-    volumes:
-      - mysql_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$${MYSQL_ROOT_PASSWORD}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - pos_network
-
-  # --- Caching (Redis 7) ---
-  redis:
-    image: redis:7.0-alpine
-    container_name: pos_redis
-    restart: always
-    volumes:
-      - redis_data:/data
-    networks:
-      - pos_network
-
-networks:
-  pos_network:
-    driver: bridge
 
 volumes:
-  mysql_data:
-  redis_data:
   uploads_data:
