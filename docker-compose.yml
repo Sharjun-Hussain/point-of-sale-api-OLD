@@ -1,17 +1,15 @@
 services:
-  # --- POS Backend API ---
+  # --- Backend API (Industrial POS) ---
   api:
     build:
-      context: .
+      context: . # Now inside the actual repo
       dockerfile: Dockerfile
     container_name: pos_api
     restart: always
-    ports:
-      - "5000:5000"
-    environment:
-      - NODE_ENV=production
     env_file:
       - .env.docker
+    ports:
+      - "5000:5000" # Exposes API to host Nginx
     depends_on:
       db:
         condition: service_healthy
@@ -30,12 +28,10 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-1234}
       MYSQL_DATABASE: ${DB_NAME:-pos_system}
-    ports:
-      - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$MYSQL_ROOT_PASSWORD"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -47,8 +43,6 @@ services:
     image: redis:7.0-alpine
     container_name: pos_redis
     restart: always
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
