@@ -1,9 +1,10 @@
-const { RateLimiterMySQL } = require('rate-limiter-flexible');
+const { RateLimiterRedis, RateLimiterMySQL } = require('rate-limiter-flexible');
 const mysql = require('mysql2');
+const redisService = require('../services/redisService');
 
 let rateLimiter = null;
 
-// Use a separate pool for the rate limiter to avoid blocking the main app pool
+// Use a separate pool for the MySQL fallback rate limiter
 const pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
@@ -19,20 +20,31 @@ const initRateLimiter = () => {
     if (rateLimiter) return rateLimiter;
 
     try {
-        rateLimiter = new RateLimiterMySQL({
-            storeClient: pool,
-            dbName: process.env.DB_NAME || 'pos_system',
-            tableName: 'rate_limits',
-            storeType: 'pool',
-            points: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
-            duration: (parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 900000) / 1000,
-            tableCreated: false,
-        });
+        const points = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100;
+        const durationSeconds = (parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 900000) / 1000;
 
-        // Catch initial connection/table creation errors to prevent unhandled rejections
-        // Note: internal errors in RateLimiterMySQL are usually swallowed or logged
-        // but it doesn't have a specific .on('error') for the instance itself.
-        // The pool handles its own errors.
+        // HIGH-PERFORMANCE: Use Redis if connected
+        if (redisService.isConnected && redisService.client) {
+            rateLimiter = new RateLimiterRedis({
+                storeClient: redisService.client,
+                keyPrefix: 'middleware',
+                points: points,
+                duration: durationSeconds,
+            });
+            console.log('⚡ Rate Limiter: Using High-Speed Redis Engine');
+        } else {
+            // FALLBACK: Use MySQL if Redis is offline
+            rateLimiter = new RateLimiterMySQL({
+                storeClient: pool,
+                dbName: process.env.DB_NAME || 'pos_system',
+                tableName: 'rate_limits_fallback',
+                storeType: 'pool',
+                points: points,
+                duration: durationSeconds,
+                tableCreated: true, // Prevents the Table Not Created Error
+            });
+            console.log('⚠️ Rate Limiter: Using MySQL Fallback Engine');
+        }
 
         return rateLimiter;
     } catch (err) {
