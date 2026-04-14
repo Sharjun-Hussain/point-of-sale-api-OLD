@@ -23,8 +23,8 @@ const initRateLimiter = () => {
         const points = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100;
         const durationSeconds = (parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 900000) / 1000;
 
-        // HIGH-PERFORMANCE: Use Redis if connected
-        if (redisService.isConnected && redisService.client) {
+        // HIGH-PERFORMANCE: Use Redis if REDIS_URL is configured
+        if (process.env.REDIS_URL && redisService.client) {
             rateLimiter = new RateLimiterRedis({
                 storeClient: redisService.client,
                 keyPrefix: 'middleware',
