@@ -93,6 +93,7 @@ DB_PASSWORD=$DB_PASS
 NODE_ENV=production
 PORT=$APP_PORT
 JWT_SECRET=$(openssl rand -base64 32)
+REDIS_URL=redis://localhost:6379
 EOF
 
 if [[ "$DEPLOY_MODE" == "1" ]]; then

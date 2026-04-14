@@ -1,115 +1,154 @@
 const { sequelize } = require('../models');
 const { QueryTypes } = require('sequelize');
+const redisService = require('./redisService');
 
 /**
  * INDUSTRIAL MAINTENANCE SERVICE
- * Handles high-level database health checks, optimization, and system monitoring.
+ * Handles deep database diagnostics, optimization, Redis cache management,
+ * and real-time system health monitoring.
  */
 class MaintenanceService {
+
     /**
-     * Fetch detailed health and usage statistics for all database tables.
+     * Fetch detailed usage statistics for all database tables.
      */
     async getDatabaseStats() {
         const dbName = sequelize.config.database;
-        const stats = await sequelize.query(`
+        const tables = await sequelize.query(`
             SELECT 
                 TABLE_NAME AS \`name\`,
                 TABLE_ROWS AS \`rows\`,
                 DATA_LENGTH AS \`dataSize\`,
                 INDEX_LENGTH AS \`indexSize\`,
                 DATA_FREE AS \`freeSpace\`,
-                ENGINE as \`engine\`,
-                CREATE_TIME as \`created\`
-            FROM 
-                information_schema.TABLES 
-            WHERE 
-                TABLE_SCHEMA = :dbName
-            ORDER BY 
-                (DATA_LENGTH + INDEX_LENGTH) DESC;
-        `, { 
-            replacements: { dbName },
-            type: QueryTypes.SELECT 
-        });
+                ENGINE AS \`engine\`,
+                UPDATE_TIME AS \`lastUpdated\`
+            FROM information_schema.TABLES
+            WHERE TABLE_SCHEMA = :dbName
+            ORDER BY (DATA_LENGTH + INDEX_LENGTH) DESC;
+        `, { replacements: { dbName }, type: QueryTypes.SELECT });
 
-        // Calculate aggregates with safe numeric conversion
-        const totals = stats.reduce((acc, table) => {
-            acc.totalData += Number(table.dataSize || 0);
-            acc.totalIndex += Number(table.indexSize || 0);
-            acc.totalRows += Number(table.rows || 0);
+        const summary = tables.reduce((acc, t) => {
+            acc.totalData  += Number(t.dataSize  || 0);
+            acc.totalIndex += Number(t.indexSize || 0);
+            acc.totalRows  += Number(t.rows      || 0);
             return acc;
         }, { totalData: 0, totalIndex: 0, totalRows: 0 });
 
-        return {
-            tables: stats,
-            summary: totals,
-            timestamp: new Date()
-        };
+        return { tables, summary, timestamp: new Date() };
     }
 
     /**
-     * Run OPTIMIZE TABLE on all application tables.
-     * This defragments the database and reclaims unused disk space.
+     * Run OPTIMIZE TABLE on all InnoDB/MyISAM tables.
+     * Returns a verbose result log for every table attempted.
      */
     async optimizeTables() {
-        // Get all tables first
-        const [tables] = await sequelize.query(`
-            SELECT TABLE_NAME 
-            FROM information_schema.TABLES 
-            WHERE TABLE_SCHEMA = DATABASE() AND ENGINE = 'InnoDB';
-        `);
+        const dbName = sequelize.config.database;
+        const tables = await sequelize.query(`
+            SELECT TABLE_NAME
+            FROM information_schema.TABLES
+            WHERE TABLE_SCHEMA = :dbName
+            AND ENGINE IN ('InnoDB', 'MyISAM');
+        `, { replacements: { dbName }, type: QueryTypes.SELECT });
 
-        const results = [];
-        for (const table of tables) {
-            const tableName = table.TABLE_NAME || table.table_name;
+        const log = [];
+        for (const row of tables) {
+            const tableName = row.TABLE_NAME || row.table_name;
             try {
-                await sequelize.query(`OPTIMIZE TABLE \`${tableName}\``);
-                results.push({ table: tableName, status: 'success' });
+                const result = await sequelize.query(`OPTIMIZE TABLE \`${tableName}\``);
+                // MySQL returns a result set with Msg_type/Msg_text columns
+                const msgRow = result[0]?.[0] || {};
+                const status = msgRow.Msg_type === 'error' ? 'failed' : 'success';
+                log.push({ table: tableName, status, note: msgRow.Msg_text || 'OK' });
             } catch (err) {
-                results.push({ table: tableName, status: 'failed', error: err.message });
+                log.push({ table: tableName, status: 'failed', note: err.message });
             }
         }
 
         return {
-            optimizedCount: results.filter(r => r.status === 'success').length,
-            details: results
+            optimizedCount: log.filter(r => r.status === 'success').length,
+            failedCount: log.filter(r => r.status === 'failed').length,
+            log
         };
     }
 
     /**
-     * Get system-level metrics (Memory, Uptime, Connection Pool).
+     * Get deep system health including DB diagnostics and Redis stats.
      */
     async getSystemHealth() {
-        const uptime = process.uptime();
-        const memoryUsage = process.memoryUsage();
-        
-        // Database connection test
-        let dbStatus = 'healthy';
+        const uptime      = process.uptime();
+        const mem         = process.memoryUsage();
+        let dbStatus      = 'healthy';
+        let dbDiagnostics = {};
+
         try {
             await sequelize.authenticate();
+
+            // Pull real-time MySQL global status variables
+            const vars = await sequelize.query(`
+                SHOW GLOBAL STATUS WHERE Variable_name IN (
+                    'Threads_connected',
+                    'Slow_queries',
+                    'Questions',
+                    'Uptime',
+                    'Bytes_received',
+                    'Bytes_sent'
+                );
+            `, { type: QueryTypes.SELECT });
+
+            const statMap = vars.reduce((acc, row) => {
+                acc[row.Variable_name] = row.Value;
+                return acc;
+            }, {});
+
+            // Also grab the server version
+            const [versionRow] = await sequelize.query(
+                `SELECT VERSION() AS version;`,
+                { type: QueryTypes.SELECT }
+            );
+
+            dbDiagnostics = {
+                threadsConnected : Number(statMap.Threads_connected || 0),
+                slowQueries      : Number(statMap.Slow_queries      || 0),
+                totalQueries     : Number(statMap.Questions         || 0),
+                dbUptime         : Number(statMap.Uptime            || 0),
+                bytesReceived    : Number(statMap.Bytes_received    || 0),
+                bytesSent        : Number(statMap.Bytes_sent        || 0),
+                version          : versionRow?.version || 'Unknown'
+            };
         } catch (e) {
             dbStatus = 'unstable';
         }
 
+        // Redis stats
+        const cacheStats = await redisService.getStats();
+
         return {
-            status: dbStatus,
-            uptime: `${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m`,
+            status    : dbStatus,
+            uptime    : `${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m`,
             nodeVersion: process.version,
             memory: {
-                heapUsed: `${Math.round(memoryUsage.heapUsed / 1024 / 1024)} MB`,
-                rss: `${Math.round(memoryUsage.rss / 1024 / 1024)} MB`
-            }
+                heapUsed : `${Math.round(mem.heapUsed / 1024 / 1024)} MB`,
+                heapTotal: `${Math.round(mem.heapTotal / 1024 / 1024)} MB`,
+                rss      : `${Math.round(mem.rss / 1024 / 1024)} MB`
+            },
+            db    : dbDiagnostics,
+            cache : cacheStats
         };
     }
 
     /**
-     * Clear application-level memory caches.
+     * Flush the Redis cache and return stats before + after.
      */
     async clearAppCache() {
-        // This is where we would flush Redis if integrated.
-        // For now, we clear any registered internal memory buffers.
+        const before = await redisService.getStats();
+        await redisService.flush();
+        const after  = await redisService.getStats();
         return {
-            success: true,
-            message: 'Application memory buffers cleared.'
+            success : true,
+            message : 'Redis cache flushed successfully.',
+            before,
+            after
         };
     }
 }
