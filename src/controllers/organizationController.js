@@ -1,4 +1,4 @@
-const { Organization, Branch, User, Role, SubscriptionHistory } = require('../models');
+const { Organization, Branch, User, Role, SubscriptionHistory, Employee } = require('../models');
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
 const { hashPassword } = require('../utils/passwordHelper');
@@ -354,36 +354,34 @@ const getAllBranches = async (req, res, next) => {
                 {
                     model: Organization,
                     as: 'organization',
-                    attributes: ['id', 'name'] // Removed 'code' as it doesn't exist
+                    attributes: ['id', 'name']
                 },
                 {
-                    model: User,
-                    as: 'users',
-                    attributes: ['id', 'name', 'phone'],
-                    include: [{
-                        model: Role,
-                        as: 'roles',
-                        where: { name: ['Admin', 'Manager', 'Branch Manager'] }, // Filter users by leadership roles
-                        required: false // Left join, so we still get branches even if no manager assigned
-                    }],
-                    required: false,
-                    through: { attributes: [] } // Exclude join table attributes
+                    model: Employee,
+                    as: 'employees',
+                    attributes: ['id', 'name', 'phone', 'designation'],
+                    through: { attributes: [] }
                 }],
-            distinct: true // distinct is important when including hasMany associations with limit
+            distinct: true
         });
 
         // Map the results to flatten the manager info
         const branchData = branches.rows.map(branch => {
             const branchJson = branch.toJSON();
-            // Find the first user with a role
-            const manager = branchJson.users && branchJson.users.find(u => u.roles && u.roles.length > 0);
+            // Business Logic: Find the employee who is designated as the manager
+            const manager = branchJson.employees && branchJson.employees.find(emp => 
+                emp.designation && (
+                    emp.designation.toLowerCase().includes('manager') || 
+                    emp.designation.toLowerCase().includes('in-charge') ||
+                    emp.designation.toLowerCase().includes('founder')
+                )
+            );
 
             return {
                 ...branchJson,
                 manager_name: manager ? manager.name : null,
                 manager_phone: manager ? manager.phone : null,
-                // Remove the large users array from response if not needed, or keep it
-                users: undefined
+                employees: undefined // Cleanup raw association from response
             };
         });
 
