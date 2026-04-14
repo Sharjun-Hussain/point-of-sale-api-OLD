@@ -34,9 +34,15 @@ if docker compose version &> /dev/null; then
 else
     echo "⚠️  Warning: Docker Compose (V2) not found. Please ensure it is installed manually to avoid disrupting your other containers."
 fi
-echo "⚡ Starting Native Redis..."
-sudo systemctl enable redis-server
-sudo systemctl start redis-server
+# 2. Redis Availability Check
+echo "⚡ Checking for Redis availability..."
+if ss -tuln | grep -q ":6379"; then
+    echo "✅ Redis is already active on port 6379. Leveraging existing instance."
+else
+    echo "Starting Native Redis..."
+    sudo systemctl enable redis-server || true
+    sudo systemctl start redis-server || true
+fi
 
 # 2. Database Provisioning
 echo ""
