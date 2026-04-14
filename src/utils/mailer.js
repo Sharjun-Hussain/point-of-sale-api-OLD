@@ -79,6 +79,8 @@ const sendEmailWithSettings = async (options, organizationId) => {
     }
 };
 
+const sendEmail = (options) => sendEmailWithSettings(options, null);
+
 module.exports = {
     sendEmail,
     sendEmailWithSettings
