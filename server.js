@@ -29,10 +29,29 @@ const maintenanceService = require('./src/services/maintenanceService');
 const app = express();
 
 // CORS configuration - MUST BE FIRST
+const allowedOrigins = process.env.FRONTEND_URL 
+    ? process.env.FRONTEND_URL.split(',').map(origin => origin.trim().replace(/\/$/, "")) 
+    : ['http://localhost:3000', 'https://pos.inzeedo.com'];
+
 const corsOptions = {
-    origin: process.env.FRONTEND_URL?.split(',').map(origin => origin.trim()) || ['http://localhost:3000', 'https://pos.inzeedo.com'],
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        
+        // Normalize origin for comparison (remove trailing slash)
+        const normalizedOrigin = origin.replace(/\/$/, "");
+        
+        if (allowedOrigins.indexOf(normalizedOrigin) !== -1 || allowedOrigins.includes("*")) {
+            callback(null, true);
+        } else {
+            console.warn(`[CORS] Blocked request from unauthorized origin: ${origin}`);
+            callback(new Error('Not allowed by CORS'), false);
+        }
+    },
     credentials: true,
-    optionsSuccessStatus: 200
+    optionsSuccessStatus: 200,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
 };
 app.use(cors(corsOptions));
 
