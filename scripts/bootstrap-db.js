@@ -1,297 +1,317 @@
 const db = require('../src/models');
-const fs = require('fs');
-const path = require('path');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { DataTypes } = require('sequelize');
 
 /**
+ * MASTER BOOTSTRAP CONFIGURATION
+ * Industrial Grade Setup for Enterprise Production
+ */
+const MASTER_EMAIL = 'mrjoon005@gmail.com';
+const MASTER_PASSWORD = 'Inzeedo@99';
+const MASTER_ORG_NAME = 'Inzeedo';
+const isClearMode = process.argv.includes('--clear');
+
+/**
  * INDUSTRIAL SCHEMA HEALING
- * Automatically detects and repairs discrepancies between the code and database.
+ * Automatically detects and repairs discrepancies between code and database.
+ * Skipped in --clear mode since we wipe and rebuild anyway.
  */
 async function healSchema(sequelize) {
+    if (isClearMode) return;
+
     const queryInterface = sequelize.getQueryInterface();
-    
-    // 1. Critical Join Tables missing 'id' or 'is_primary'
     const healingConfig = [
-        { table: 'sale_employees', cols: [{ name: 'id', type: DataTypes.UUID }] },
+        { table: 'sale_employees',   cols: [{ name: 'id', type: DataTypes.UUID }] },
         { table: 'employee_branches', cols: [
-            { name: 'id', type: DataTypes.UUID },
+            { name: 'id',         type: DataTypes.UUID },
             { name: 'is_primary', type: DataTypes.BOOLEAN, default: false }
         ]},
         { table: 'product_attributes', cols: [{ name: 'id', type: DataTypes.UUID }] },
-        { table: 'product_suppliers', cols: [{ name: 'id', type: DataTypes.UUID }] },
+        { table: 'product_suppliers',  cols: [{ name: 'id', type: DataTypes.UUID }] },
         { table: 'variant_attr_values', cols: [{ name: 'id', type: DataTypes.UUID }] }
     ];
 
-    console.log('🛡️  Checking for schema architectural integrity...');
-
+    console.log('🛡️  Checking schema integrity...');
     for (const item of healingConfig) {
         try {
-            const tableDesc = await queryInterface.describeTable(item.table);
-            
+            const desc = await queryInterface.describeTable(item.table);
             for (const col of item.cols) {
-                if (!tableDesc[col.name]) {
-                    console.log(`🔧 Repairing table [${item.table}]: Adding missing column [${col.name}]`);
-                    
+                if (!desc[col.name]) {
+                    console.log(`🔧 Repairing [${item.table}]: adding [${col.name}]`);
                     await queryInterface.addColumn(item.table, col.name, {
                         type: col.type,
                         allowNull: true,
                         defaultValue: col.default !== undefined ? col.default : null
                     });
-
-                    // If we just added 'id', we MUST populate it with UUIDs
                     if (col.name === 'id') {
-                        console.log(`🧬 Generating unique identifiers for existing records in [${item.table}]...`);
-                        await sequelize.query(`UPDATE ${item.table} SET id = LOWER(CONCAT(HEX(RANDOM_BYTES(4)), '-', HEX(RANDOM_BYTES(2)), '-4', SUBSTR(HEX(RANDOM_BYTES(2)), 2, 3), '-', HEX(FLOOR(8 + (RAND() * 4))), SUBSTR(HEX(RANDOM_BYTES(2)), 2, 3), '-', HEX(RANDOM_BYTES(6)))) WHERE id IS NULL`);
+                        await sequelize.query(
+                            `UPDATE ${item.table} SET id = LOWER(CONCAT(HEX(RANDOM_BYTES(4)),'-',HEX(RANDOM_BYTES(2)),'-4',SUBSTR(HEX(RANDOM_BYTES(2)),2,3),'-',HEX(FLOOR(8+(RAND()*4))),SUBSTR(HEX(RANDOM_BYTES(2)),2,3),'-',HEX(RANDOM_BYTES(6)))) WHERE id IS NULL`
+                        );
                     }
                 }
             }
-        } catch (err) {
-            // Table might not exist yet, handled by sync() later
-        }
+        } catch (err) { /* table may not exist yet, handled by sync() */ }
     }
-
-    // 2. Special Fix: AuditLog Nullability for organization_id
-    try {
-        await sequelize.query('ALTER TABLE audit_logs MODIFY organization_id CHAR(36) BINARY NULL');
-    } catch (err) {}
-
-    console.log('✅ Schema Healing verified.');
+    try { await sequelize.query('ALTER TABLE audit_logs MODIFY organization_id CHAR(36) BINARY NULL'); } catch (e) {}
+    console.log('✅ Schema Healing complete.');
 }
-
 
 async function bootstrap() {
     try {
         console.log(`📡 Connecting as user: ${process.env.DB_USER || 'root'}`);
-        
-        // 0. Heal existing schema discrepancies
+
         await healSchema(db.sequelize);
 
-        // 1. Sync Schema (Create tables if they don't exist)
-        // We use sync() here to ensure the tables exist before seeding.
-        // The migration baseline will also handle this, but sync() is a safety net for bootstrapping.
-        await db.sequelize.sync({ force: false });
-        console.log('✅ Database schema synchronized and verified.');
+        if (isClearMode) {
+            console.log('⚠️  CRITICAL: TOTAL database reset (--clear detected)...');
+            await db.sequelize.sync({ force: true });
+        } else {
+            await db.sequelize.sync({ force: false });
+        }
+        console.log('✅ Database schema synchronized.');
+        console.log('🌱 Seeding master enterprise data...');
 
-        // 2. Seed Essential Data
-        console.log('🌱 Seeding essential system data...');
-
-        // 2a. Seed Permissions (Comprehensive list from masterSeed)
+        // ── Permissions (98 entries — exact mirror of local DB) ──────────────
         const permissionsSeed = [
+            // Attribute
+            { name: 'attr:create',            group_name: 'Attribute',     description: 'Create attributes' },
+            { name: 'attr:delete',            group_name: 'Attribute',     description: 'Delete attributes' },
+            { name: 'attr:edit',              group_name: 'Attribute',     description: 'Edit attributes' },
+            { name: 'attr:manage',            group_name: 'Attribute',     description: 'Manage attributes' },
+            { name: 'attr:view',              group_name: 'Attribute',     description: 'View attributes' },
+            // Branch
+            { name: 'branch:create',          group_name: 'Branch',        description: 'Create branches' },
+            { name: 'branch:delete',          group_name: 'Branch',        description: 'Delete branches' },
+            { name: 'branch:edit',            group_name: 'Branch',        description: 'Edit branches' },
+            { name: 'branch:view',            group_name: 'Branch',        description: 'View branches' },
+            // Brand
+            { name: 'brand:create',           group_name: 'Brand',         description: 'Create brands' },
+            { name: 'brand:delete',           group_name: 'Brand',         description: 'Delete brands' },
+            { name: 'brand:edit',             group_name: 'Brand',         description: 'Edit brands' },
+            { name: 'brand:manage',           group_name: 'Product',       description: 'Manage brands' },
+            { name: 'brand:view',             group_name: 'Brand',         description: 'View brands' },
+            // Category
+            { name: 'category:create',        group_name: 'Category',      description: 'Create categories' },
+            { name: 'category:delete',        group_name: 'Category',      description: 'Delete categories' },
+            { name: 'category:edit',          group_name: 'Category',      description: 'Edit categories' },
+            { name: 'category:manage',        group_name: 'Category',      description: 'Manage categories' },
+            { name: 'category:manage_main',   group_name: 'Category',      description: 'Manage main categories' },
+            { name: 'category:manage_sub',    group_name: 'Category',      description: 'Manage sub categories' },
+            { name: 'category:view',          group_name: 'Category',      description: 'View categories' },
+            // Container
+            { name: 'container:create',       group_name: 'Container',     description: 'Create containers' },
+            { name: 'container:delete',       group_name: 'Container',     description: 'Delete containers' },
+            { name: 'container:edit',         group_name: 'Container',     description: 'Edit containers' },
+            { name: 'container:view',         group_name: 'Container',     description: 'View containers' },
+            // Customer
+            { name: 'customer:create',        group_name: 'Customer',      description: 'Create customers' },
+            { name: 'customer:delete',        group_name: 'Customer',      description: 'Delete customers' },
+            { name: 'customer:edit',          group_name: 'Customer',      description: 'Edit customers' },
+            { name: 'customer:view',          group_name: 'Customer',      description: 'View customers' },
+            // Dashboard
+            { name: 'dashboard:view',         group_name: 'Dashboard',     description: 'View dashboard' },
+            // Employee
+            { name: 'employee:create',        group_name: 'Employee',      description: 'Enroll employees' },
+            { name: 'employee:delete',        group_name: 'Employee',      description: 'Remove employees' },
+            { name: 'employee:edit',          group_name: 'Employee',      description: 'Update HR records' },
+            { name: 'employee:view',          group_name: 'Employee',      description: 'View HR records' },
+            // Finance
+            { name: 'account:manage',         group_name: 'Finance',       description: 'Manage chart of accounts' },
+            { name: 'cheque:manage',          group_name: 'Finance',       description: 'Manage cheque transactions' },
+            { name: 'expense:create',         group_name: 'Finance',       description: 'Record expenditure' },
+            { name: 'expense:delete',         group_name: 'Finance',       description: 'Delete expense records' },
+            { name: 'expense:edit',           group_name: 'Finance',       description: 'Modify expenditure' },
+            { name: 'expense:manage',         group_name: 'Finance',       description: 'Manage expenses' },
+            { name: 'expense:view',           group_name: 'Finance',       description: 'View expenses' },
+            { name: 'finance:manage',         group_name: 'Finance',       description: 'Perform ledger entries' },
+            { name: 'finance:view',           group_name: 'Finance',       description: 'Monitor accounts' },
+            // Inventory (Stock movements logged under Inventory)
+            { name: 'stock:adjust',           group_name: 'Inventory',     description: 'Adjust stock levels' },
+            { name: 'stock:transfer',         group_name: 'Inventory',     description: 'Transfer stock between branches' },
+            // Organization
+            { name: 'org:create',             group_name: 'Organization',  description: 'Create organizations' },
+            { name: 'org:delete',             group_name: 'Organization',  description: 'Delete organizations' },
+            { name: 'org:edit',               group_name: 'Organization',  description: 'Update organization profile' },
+            { name: 'org:view',               group_name: 'Organization',  description: 'View organization metadata' },
+            // POS
+            { name: 'pos:access',             group_name: 'POS',           description: 'Access POS workstation' },
+            // Procurement (Purchase Returns)
+            { name: 'purchase_return:create', group_name: 'Procurement',   description: 'Create purchase returns' },
+            { name: 'purchase_return:view',   group_name: 'Procurement',   description: 'View purchase returns' },
+            // Product
+            { name: 'brand:manage',           group_name: 'Product',       description: 'Manage brands (product group)' },
+            { name: 'product:create',         group_name: 'Product',       description: 'Create products' },
+            { name: 'product:delete',         group_name: 'Product',       description: 'Delete products' },
+            { name: 'product:edit',           group_name: 'Product',       description: 'Edit product details' },
+            { name: 'product:variant_status', group_name: 'Product',       description: 'Toggle product variant status' },
+            { name: 'product:view',           group_name: 'Product',       description: 'View product catalog' },
+            { name: 'product_variant:create', group_name: 'Product',       description: 'Create product variants' },
+            { name: 'product_variant:edit',   group_name: 'Product',       description: 'Edit product variants' },
+            { name: 'unit:manage',            group_name: 'Product',       description: 'Manage measurement units (product group)' },
+            // Purchase
+            { name: 'purchase:create',        group_name: 'Purchase',      description: 'Create purchase orders' },
+            { name: 'purchase:delete',        group_name: 'Purchase',      description: 'Delete purchase orders' },
+            { name: 'purchase:edit',          group_name: 'Purchase',      description: 'Edit purchase orders (GRN)' },
+            { name: 'purchase:view',          group_name: 'Purchase',      description: 'View procurement logs' },
+            // Reports
+            { name: 'report:financial',       group_name: 'Reports',       description: 'View financial reports' },
+            { name: 'report:inventory',       group_name: 'Reports',       description: 'View inventory reports' },
+            { name: 'report:sales',           group_name: 'Reports',       description: 'View sales reports' },
+            { name: 'report:view',            group_name: 'Reports',       description: 'Access reporting module' },
+            // Role
+            { name: 'role:create',            group_name: 'Role',          description: 'Create access roles' },
+            { name: 'role:delete',            group_name: 'Role',          description: 'Delete access roles' },
+            { name: 'role:edit',              group_name: 'Role',          description: 'Edit role permissions' },
+            { name: 'role:view',              group_name: 'Role',          description: 'View access roles' },
+            // Sale
+            { name: 'sale:create',            group_name: 'Sale',          description: 'Process new sales' },
+            { name: 'sale:delete',            group_name: 'Sale',          description: 'Void processed sales' },
+            { name: 'sale:edit',              group_name: 'Sale',          description: 'Edit sale records' },
+            { name: 'sale:view',              group_name: 'Sale',          description: 'View sales history' },
+            // Sale Returns
+            { name: 'sale_return:create',     group_name: 'Sales',         description: 'Process sale returns' },
+            { name: 'sale_return:view',       group_name: 'Sales',         description: 'View sale returns' },
             // Settings
-            { name: 'Settings View', group_name: 'Settings' },
-            { name: 'Settings Edit', group_name: 'Settings' },
-            // Organization & Branch
-            { name: 'Organization View', group_name: 'Organization' },
-            { name: 'Organization Create', group_name: 'Organization' },
-            { name: 'Organization Edit', group_name: 'Organization' },
-            { name: 'Organization Delete', group_name: 'Organization' },
-            { name: 'Branch View', group_name: 'Branch' },
-            { name: 'Branch Create', group_name: 'Branch' },
-            { name: 'Branch Edit', group_name: 'Branch' },
-            { name: 'Branch Delete', group_name: 'Branch' },
-            // User & Role
-            { name: 'User View', group_name: 'User' },
-            { name: 'User Create', group_name: 'User' },
-            { name: 'User Edit', group_name: 'User' },
-            { name: 'User Delete', group_name: 'User' },
-            { name: 'Role View', group_name: 'Role' },
-            { name: 'Role Create', group_name: 'Role' },
-            { name: 'Role Edit', group_name: 'Role' },
-            { name: 'Role Delete', group_name: 'Role' },
-            // Product & Inventory
-            { name: 'Product View', group_name: 'Product' },
-            { name: 'Product Create', group_name: 'Product' },
-            { name: 'Product Edit', group_name: 'Product' },
-            { name: 'Product Delete', group_name: 'Product' },
-            { name: 'Product Variant View', group_name: 'Product' },
-            { name: 'Product Variant Create', group_name: 'Product' },
-            { name: 'Product Variant Edit', group_name: 'Product' },
-            { name: 'Product Variant Delete', group_name: 'Product' },
-            { name: 'Product Variant Status', group_name: 'Product' },
-            { name: 'Main Category View', group_name: 'Category' },
-            { name: 'Main Category Create', group_name: 'Category' },
-            { name: 'Main Category Edit', group_name: 'Category' },
-            { name: 'Main Category Delete', group_name: 'Category' },
-            { name: 'Sub Category View', group_name: 'Category' },
-            { name: 'Sub Category Create', group_name: 'Category' },
-            { name: 'Sub Category Edit', group_name: 'Category' },
-            { name: 'Sub Category Delete', group_name: 'Category' },
-            { name: 'Brand View', group_name: 'Brand' },
-            { name: 'Brand Create', group_name: 'Brand' },
-            { name: 'Brand Edit', group_name: 'Brand' },
-            { name: 'Brand Delete', group_name: 'Brand' },
-            { name: 'Unit View', group_name: 'Unit' },
-            { name: 'Unit Create', group_name: 'Unit' },
-            { name: 'Unit Edit', group_name: 'Unit' },
-            { name: 'Unit Delete', group_name: 'Unit' },
-            { name: 'Container View', group_name: 'Container' },
-            { name: 'Container Create', group_name: 'Container' },
-            { name: 'Container Edit', group_name: 'Container' },
-            { name: 'Container Delete', group_name: 'Container' },
-            // Sales & Customers
-            { name: 'Sale View', group_name: 'Sale' },
-            { name: 'Sale Create', group_name: 'Sale' },
-            { name: 'Sale Edit', group_name: 'Sale' },
-            { name: 'Sale Delete', group_name: 'Sale' },
-            { name: 'Customer View', group_name: 'Customer' },
-            { name: 'Customer Create', group_name: 'Customer' },
-            { name: 'Customer Edit', group_name: 'Customer' },
-            { name: 'Customer Delete', group_name: 'Customer' },
-            { name: 'POS Access', group_name: 'POS' },
-            // Purchases & Suppliers
-            { name: 'Supplier View', group_name: 'Supplier' },
-            { name: 'Supplier Create', group_name: 'Supplier' },
-            { name: 'Supplier Edit', group_name: 'Supplier' },
-            { name: 'Supplier Delete', group_name: 'Supplier' },
-            { name: 'Purchase Order View', group_name: 'Purchase' },
-            { name: 'Purchase Order Create', group_name: 'Purchase' },
-            { name: 'Purchase Order Edit', group_name: 'Purchase' },
-            { name: 'Purchase Order Delete', group_name: 'Purchase' },
-            { name: 'GRN View', group_name: 'Purchase' },
-            { name: 'GRN Create', group_name: 'Purchase' },
-            // Finance & Accounting
-            { name: 'Expense View', group_name: 'Finance' },
-            { name: 'Expense Create', group_name: 'Finance' },
-            { name: 'Expense Edit', group_name: 'Finance' },
-            { name: 'Expense Delete', group_name: 'Finance' },
-            { name: 'Accounting View', group_name: 'Finance' },
-            { name: 'Report View', group_name: 'Report' }
+            { name: 'settings:edit',          group_name: 'Settings',      description: 'Edit system settings' },
+            { name: 'settings:view',          group_name: 'Settings',      description: 'View system settings' },
+            // Stock
+            { name: 'stock:create',           group_name: 'Stock',         description: 'Create stock records' },
+            { name: 'stock:delete',           group_name: 'Stock',         description: 'Delete stock records' },
+            { name: 'stock:edit',             group_name: 'Stock',         description: 'Edit stock records' },
+            { name: 'stock:view',             group_name: 'Stock',         description: 'View stock levels' },
+            // Supplier
+            { name: 'supplier:create',        group_name: 'Supplier',      description: 'Enroll new suppliers' },
+            { name: 'supplier:delete',        group_name: 'Supplier',      description: 'Remove suppliers' },
+            { name: 'supplier:edit',          group_name: 'Supplier',      description: 'Update supplier details' },
+            { name: 'supplier:view',          group_name: 'Supplier',      description: 'View supplier list' },
+            // System
+            { name: 'system:audit_log',       group_name: 'System',        description: 'View activity audit logs' },
+            { name: 'system:settings',        group_name: 'System',        description: 'Manage system configuration' },
+            // Unit
+            { name: 'unit:create',            group_name: 'Unit',          description: 'Create measurement units' },
+            { name: 'unit:delete',            group_name: 'Unit',          description: 'Delete measurement units' },
+            { name: 'unit:edit',              group_name: 'Unit',          description: 'Edit measurement units' },
+            { name: 'unit:view',              group_name: 'Unit',          description: 'View measurement units' },
+            // User
+            { name: 'user:create',            group_name: 'User',          description: 'Create system users' },
+            { name: 'user:delete',            group_name: 'User',          description: 'Delete system users' },
+            { name: 'user:edit',              group_name: 'User',          description: 'Edit user profiles' },
+            { name: 'user:view',              group_name: 'User',          description: 'View system users' },
         ];
 
-        for (const perm of permissionsSeed) {
+        // Remove duplicates (brand:manage appears in both Brand and Product group in local DB)
+        const uniquePerms = permissionsSeed.filter(
+            (p, idx, self) => idx === self.findIndex(q => q.name === p.name)
+        );
+
+        for (const perm of uniquePerms) {
             await db.Permission.findOrCreate({
                 where: { name: perm.name },
-                defaults: {
-                    ...perm,
-                    id: crypto.randomUUID()
-                }
+                defaults: { ...perm, id: crypto.randomUUID() }
             });
         }
-        console.log(`✅ Verified/Created ${permissionsSeed.length} system permissions.`);
+        console.log(`✅ Seeded ${uniquePerms.length} permissions.`);
 
-        // 2b. Seed Roles
+        // ── Super Admin Role ──────────────────────────────────────────────────
         const [adminRole] = await db.Role.findOrCreate({
             where: { name: 'Super Admin' },
-            defaults: { 
-                id: crypto.randomUUID(),
-                description: 'Full system access with all management capabilities' 
-            }
+            defaults: { id: crypto.randomUUID(), description: 'Global Industrial Access' }
         });
-        
-        // Assign all permissions to Super Admin
-        const allPermissionInstances = await db.Permission.findAll();
-        await adminRole.setPermissions(allPermissionInstances);
-        console.log('✅ Created Super Admin role and assigned all permissions.');
+        const allPerms = await db.Permission.findAll();
+        await adminRole.setPermissions(allPerms);
+        console.log(`✅ Super Admin role assigned ${allPerms.length} permissions.`);
 
-        // 2c. Seed Master Organization & Branch
+        // ── Master Organization ───────────────────────────────────────────────
         const [org] = await db.Organization.findOrCreate({
-            where: { email: 'mrjoon005@gmail.com' },
+            where: { email: MASTER_EMAIL },
             defaults: {
                 id: crypto.randomUUID(),
-                name: 'Main Organization',
-                email: 'mrjoon005@gmail.com',
+                name: MASTER_ORG_NAME,
+                email: MASTER_EMAIL,
                 phone: '0112233445',
-                address: 'No 1, Main Street, Colombo',
-                business_type: 'Retail',
+                address: 'Main Enterprise Headquarters',
+                business_type: 'Industrial Retail',
+                subscription_tier: 'Enterprise',
+                billing_cycle: 'Lifetime',
+                subscription_status: 'Active',
                 is_active: true
             }
         });
+        console.log(`✅ Organization [${org.name}] ready.`);
 
+        // ── Main Branch ───────────────────────────────────────────────────────
         const [branch] = await db.Branch.findOrCreate({
-            where: { name: 'Central Branch', organization_id: org.id },
+            where: { name: 'Main Branch', organization_id: org.id },
             defaults: {
                 id: crypto.randomUUID(),
-                email: 'mrjoon005@gmail.com',
-                phone: '0112233446',
-                address: 'Colombo 01',
+                email: MASTER_EMAIL,
+                address: 'Central Station',
+                is_main: true,
                 is_active: true,
                 organization_id: org.id
             }
         });
-        console.log('✅ Created default Organization and Branch.');
+        console.log(`✅ Branch [${branch.name}] ready.`);
 
-        // 2d. Seed Super Admin User
-        const passwordHash = await bcrypt.hash('admin123', 10);
+        // ── Super Admin User ──────────────────────────────────────────────────
+        const passwordHash = await bcrypt.hash(MASTER_PASSWORD, 10);
         const [adminUser] = await db.User.findOrCreate({
-            where: { email: 'mrjoon005@gmail.com' },
+            where: { email: MASTER_EMAIL },
             defaults: {
                 id: crypto.randomUUID(),
                 name: 'Super Admin',
-                email: 'mrjoon005@gmail.com',
+                email: MASTER_EMAIL,
                 password: passwordHash,
                 organization_id: org.id,
                 is_active: true
             }
         });
-
         await adminUser.setRoles([adminRole]);
         await adminUser.setBranches([branch]);
-        console.log('✅ Created Super Admin user (admin@emipos.com / admin123).');
+        console.log(`✅ Super Admin user [${MASTER_EMAIL}] ready.`);
 
-        // 2e. Seed Charts of Accounts
+        // ── Charts of Accounts ────────────────────────────────────────────────
         const accounts = [
-            { code: '1000', name: 'Cash on Hand', type: 'asset' },
-            { code: '1010', name: 'Bank Account', type: 'asset' },
-            { code: '1100', name: 'Accounts Receivable', type: 'asset' },
-            { code: '1200', name: 'Inventory', type: 'asset' },
-            { code: '2100', name: 'Accounts Payable', type: 'liability' },
-            { code: '4000', name: 'Sales Revenue', type: 'revenue' },
-            { code: '5000', name: 'Cost of Goods Sold', type: 'expense' },
-            { code: '6000', name: 'General Expenses', type: 'expense' }
+            { code: '1000', name: 'Cash on Hand',        type: 'asset' },
+            { code: '1010', name: 'Bank Account',         type: 'asset' },
+            { code: '1100', name: 'Accounts Receivable',  type: 'asset' },
+            { code: '2100', name: 'Accounts Payable',     type: 'liability' },
+            { code: '4000', name: 'Sales Revenue',        type: 'revenue' },
+            { code: '5000', name: 'Cost of Goods Sold',   type: 'expense' },
+            { code: '6000', name: 'General Expenses',     type: 'expense' }
         ];
-
         for (const acc of accounts) {
             await db.Account.findOrCreate({
                 where: { code: acc.code, organization_id: org.id },
                 defaults: { ...acc, organization_id: org.id, is_active: true }
             });
         }
-        console.log('✅ Seeded default Charts of Accounts.');
+        console.log('✅ Charts of Accounts seeded.');
 
-        // 2f. Seed Basic Measurement Units
+        // ── Measurement Units ─────────────────────────────────────────────────
         const mUnits = [
+            { name: 'Piece',    short_name: 'pcs' },
             { name: 'Kilogram', short_name: 'kg' },
-            { name: 'Gram', short_name: 'g' },
-            { name: 'Liter', short_name: 'l' },
-            { name: 'Piece', short_name: 'pcs' }
+            { name: 'Gram',     short_name: 'g' },
+            { name: 'Liter',    short_name: 'l' }
         ];
-        for (const item of mUnits) {
-            await db.MeasurementUnit.findOrCreate({ where: { short_name: item.short_name }, defaults: item });
+        for (const u of mUnits) {
+            await db.MeasurementUnit.findOrCreate({ where: { short_name: u.short_name }, defaults: u });
         }
-        console.log('✅ Seeded basic Measurement Units.');
+        console.log('✅ Measurement Units seeded.');
 
-        // 3. Mark all migrations as completed in SequelizeMeta
-        console.log('📑 Synchronizing migration history...');
-        const migrationsDir = path.join(__dirname, '../migrations');
-        if (fs.existsSync(migrationsDir)) {
-            const migrationFiles = fs.readdirSync(migrationsDir)
-                .filter(file => file.endsWith('.js'))
-                .sort();
-
-            await db.sequelize.query(`
-                CREATE TABLE IF NOT EXISTS SequelizeMeta (
-                    name VARCHAR(255) NOT NULL,
-                    PRIMARY KEY (name)
-                ) ENGINE=InnoDB;
-            `);
-
-            for (const file of migrationFiles) {
-                await db.sequelize.query(
-                    'INSERT IGNORE INTO SequelizeMeta (name) VALUES (?)',
-                    { replacements: [file] }
-                );
-            }
-            console.log(`✅ Marked ${migrationFiles.length} migrations as completed.`);
-        }
-
-        console.log('\n✨ Database Bootstrap Successful!');
-        console.log('Credentials: mrjoon005@gmail.com / admin123');
+        console.log('\n╔══════════════════════════════════════╗');
+        console.log('║  ✨ MASTER BOOTSTRAP SUCCESSFUL!      ║');
+        if (isClearMode)
+        console.log('║  ⚠️  Database was TOTALLY reset.      ║');
+        console.log(`║  👤 ${MASTER_EMAIL}  ║`);
+        console.log(`║  🔑 ${MASTER_PASSWORD}                     ║`);
+        console.log('╚══════════════════════════════════════╝\n');
         process.exit(0);
 
     } catch (error) {
-        console.error('\n❌ Bootstrap failed:', error);
+        console.error('\n❌ Master Bootstrap failed:', error);
         process.exit(1);
     }
 }
