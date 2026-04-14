@@ -74,8 +74,9 @@ async function bootstrap() {
             console.log('✅ All tables cleared.');
         }
 
-        // Sync creates all tables fresh (works correctly without cyclic-reference issues)
-        await db.sequelize.sync({ force: false });
+        // alter: true ensures ALL columns from models are added even if the table was
+        // already created by a BelongsToMany association (which only creates FK columns)
+        await db.sequelize.sync({ alter: true });
 
         console.log('✅ Database schema synchronized.');
         console.log('🌱 Seeding master enterprise data...');
