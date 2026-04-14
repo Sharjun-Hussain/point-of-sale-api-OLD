@@ -61,13 +61,22 @@ async function bootstrap() {
 
         if (isClearMode) {
             console.log('⚠️  CRITICAL: TOTAL database reset (--clear detected)...');
-            // Disable FK checks so MySQL can drop tables with dependencies cleanly
+            // Disable FK checks so we can drop tables in any order
             await db.sequelize.query('SET FOREIGN_KEY_CHECKS = 0');
-            await db.sequelize.sync({ force: true });
+            // Drop every table manually — avoids Sequelize cyclic-reference bug with force:true
+            const [tables] = await db.sequelize.query('SHOW TABLES');
+            for (const row of tables) {
+                const tableName = Object.values(row)[0];
+                await db.sequelize.query(`DROP TABLE IF EXISTS \`${tableName}\``);
+                console.log(`  🗑️  Dropped: ${tableName}`);
+            }
             await db.sequelize.query('SET FOREIGN_KEY_CHECKS = 1');
-        } else {
-            await db.sequelize.sync({ force: false });
+            console.log('✅ All tables cleared.');
         }
+
+        // Sync creates all tables fresh (works correctly without cyclic-reference issues)
+        await db.sequelize.sync({ force: false });
+
         console.log('✅ Database schema synchronized.');
         console.log('🌱 Seeding master enterprise data...');
 
