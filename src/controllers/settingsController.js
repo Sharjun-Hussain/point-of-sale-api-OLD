@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const auditService = require('../services/auditService');
+const { verifyEmailConnection } = require('../utils/mailer');
 
 // Configure Multer for Logo Uploads
 const storage = multer.diskStorage({
@@ -209,10 +210,61 @@ const updateLogo = async (req, res, next) => {
     });
 };
 
+/**
+ * Test Connection (Email or SMS)
+ */
+const testConnection = async (req, res, next) => {
+    try {
+        const { type, provider, config } = req.body;
+
+        if (type === 'email') {
+            const result = await verifyEmailConnection(provider, config);
+            if (result.success) return successResponse(res, null, result.message);
+            else return errorResponse(res, result.message, 400);
+        }
+
+        if (type === 'sms') {
+            try {
+                if (provider === 'twilio') {
+                    const sid = config['Account SID'];
+                    const token = config['Auth Token'];
+                    if (!sid || !token) throw new Error('Missing Twilio credentials');
+
+                    const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}.json`, {
+                        headers: {
+                            Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64')
+                        }
+                    });
+                    
+                    if (response.ok) return successResponse(res, null, 'Twilio connection verified');
+                    throw new Error(`Twilio rejected handshake: ${response.statusText}`);
+                }
+
+                if (provider === 'nexmo') {
+                    const key = config['API Key'];
+                    const secret = config['API Secret'];
+                    if (!key || !secret) throw new Error('Missing Nexmo credentials');
+
+                    const response = await fetch(`https://rest.nexmo.com/account/get-balance?api_key=${key}&api_secret=${secret}`);
+                    if (response.ok) return successResponse(res, null, 'Nexmo connectivity verified');
+                    throw new Error('Vonage/Nexmo rejected credentials');
+                }
+
+                throw new Error('Unsupported SMS provider');
+            } catch (err) {
+                return errorResponse(res, err.message, 400);
+            }
+        }
+
+        return errorResponse(res, 'Invalid test type', 400);
+    } catch (error) { next(error); }
+};
+
 module.exports = {
     getBusinessSettings,
     getSettingsByCategory,
     updateSettingsByCategory,
     getGlobalSettings,
-    updateLogo
+    updateLogo,
+    testConnection
 };

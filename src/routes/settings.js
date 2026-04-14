@@ -18,6 +18,7 @@ router.put('/business', updateOrganizationValidationRules, validate, checkPermis
 router.get('/global', checkPermission('system:settings'), settingsController.getGlobalSettings);
 router.post('/logo', checkPermission('system:settings'), settingsController.updateLogo);
 router.get('/:category', checkPermission('system:settings'), settingsController.getSettingsByCategory);
+router.post('/test-connection', checkPermission('system:settings'), settingsController.testConnection);
 router.post('/:category', checkPermission('system:settings'), settingsController.updateSettingsByCategory);
 
 module.exports = router;
