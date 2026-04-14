@@ -33,7 +33,7 @@ const initRateLimiter = () => {
             });
             console.log('⚡ Rate Limiter: Using High-Speed Redis Engine');
         } else {
-            // FALLBACK: Use MySQL if Redis is offline
+            // FALLBACK: Use MySQL if Redis is offline or not installed locally
             rateLimiter = new RateLimiterMySQL({
                 storeClient: pool,
                 dbName: process.env.DB_NAME || 'pos_system',
@@ -41,9 +41,9 @@ const initRateLimiter = () => {
                 storeType: 'pool',
                 points: points,
                 duration: durationSeconds,
-                tableCreated: true, // Prevents the Table Not Created Error
+                tableCreated: false, // FLAG EXPLANATION: `false` tells the library to CREATE the table if missing!
             });
-            console.log('⚠️ Rate Limiter: Using MySQL Fallback Engine');
+            console.log('⚠️ Rate Limiter: Using MySQL Fallback Engine (Redis Not Found)');
         }
 
         return rateLimiter;
