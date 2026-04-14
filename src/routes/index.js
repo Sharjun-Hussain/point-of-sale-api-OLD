@@ -34,7 +34,7 @@ const stockRoutes = require('./stocks');
 const maintenanceRoutes = require('./maintenance');
 
 // Use routes
-router.use('/', authRoutes);
+router.use('/auth', authRoutes);
 router.use('/stocks', stockRoutes);
 router.use('/accounts', accountRoutes);
 router.use('/organizations', organizationRoutes);

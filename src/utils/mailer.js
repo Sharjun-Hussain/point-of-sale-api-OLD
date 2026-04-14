@@ -150,10 +150,72 @@ const verifyEmailConnection = async (provider, config) => {
     }
 };
 
+/**
+ * Send a structured Welcome/Credential delivery email
+ */
+const sendWelcomeEmail = async (user, password, organizationId) => {
+    const appName = process.env.APP_NAME || 'POS System';
+    const loginUrl = (process.env.FRONTEND_URL?.split(',')[2] || process.env.FRONTEND_URL?.split(',')[0] || 'http://localhost:3000').trim();
+
+    const subject = `Welcome to ${appName} - Your System Credentials`;
+    const html = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #f1f5f9; border-radius: 24px; background-color: #ffffff;">
+            <div style="margin-bottom: 30px;">
+                <h1 style="color: #059669; font-size: 24px; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.025em;">Welcome to ${appName}</h1>
+                <p style="color: #64748b; font-size: 14px; margin-top: 0;">Industrial administrative workstation access initialized.</p>
+            </div>
+            
+            <div style="background-color: #f8fafc; padding: 25px; border-radius: 16px; border: 1px solid #e2e8f0; margin-bottom: 30px;">
+                <p style="margin-top: 0; color: #1e293b; font-weight: 600;">Hello ${user.name || 'Staff Member'},</p>
+                <p style="color: #475569; line-height: 1.6; font-size: 14px;">A high-access system account has been provisioned for you. Use the following authorization credentials to access the secure workstation portal:</p>
+                
+                <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                    <tr>
+                        <td style="padding: 10px 0; color: #64748b; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 120px;">Portal:</td>
+                        <td style="padding: 10px 0; font-weight: 600; color: #1e293b; font-size: 14px;"><a href="${loginUrl}" style="color: #059669; text-decoration: none;">${loginUrl}</a></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px 0; color: #64748b; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Auth Email:</td>
+                        <td style="padding: 10px 0; font-weight: 600; color: #1e293b; font-size: 14px;">${user.email}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px 0; color: #64748b; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Secure Code:</td>
+                        <td style="padding: 10px 0; font-weight: 700; color: #dc2626; font-family: monospace; font-size: 16px; background: #fee2e2; display: inline-block; padding: 4px 12px; border-radius: 6px;">${password}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div style="text-align: center;">
+                <a href="${loginUrl}" style="display: inline-block; background-color: #059669; color: white; padding: 14px 40px; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.025em; box-shadow: 0 10px 15px -3px rgba(5, 150, 105, 0.2);">Initialize Workstation</a>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 30px 0;" />
+            
+            <div style="background-color: #fef2f2; padding: 15px; border-radius: 12px; border: 1px solid #fee2e2;">
+                <p style="font-size: 12px; color: #991b1b; text-align: center; margin: 0; font-weight: 600; line-height: 1.5;">
+                    Security Protocol: For data protection, please change your authorization code immediately upon first entry to the system.
+                </p>
+            </div>
+            
+            <p style="font-size: 11px; color: #94a3b8; text-align: center; margin-top: 25px;">
+                This is an automated system notification. If you did not request this identity, please contact internal security.
+            </p>
+        </div>
+    `;
+
+    return sendEmailWithSettings({
+        to: user.email,
+        subject,
+        html,
+        text: `Welcome to ${appName}. Your system credentials: User: ${user.email}, Code: ${password}. Access at ${loginUrl}`
+    }, organizationId);
+};
+
 const sendEmail = (options) => sendEmailWithSettings(options, null);
 
 module.exports = {
     sendEmail,
     sendEmailWithSettings,
+    sendWelcomeEmail,
     verifyEmailConnection
 };

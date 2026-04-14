@@ -4,6 +4,7 @@ const { getPagination } = require('../utils/pagination');
 const { hashPassword } = require('../utils/passwordHelper');
 const { Op } = require('sequelize');
 const auditService = require('../services/auditService');
+const mailer = require('../utils/mailer');
 
 const getAllUsers = async (req, res, next) => {
     try {
@@ -105,6 +106,14 @@ const createUser = async (req, res, next) => {
             ipAddress,
             userAgent
         );
+
+        // Dispatch Welcome Email with Credentials
+        try {
+            await mailer.sendWelcomeEmail(createdUser, password, organization_id);
+        } catch (mailError) {
+            console.error('Welcome Email Dispatch Failed:', mailError);
+            // We don't block user creation if email fails, but we log it
+        }
 
         return successResponse(res, createdUser, 'User created successfully', 201);
     } catch (error) { next(error); }

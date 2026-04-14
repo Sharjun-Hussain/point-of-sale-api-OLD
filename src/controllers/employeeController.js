@@ -4,6 +4,7 @@ const { getPagination } = require('../utils/pagination');
 const { hashPassword } = require('../utils/passwordHelper');
 const { Op } = require('sequelize');
 const auditService = require('../services/auditService');
+const mailer = require('../utils/mailer');
 
 const getAllEmployees = async (req, res, next) => {
     try {
@@ -173,6 +174,16 @@ const createEmployee = async (req, res, next) => {
         // Audit Log
         const { ipAddress, userAgent } = auditService.getRequestContext(req);
         await auditService.logCreate(organization_id, req.user.id, 'Employee', employee.id, { name: employee.name, grant_login }, ipAddress, userAgent);
+
+        // Dispatch Welcome Email if system access was granted
+        if (grant_login === true || grant_login === 'true') {
+            try {
+                // createdEmployee.user contains the user object we need
+                await mailer.sendWelcomeEmail(createdEmployee.user, password, organization_id);
+            } catch (mailError) {
+                console.error('Employee Welcome Email Dispatch Failed:', mailError);
+            }
+        }
 
         return successResponse(res, createdEmployee, 'Employee created successfully', 201);
     } catch (error) {
