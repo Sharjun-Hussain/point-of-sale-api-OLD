@@ -1,5 +1,6 @@
 const nodemailer = require('nodemailer');
 const dotenv = require('dotenv');
+const { decrypt } = require('./security');
 
 dotenv.config();
 
@@ -20,58 +21,64 @@ const transporter = nodemailer.createTransport({
  * Helper to generate nodemailer transport configuration based on provider
  */
 const getTransportConfig = (provider, config) => {
+    // Decrypt sensitive fields if they are encrypted
+    const decConfig = {};
+    for (const key in config) {
+        decConfig[key] = decrypt(config[key]);
+    }
+
     switch (provider) {
         case 'smtp':
-            if (!config.Host || !config.Port) return null;
+            if (!decConfig.Host || !decConfig.Port) return null;
             return {
-                host: config.Host,
-                port: parseInt(config.Port),
-                secure: config.Encryption === 'SSL/TLS' || config.Port === '465',
-                auth: { user: config.Username, pass: config.Password }
+                host: decConfig.Host,
+                port: parseInt(decConfig.Port),
+                secure: decConfig.Encryption === 'SSL/TLS' || decConfig.Port === '465',
+                auth: { user: decConfig.Username, pass: decConfig.Password }
             };
 
         case 'brevo':
-            if (!config['API Key']) return null;
+            if (!decConfig['API Key']) return null;
             return {
                 host: 'smtp-relay.brevo.com',
                 port: 587,
                 auth: { 
-                    user: config['From Email'], 
-                    pass: config['API Key'] 
+                    user: decConfig['From Email'], 
+                    pass: decConfig['API Key'] 
                 }
             };
 
         case 'sendgrid':
-            if (!config['API Key']) return null;
+            if (!decConfig['API Key']) return null;
             return {
                 host: 'smtp.sendgrid.net',
                 port: 587,
                 auth: { 
                     user: 'apikey', 
-                    pass: config['API Key'] 
+                    pass: decConfig['API Key'] 
                 }
             };
 
         case 'ses':
-            if (!config['Access Key'] || !config['Secret Key']) return null;
-            const region = config['Region'] || 'us-east-1';
+            if (!decConfig['Access Key'] || !decConfig['Secret Key']) return null;
+            const region = decConfig['Region'] || 'us-east-1';
             return {
                 host: `email-smtp.${region}.amazonaws.com`,
                 port: 587,
                 auth: { 
-                    user: config['Access Key'], 
-                    pass: config['Secret Key'] 
+                    user: decConfig['Access Key'], 
+                    pass: decConfig['Secret Key'] 
                 }
             };
 
         case 'mailgun':
-            if (!config['API Key'] || !config['Domain']) return null;
+            if (!decConfig['API Key'] || !decConfig['Domain']) return null;
             return {
-                host: config.Region === 'EU' ? 'smtp.eu.mailgun.org' : 'smtp.mailgun.org',
+                host: decConfig.Region === 'EU' ? 'smtp.eu.mailgun.org' : 'smtp.mailgun.org',
                 port: 587,
                 auth: { 
-                    user: config['Username'] || `postmaster@${config['Domain']}`, 
-                    pass: config['Password'] || config['API Key'] 
+                    user: decConfig['Username'] || `postmaster@${decConfig['Domain']}`, 
+                    pass: decConfig['Password'] || decConfig['API Key'] 
                 }
             };
 

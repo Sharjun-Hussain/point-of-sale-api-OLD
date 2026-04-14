@@ -5,6 +5,49 @@ const path = require('path');
 const fs = require('fs');
 const auditService = require('../services/auditService');
 const { verifyEmailConnection } = require('../utils/mailer');
+const { encrypt, decrypt, isMasked, MASK } = require('../utils/security');
+
+const SENSITIVE_KEYS = [
+    'Password', 'API Key', 'Secret Key', 'Access Key',
+    'Auth Token', 'API Secret', 'Username'
+];
+
+/**
+ * Helper to process settings data (Recursively encrypt/decrypt/mask)
+ */
+const processSecrets = (data, mode = 'mask', existingData = null) => {
+    if (!data || typeof data !== 'object') return data;
+
+    const result = Array.isArray(data) ? [] : {};
+
+    for (const key in data) {
+        const value = data[key];
+
+        if (typeof value === 'object' && value !== null) {
+            const existingValue = existingData ? existingData[key] : null;
+            result[key] = processSecrets(value, mode, existingValue);
+            continue;
+        }
+
+        if (SENSITIVE_KEYS.includes(key)) {
+            if (mode === 'encrypt') {
+                // If it's a mask, keep the existing encrypted value
+                if (isMasked(value)) {
+                    result[key] = existingData ? existingData[key] : value;
+                } else {
+                    result[key] = encrypt(value);
+                }
+            } else if (mode === 'decrypt') {
+                result[key] = decrypt(value);
+            } else if (mode === 'mask') {
+                result[key] = value ? MASK : '';
+            }
+        } else {
+            result[key] = value;
+        }
+    }
+    return result;
+};
 
 // Configure Multer for Logo Uploads
 const storage = multer.diskStorage({
@@ -104,7 +147,10 @@ const getSettingsByCategory = async (req, res, next) => {
         });
 
         // SANITIZE: Clean data before sending to frontend
-        const cleanData = setting ? sanitizeSettings(setting.settings_data) : {};
+        let cleanData = setting ? sanitizeSettings(setting.settings_data) : {};
+
+        // REDACT: Mask sensitive fields before sending to frontend
+        cleanData = processSecrets(cleanData, 'mask');
 
         return successResponse(res, cleanData, `${category} settings fetched`);
     } catch (error) { next(error); }
@@ -121,19 +167,6 @@ const updateSettingsByCategory = async (req, res, next) => {
         // SANITIZE: Clean incoming data before saving
         const cleanData = sanitizeSettings(settings_data);
 
-        const [setting, created] = await Setting.findOrCreate({
-            where: {
-                organization_id: req.user.organization_id,
-                branch_id: branch_id || null,
-                category
-            },
-            defaults: { settings_data: cleanData }
-        });
-
-        if (!created) {
-            await setting.update({ settings_data: cleanData });
-        }
-
         // Log settings update
         const { ipAddress, userAgent } = auditService.getRequestContext(req);
         await auditService.logCustom(
@@ -146,7 +179,35 @@ const updateSettingsByCategory = async (req, res, next) => {
             { category, branch_id }
         );
 
-        return successResponse(res, cleanData, `${category} settings saved`);
+        // Fetch existing settings to handle masked fields
+        const existingSetting = await Setting.findOne({
+            where: {
+                organization_id: req.user.organization_id,
+                branch_id: branch_id || null,
+                category
+            }
+        });
+        const existingData = existingSetting ? sanitizeSettings(existingSetting.settings_data) : {};
+
+        // ENCRYPT: Protect sensitive fields before saving
+        const securedData = processSecrets(cleanData, 'encrypt', existingData);
+
+        const [setting, created] = await Setting.findOrCreate({
+            where: {
+                organization_id: req.user.organization_id,
+                branch_id: branch_id || null,
+                category
+            },
+            defaults: { settings_data: securedData }
+        });
+
+        if (!created) {
+            await setting.update({ settings_data: securedData });
+        }
+
+        // Return masked data back to frontend
+        const maskedResponse = processSecrets(securedData, 'mask');
+        return successResponse(res, maskedResponse, `${category} settings saved`);
     } catch (error) { next(error); }
 };
 
@@ -163,8 +224,9 @@ const getGlobalSettings = async (req, res, next) => {
         const settings = {
             business: organization,
             modules: modularSettings.reduce((acc, curr) => {
-                // SANITIZE: Clean global data aggregation as well
-                acc[curr.category] = sanitizeSettings(curr.settings_data);
+                // SANITIZE & MASK: Clean global data aggregation
+                const clean = sanitizeSettings(curr.settings_data);
+                acc[curr.category] = processSecrets(clean, 'mask');
                 return acc;
             }, {})
         };
@@ -225,9 +287,12 @@ const testConnection = async (req, res, next) => {
 
         if (type === 'sms') {
             try {
+                // DECRYPT: Decrypt config before testing
+                const decConfig = processSecrets(config, 'decrypt');
+
                 if (provider === 'twilio') {
-                    const sid = config['Account SID'];
-                    const token = config['Auth Token'];
+                    const sid = decConfig['Account SID'];
+                    const token = decConfig['Auth Token'];
                     if (!sid || !token) throw new Error('Missing Twilio credentials');
 
                     const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}.json`, {
@@ -235,14 +300,14 @@ const testConnection = async (req, res, next) => {
                             Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64')
                         }
                     });
-                    
+
                     if (response.ok) return successResponse(res, null, 'Twilio connection verified');
                     throw new Error(`Twilio rejected handshake: ${response.statusText}`);
                 }
 
                 if (provider === 'nexmo') {
-                    const key = config['API Key'];
-                    const secret = config['API Secret'];
+                    const key = decConfig['API Key'];
+                    const secret = decConfig['API Secret'];
                     if (!key || !secret) throw new Error('Missing Nexmo credentials');
 
                     const response = await fetch(`https://rest.nexmo.com/account/get-balance?api_key=${key}&api_secret=${secret}`);
@@ -255,7 +320,6 @@ const testConnection = async (req, res, next) => {
                 return errorResponse(res, err.message, 400);
             }
         }
-
         return errorResponse(res, 'Invalid test type', 400);
     } catch (error) { next(error); }
 };
