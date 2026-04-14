@@ -1,4 +1,4 @@
-const { Product, ProductVariant, MainCategory, SubCategory, Brand, Unit, MeasurementUnit, Container, Stock, Branch, ProductBatch, StockOpening, Attribute, AttributeValue, VariantAttributeValue, Supplier, sequelize } = require('../models');
+const { Product, ProductVariant, MainCategory, SubCategory, Brand, Unit, MeasurementUnit, Container, Stock, Branch, ProductBatch, StockOpening, Attribute, AttributeValue, VariantAttributeValue, Supplier, Account, Transaction, sequelize } = require('../models');
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
 const { Op } = require('sequelize');
@@ -937,8 +937,7 @@ const createOpeningStock = async (req, res, next) => {
         const totalValue = opening.total_value;
         if (totalValue > 0) {
             // Needed models might not be imported directly, access via sequelize or implicit
-            const Account = sequelize.models.Account;
-            const Transaction = sequelize.models.Transaction;
+            // Logic handled via imported models
 
             // 1. Find Accounts
             const [inventoryAccount] = await Account.findOrCreate({

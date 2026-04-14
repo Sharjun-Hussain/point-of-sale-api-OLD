@@ -75,7 +75,7 @@ module.exports = (sequelize, DataTypes) => {
         
         // All Assigned Branches (including secondary)
         Employee.belongsToMany(models.Branch, {
-            through: 'employee_branches',
+            through: models.EmployeeBranch,
             as: 'branches',
             foreignKey: 'employee_id',
             otherKey: 'branch_id'

@@ -1,4 +1,4 @@
-const { Employee, User, Role, Organization, Branch, sequelize } = require('../models');
+const { Employee, User, Role, Organization, Branch, RefreshToken, SaleEmployee, PurchaseOrder, StockTransfer, sequelize } = require('../models');
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
 const { hashPassword } = require('../utils/passwordHelper');
@@ -206,7 +206,7 @@ const updateEmployee = async (req, res, next) => {
             name, first_name, last_name, email, phone, nic, 
             joined_date, address, designation, branch_id,
             additional_branch_ids,
-            password, role_ids, is_active, profile_image
+            grant_login, password, role_ids, is_active, profile_image
         } = req.body;
 
         // Update Employee Profile
@@ -242,22 +242,82 @@ const updateEmployee = async (req, res, next) => {
             }
         }
 
-        // Update Linked User if exists
-        if (employee.user) {
-            const userUpdateData = { name: employeeUpdateData.name };
+        // Handle System Access (Grant Login)
+        if (grant_login === true || grant_login === 'true') {
+            const userEmail = email || employee.email;
             
-            if (password) userUpdateData.password = await hashPassword(password);
-            if (is_active !== undefined) userUpdateData.is_active = is_active;
-            if (profile_image) userUpdateData.profile_image = profile_image;
-            if (req.file) userUpdateData.profile_image = req.file.path;
+            if (employee.user) {
+                // Reactivate or Update existing User
+                const userUpdateData = { name: employeeUpdateData.name, is_active: true };
+                
+                if (password) userUpdateData.password = await hashPassword(password);
+                if (profile_image) userUpdateData.profile_image = profile_image;
+                if (req.file) userUpdateData.profile_image = req.file.path;
 
-            await employee.user.update(userUpdateData, { transaction: t });
+                await employee.user.update(userUpdateData, { transaction: t });
 
-            if (role_ids) {
-                if (typeof role_ids === 'string') {
-                    try { role_ids = JSON.parse(role_ids); } catch (e) { role_ids = role_ids.split(',').filter(Boolean); }
+                if (role_ids) {
+                    let parsedRoles = role_ids;
+                    if (typeof role_ids === 'string') {
+                        try { parsedRoles = JSON.parse(role_ids); } catch (e) { parsedRoles = role_ids.split(',').filter(Boolean); }
+                    }
+                    await employee.user.setRoles(parsedRoles, { transaction: t });
                 }
-                await employee.user.setRoles(role_ids, { transaction: t });
+            } else {
+                // Create New User if it didn't exist
+                if (!userEmail || !password) {
+                    await t.rollback();
+                    return errorResponse(res, 'Email and password are required to grant system access', 400);
+                }
+
+                const existingUser = await User.findOne({ where: { email: userEmail } });
+                if (existingUser) {
+                    await t.rollback();
+                    return errorResponse(res, 'A system user with this email already exists', 409);
+                }
+
+                const hashedPassword = await hashPassword(password);
+                const newUser = await User.create({
+                    name: employeeUpdateData.name,
+                    email: userEmail,
+                    password: hashedPassword,
+                    organization_id: req.user.organization_id,
+                    is_active: true
+                }, { transaction: t });
+
+                await employee.update({ user_id: newUser.id }, { transaction: t });
+
+                if (role_ids) {
+                    let parsedRoles = role_ids;
+                    if (typeof role_ids === 'string') {
+                        try { parsedRoles = JSON.parse(role_ids); } catch (e) { parsedRoles = role_ids.split(',').filter(Boolean); }
+                    }
+                    await newUser.setRoles(parsedRoles, { transaction: t });
+                }
+            }
+        } else if (grant_login === false || grant_login === 'false') {
+            // Revoke Access
+            if (employee.user) {
+                await employee.user.update({ is_active: false }, { transaction: t });
+                await RefreshToken.destroy({ where: { user_id: employee.user.id }, transaction: t });
+            }
+        } else {
+            // No specific grant_login toggle provided, but might want to update existing user profile if it exists
+            if (employee.user) {
+                const userUpdateData = { name: employeeUpdateData.name };
+                if (password) userUpdateData.password = await hashPassword(password);
+                if (profile_image) userUpdateData.profile_image = profile_image;
+                if (req.file) userUpdateData.profile_image = req.file.path;
+
+                await employee.user.update(userUpdateData, { transaction: t });
+
+                if (role_ids) {
+                    let parsedRoles = role_ids;
+                    if (typeof role_ids === 'string') {
+                        try { parsedRoles = JSON.parse(role_ids); } catch (e) { parsedRoles = role_ids.split(',').filter(Boolean); }
+                    }
+                    await employee.user.setRoles(parsedRoles, { transaction: t });
+                }
             }
         }
 
@@ -298,8 +358,7 @@ const toggleStatus = async (req, res, next) => {
         // Safety Cascade: If staff is deactivated, login access MUST be revoked.
         if (employee.user && !newStatus) {
             await employee.user.update({ is_active: false }, { transaction: t });
-            // Cleanup sessions
-            await sequelize.models.RefreshToken.destroy({ where: { user_id: employee.user.id }, transaction: t });
+            await RefreshToken.destroy({ where: { user_id: employee.user.id }, transaction: t });
         }
 
         await t.commit();
@@ -331,10 +390,8 @@ const toggleLoginAccess = async (req, res, next) => {
         const newStatus = !employee.user.is_active;
         await employee.user.update({ is_active: newStatus }, { transaction: t });
 
-        if (!newStatus) {
             // Cleanup sessions if access is revoked
-            await sequelize.models.RefreshToken.destroy({ where: { user_id: employee.user.id }, transaction: t });
-        }
+            await RefreshToken.destroy({ where: { user_id: employee.user.id }, transaction: t });
 
         await t.commit();
         return successResponse(res, { id: employee.id, login_access: newStatus }, `System access ${newStatus ? 'granted' : 'revoked'} successfully`);
@@ -362,9 +419,9 @@ const deleteEmployee = async (req, res, next) => {
         if (userId) {
             // Check for critical workstation history
             const [hasSales, hasPurchases, hasStockMoves] = await Promise.all([
-                sequelize.models.SaleEmployee.findOne({ where: { user_id: userId } }),
-                sequelize.models.PurchaseOrder.findOne({ where: { user_id: userId } }),
-                sequelize.models.StockTransfer.findOne({ where: { user_id: userId } })
+                SaleEmployee.findOne({ where: { user_id: userId } }),
+                PurchaseOrder.findOne({ where: { user_id: userId } }),
+                StockTransfer.findOne({ where: { user_id: userId } })
             ]);
 
             if (hasSales || hasPurchases || hasStockMoves) {
@@ -373,7 +430,7 @@ const deleteEmployee = async (req, res, next) => {
             }
 
             // 2. Cleanup Non-Critical Dependencies
-            await sequelize.models.RefreshToken.destroy({ where: { user_id: userId }, transaction: t });
+            await RefreshToken.destroy({ where: { user_id: userId }, transaction: t });
         }
 
         // 3. Clear multi-branch assignments

@@ -52,7 +52,7 @@ module.exports = (sequelize, DataTypes) => {
 
     User.associate = (models) => {
         User.belongsToMany(models.Role, {
-            through: 'user_roles',
+            through: models.UserRole,
             as: 'roles',
             foreignKey: 'user_id',
             otherKey: 'role_id'
@@ -62,7 +62,7 @@ module.exports = (sequelize, DataTypes) => {
         User.hasMany(models.RefreshToken, { as: 'refresh_tokens', foreignKey: 'user_id' });
         User.hasOne(models.Employee, { as: 'employee', foreignKey: 'user_id' });
         User.belongsToMany(models.Branch, {
-            through: 'user_branches',
+            through: models.UserBranch,
             as: 'branches',
             foreignKey: 'user_id',
             otherKey: 'branch_id'

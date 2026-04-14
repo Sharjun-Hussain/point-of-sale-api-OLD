@@ -12,53 +12,9 @@ const MASTER_PASSWORD = 'Inzeedo@99';
 const MASTER_ORG_NAME = 'Inzeedo';
 const isClearMode = process.argv.includes('--clear');
 
-/**
- * INDUSTRIAL SCHEMA HEALING
- * Automatically detects and repairs discrepancies between code and database.
- * Skipped in --clear mode since we wipe and rebuild anyway.
- */
-async function healSchema(sequelize) {
-    if (isClearMode) return;
-
-    const queryInterface = sequelize.getQueryInterface();
-    const healingConfig = [
-        { table: 'sale_employees',      cols: [{ name: 'id', type: DataTypes.UUID }] },
-        { table: 'employee_branches',   cols: [{ name: 'is_primary', type: DataTypes.BOOLEAN, default: false }] },
-        { table: 'product_attributes',  cols: [{ name: 'id', type: DataTypes.UUID }] },
-        { table: 'product_suppliers',   cols: [{ name: 'id', type: DataTypes.UUID }] },
-        { table: 'variant_attr_values', cols: [{ name: 'id', type: DataTypes.UUID }] }
-    ];
-
-    console.log('🛡️  Checking schema integrity...');
-    for (const item of healingConfig) {
-        try {
-            const desc = await queryInterface.describeTable(item.table);
-            for (const col of item.cols) {
-                if (!desc[col.name]) {
-                    console.log(`🔧 Repairing [${item.table}]: adding [${col.name}]`);
-                    await queryInterface.addColumn(item.table, col.name, {
-                        type: col.type,
-                        allowNull: true,
-                        defaultValue: col.default !== undefined ? col.default : null
-                    });
-                    if (col.name === 'id') {
-                        await sequelize.query(
-                            `UPDATE ${item.table} SET id = LOWER(CONCAT(HEX(RANDOM_BYTES(4)),'-',HEX(RANDOM_BYTES(2)),'-4',SUBSTR(HEX(RANDOM_BYTES(2)),2,3),'-',HEX(FLOOR(8+(RAND()*4))),SUBSTR(HEX(RANDOM_BYTES(2)),2,3),'-',HEX(RANDOM_BYTES(6)))) WHERE id IS NULL`
-                        );
-                    }
-                }
-            }
-        } catch (err) { /* table may not exist yet, handled by sync() */ }
-    }
-    try { await sequelize.query('ALTER TABLE audit_logs MODIFY organization_id CHAR(36) BINARY NULL'); } catch (e) {}
-    console.log('✅ Schema Healing complete.');
-}
-
 async function bootstrap() {
     try {
         console.log(`📡 Connecting as user: ${process.env.DB_USER || 'root'}`);
-
-        await healSchema(db.sequelize);
 
         if (isClearMode) {
             console.log('⚠️  CRITICAL: TOTAL database reset (--clear detected)...');
@@ -75,13 +31,25 @@ async function bootstrap() {
             console.log('✅ All tables cleared.');
         }
 
-        // alter: true ensures ALL columns from models are added even if the table was
-        // already created by a BelongsToMany association (which only creates FK columns)
+        // 1. Sync Base Models
+        // alter: true ensures ALL missing columns are added to existing tables.
         await db.sequelize.sync({ alter: true });
 
-        // BelongsToMany associations skip extra columns (like is_primary) when creating the
-        // join table. Force-sync the model explicitly so Sequelize adds all missing columns.
-        await db.EmployeeBranch.sync({ alter: true });
+        // 2. Explicitly sync Join Tables
+        // BelongsToMany associations sometimes skip custom columns (like is_primary) 
+        // when auto-creating join tables. We force-sync each model to guarantee 'One Pattern' integrity.
+        const joinModels = [
+            'UserRole', 'RolePermission', 'UserBranch', 'EmployeeBranch', 
+            'SaleEmployee', 'ProductAttribute', 'ProductSupplier'
+        ];
+        
+        console.log('🛡️  Applying Industrial One-Pattern to join tables...');
+        for (const modelName of joinModels) {
+            if (db[modelName]) {
+                await db[modelName].sync({ alter: true });
+                console.log(`   ✅ Validated: ${modelName}`);
+            }
+        }
 
 
         console.log('✅ Database schema synchronized.');

@@ -81,7 +81,7 @@ module.exports = (sequelize, DataTypes) => {
         Sale.belongsTo(models.User, { as: 'cashier', foreignKey: 'user_id' });
         Sale.belongsTo(models.Customer, { as: 'customer', foreignKey: 'customer_id' });
         Sale.belongsToMany(models.User, { 
-            through: 'sale_employees', 
+            through: models.SaleEmployee, 
             as: 'sellers', 
             foreignKey: 'sale_id', 
             otherKey: 'user_id' 

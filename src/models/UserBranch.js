@@ -1,31 +1,27 @@
 module.exports = (sequelize, DataTypes) => {
-    const EmployeeBranch = sequelize.define('EmployeeBranch', {
+    const UserBranch = sequelize.define('UserBranch', {
         id: {
             type: DataTypes.UUID,
             defaultValue: DataTypes.UUIDV4,
             primaryKey: true
         },
-        employee_id: {
+        user_id: {
             type: DataTypes.UUID,
             allowNull: false,
-            references: { model: 'employees', key: 'id' }
+            references: { model: 'users', key: 'id' }
         },
         branch_id: {
             type: DataTypes.UUID,
             allowNull: false,
             references: { model: 'branches', key: 'id' }
-        },
-        is_primary: {
-            type: DataTypes.BOOLEAN,
-            defaultValue: false
         }
     }, {
-        tableName: 'employee_branches',
+        tableName: 'user_branches',
         underscored: true,
         timestamps: true,
         createdAt: 'created_at',
         updatedAt: 'updated_at'
     });
 
-    return EmployeeBranch;
+    return UserBranch;
 };
