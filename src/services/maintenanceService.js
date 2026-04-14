@@ -10,28 +10,32 @@ class MaintenanceService {
      * Fetch detailed health and usage statistics for all database tables.
      */
     async getDatabaseStats() {
+        const dbName = sequelize.config.database;
         const stats = await sequelize.query(`
             SELECT 
-                TABLE_NAME AS name,
-                TABLE_ROWS AS rows,
-                DATA_LENGTH AS dataSize,
-                INDEX_LENGTH AS indexSize,
-                DATA_FREE AS freeSpace,
-                ENGINE as engine,
-                CREATE_TIME as created
+                TABLE_NAME AS \`name\`,
+                TABLE_ROWS AS \`rows\`,
+                DATA_LENGTH AS \`dataSize\`,
+                INDEX_LENGTH AS \`indexSize\`,
+                DATA_FREE AS \`freeSpace\`,
+                ENGINE as \`engine\`,
+                CREATE_TIME as \`created\`
             FROM 
                 information_schema.TABLES 
             WHERE 
-                TABLE_SCHEMA = DATABASE()
+                TABLE_SCHEMA = :dbName
             ORDER BY 
                 (DATA_LENGTH + INDEX_LENGTH) DESC;
-        `, { type: QueryTypes.SELECT });
+        `, { 
+            replacements: { dbName },
+            type: QueryTypes.SELECT 
+        });
 
-        // Calculate aggregates
+        // Calculate aggregates with safe numeric conversion
         const totals = stats.reduce((acc, table) => {
-            acc.totalData += Number(table.dataSize);
-            acc.totalIndex += Number(table.indexSize);
-            acc.totalRows += Number(table.rows);
+            acc.totalData += Number(table.dataSize || 0);
+            acc.totalIndex += Number(table.indexSize || 0);
+            acc.totalRows += Number(table.rows || 0);
             return acc;
         }, { totalData: 0, totalIndex: 0, totalRows: 0 });
 
