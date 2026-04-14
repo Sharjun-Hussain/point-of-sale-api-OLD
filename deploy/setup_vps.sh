@@ -10,11 +10,30 @@ echo " 🚀 Industrial VPS Setup: Inzeedo POS (Hybrid Mode)"
 echo "----------------------------------------------------"
 
 # 1. System Dependency Installation
-echo "📦 Installing system essentials (Nginx, Redis, Certbot)..."
-sudo apt update
-sudo apt install -y nginx redis-server certbot python3-certbot-nginx mysql-client docker-compose-v2
+echo "📦 Checking and installing missing system essentials (Nginx, Redis, Certbot)..."
 
-# Start Redis natively
+# Safe function to install only if missing
+install_if_missing() {
+    if ! command -v $1 &> /dev/null; then
+        echo "Installing $1..."
+        sudo apt install -y $2
+    else
+        echo "✅ $1 is already installed. Skipping."
+    fi
+}
+
+sudo apt update
+install_if_missing nginx nginx
+install_if_missing redis-server redis-server
+install_if_missing certbot certbot
+install_if_missing mysql mysql-client
+
+# Special check for docker compose (v2)
+if docker compose version &> /dev/null; then
+    echo "✅ Docker Compose (V2) is already installed."
+else
+    echo "⚠️  Warning: Docker Compose (V2) not found. Please ensure it is installed manually to avoid disrupting your other containers."
+fi
 echo "⚡ Starting Native Redis..."
 sudo systemctl enable redis-server
 sudo systemctl start redis-server
