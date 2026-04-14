@@ -8,3 +8,4 @@ uploads/
 logs/
 *.log
 .env
+.env.docker
