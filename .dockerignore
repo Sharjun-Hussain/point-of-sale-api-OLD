@@ -1,0 +1,44 @@
+node_modules
+npm-debug.log
+pnpm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Docker
+.dockerignore
+Dockerfile
+docker-compose.yml
+
+# Environment
+.env
+.env.test
+.env.production
+.env.docker
+
+# Output
+dist
+build
+coverage
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Repository
+.git
+.gitignore
+.github
+.vscode
+
+# Project specific
+uploads
+temp
+tmp
