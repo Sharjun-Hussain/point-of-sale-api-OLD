@@ -22,13 +22,9 @@ async function healSchema(sequelize) {
 
     const queryInterface = sequelize.getQueryInterface();
     const healingConfig = [
-        { table: 'sale_employees',   cols: [{ name: 'id', type: DataTypes.UUID }] },
-        { table: 'employee_branches', cols: [
-            { name: 'id',         type: DataTypes.UUID },
-            { name: 'is_primary', type: DataTypes.BOOLEAN, default: false }
-        ]},
-        { table: 'product_attributes', cols: [{ name: 'id', type: DataTypes.UUID }] },
-        { table: 'product_suppliers',  cols: [{ name: 'id', type: DataTypes.UUID }] },
+        { table: 'sale_employees',      cols: [{ name: 'id', type: DataTypes.UUID }] },
+        { table: 'product_attributes',  cols: [{ name: 'id', type: DataTypes.UUID }] },
+        { table: 'product_suppliers',   cols: [{ name: 'id', type: DataTypes.UUID }] },
         { table: 'variant_attr_values', cols: [{ name: 'id', type: DataTypes.UUID }] }
     ];
 
