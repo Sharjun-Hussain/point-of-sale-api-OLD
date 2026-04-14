@@ -23,6 +23,7 @@ async function healSchema(sequelize) {
     const queryInterface = sequelize.getQueryInterface();
     const healingConfig = [
         { table: 'sale_employees',      cols: [{ name: 'id', type: DataTypes.UUID }] },
+        { table: 'employee_branches',   cols: [{ name: 'is_primary', type: DataTypes.BOOLEAN, default: false }] },
         { table: 'product_attributes',  cols: [{ name: 'id', type: DataTypes.UUID }] },
         { table: 'product_suppliers',   cols: [{ name: 'id', type: DataTypes.UUID }] },
         { table: 'variant_attr_values', cols: [{ name: 'id', type: DataTypes.UUID }] }
@@ -77,6 +78,14 @@ async function bootstrap() {
         // alter: true ensures ALL columns from models are added even if the table was
         // already created by a BelongsToMany association (which only creates FK columns)
         await db.sequelize.sync({ alter: true });
+
+        // Post-sync guarantee: BelongsToMany join tables ignore alter:true for extra columns.
+        // Explicitly ensure is_primary exists in employee_branches.
+        try {
+            await db.sequelize.query(
+                'ALTER TABLE employee_branches ADD COLUMN IF NOT EXISTS is_primary BOOLEAN NOT NULL DEFAULT FALSE'
+            );
+        } catch (e) { /* column already exists, safe to ignore */ }
 
         console.log('✅ Database schema synchronized.');
         console.log('🌱 Seeding master enterprise data...');
