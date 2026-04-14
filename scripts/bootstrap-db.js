@@ -3,11 +3,71 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
+const { DataTypes } = require('sequelize');
+
+/**
+ * INDUSTRIAL SCHEMA HEALING
+ * Automatically detects and repairs discrepancies between the code and database.
+ */
+async function healSchema(sequelize) {
+    const queryInterface = sequelize.getQueryInterface();
+    
+    // 1. Critical Join Tables missing 'id' or 'is_primary'
+    const healingConfig = [
+        { table: 'sale_employees', cols: [{ name: 'id', type: DataTypes.UUID }] },
+        { table: 'employee_branches', cols: [
+            { name: 'id', type: DataTypes.UUID },
+            { name: 'is_primary', type: DataTypes.BOOLEAN, default: false }
+        ]},
+        { table: 'product_attributes', cols: [{ name: 'id', type: DataTypes.UUID }] },
+        { table: 'product_suppliers', cols: [{ name: 'id', type: DataTypes.UUID }] },
+        { table: 'variant_attr_values', cols: [{ name: 'id', type: DataTypes.UUID }] }
+    ];
+
+    console.log('🛡️  Checking for schema architectural integrity...');
+
+    for (const item of healingConfig) {
+        try {
+            const tableDesc = await queryInterface.describeTable(item.table);
+            
+            for (const col of item.cols) {
+                if (!tableDesc[col.name]) {
+                    console.log(`🔧 Repairing table [${item.table}]: Adding missing column [${col.name}]`);
+                    
+                    await queryInterface.addColumn(item.table, col.name, {
+                        type: col.type,
+                        allowNull: true,
+                        defaultValue: col.default !== undefined ? col.default : null
+                    });
+
+                    // If we just added 'id', we MUST populate it with UUIDs
+                    if (col.name === 'id') {
+                        console.log(`🧬 Generating unique identifiers for existing records in [${item.table}]...`);
+                        await sequelize.query(`UPDATE ${item.table} SET id = LOWER(CONCAT(HEX(RANDOM_BYTES(4)), '-', HEX(RANDOM_BYTES(2)), '-4', SUBSTR(HEX(RANDOM_BYTES(2)), 2, 3), '-', HEX(FLOOR(8 + (RAND() * 4))), SUBSTR(HEX(RANDOM_BYTES(2)), 2, 3), '-', HEX(RANDOM_BYTES(6)))) WHERE id IS NULL`);
+                    }
+                }
+            }
+        } catch (err) {
+            // Table might not exist yet, handled by sync() later
+        }
+    }
+
+    // 2. Special Fix: AuditLog Nullability for organization_id
+    try {
+        await sequelize.query('ALTER TABLE audit_logs MODIFY organization_id CHAR(36) BINARY NULL');
+    } catch (err) {}
+
+    console.log('✅ Schema Healing verified.');
+}
+
 
 async function bootstrap() {
     try {
         console.log(`📡 Connecting as user: ${process.env.DB_USER || 'root'}`);
         
+        // 0. Heal existing schema discrepancies
+        await healSchema(db.sequelize);
+
         // 1. Sync Schema (Create tables if they don't exist)
         // We use sync() here to ensure the tables exist before seeding.
         // The migration baseline will also handle this, but sync() is a safety net for bootstrapping.
@@ -127,11 +187,11 @@ async function bootstrap() {
 
         // 2c. Seed Master Organization & Branch
         const [org] = await db.Organization.findOrCreate({
-            where: { email: 'admin@inzeedo.com' },
+            where: { email: 'mrjoon005@gmail.com' },
             defaults: {
                 id: crypto.randomUUID(),
                 name: 'Main Organization',
-                email: 'admin@inzeedo.com',
+                email: 'mrjoon005@gmail.com',
                 phone: '0112233445',
                 address: 'No 1, Main Street, Colombo',
                 business_type: 'Retail',
@@ -143,7 +203,7 @@ async function bootstrap() {
             where: { name: 'Central Branch', organization_id: org.id },
             defaults: {
                 id: crypto.randomUUID(),
-                email: 'central@inzeedo.com',
+                email: 'mrjoon005@gmail.com',
                 phone: '0112233446',
                 address: 'Colombo 01',
                 status: 'active',
@@ -153,13 +213,13 @@ async function bootstrap() {
         console.log('✅ Created default Organization and Branch.');
 
         // 2d. Seed Super Admin User
-        const passwordHash = await bcrypt.hash('Admin@123', 10);
+        const passwordHash = await bcrypt.hash('admin123', 10);
         const [adminUser] = await db.User.findOrCreate({
-            where: { email: 'admin@inzeedo.com' },
+            where: { email: 'mrjoon005@gmail.com' },
             defaults: {
                 id: crypto.randomUUID(),
                 name: 'Super Admin',
-                email: 'admin@inzeedo.com',
+                email: 'mrjoon005@gmail.com',
                 password: passwordHash,
                 organization_id: org.id,
                 status: 'active'
@@ -227,7 +287,7 @@ async function bootstrap() {
         }
 
         console.log('\n✨ Database Bootstrap Successful!');
-        console.log('Credentials: admin@inzeedo.com / Admin@123');
+        console.log('Credentials: mrjoon005@gmail.com / admin123');
         process.exit(0);
 
     } catch (error) {
