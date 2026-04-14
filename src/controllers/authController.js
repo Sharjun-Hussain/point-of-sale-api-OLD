@@ -2,8 +2,11 @@ const { User, Role, Permission, Branch, RefreshToken, Employee, Organization } =
 const { hashPassword, comparePassword } = require('../utils/passwordHelper');
 const { generateAccessToken, generateRefreshToken, verifyToken, decodeToken } = require('../utils/jwtHelper');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
+const { sendEmailWithSettings } = require('../utils/mailer');
 const auditService = require('../services/auditService');
 const upload = require('../middleware/upload');
+const crypto = require('crypto');
+const { Op } = require('sequelize');
 
 /**
  * Auth Controller
@@ -321,11 +324,111 @@ const updateMe = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+/**
+ * Forgot Password - Generates token and sends email
+ */
+const forgotPassword = async (req, res, next) => {
+    try {
+        const { email } = req.body;
+        const user = await User.findOne({ where: { email } });
+
+        if (!user) {
+            // Industrial security: even if user not found, we return success to prevent email enumeration
+            return successResponse(res, null, 'If an account exists with this email, a reset link has been sent');
+        }
+
+        // Generate token
+        const token = crypto.randomBytes(32).toString('hex');
+        const expiry = new Date(Date.now() + 3600000); // 1 hour from now
+
+        await user.update({
+            reset_password_token: token,
+            reset_password_expires: expiry
+        });
+
+        // Use the first FRONTEND_URL or default to localhost:3000
+        const frontendUrls = (process.env.FRONTEND_URL || 'http://localhost:3000').split(',');
+        const resetUrl = `${frontendUrls[0]}/reset-password?token=${token}`;
+
+        await sendEmailWithSettings({
+            to: user.email,
+            subject: 'Password Reset Request - POS System',
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+                    <h2 style="color: #10b981; text-align: center;">Password Reset Request</h2>
+                    <p>Hello,</p>
+                    <p>You are receiving this email because you (or someone else) have requested the reset of the password for your account.</p>
+                    <p>Please click on the following link, or paste this into your browser to complete the process:</p>
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="${resetUrl}" style="background-color: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Reset Password</a>
+                    </div>
+                    <p>If you did not request this, please ignore this email and your password will remain unchanged.</p>
+                    <p style="color: #666; font-size: 12px; margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px;">
+                        This link will expire in 1 hour.<br>
+                        Sent by Inzeedo POS Systems.
+                    </p>
+                </div>
+            `
+        }, user.organization_id);
+
+        return successResponse(res, null, 'If an account exists with this email, a reset link has been sent');
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Reset Password - Validates token and updates password
+ */
+const resetPassword = async (req, res, next) => {
+    try {
+        const { token, password } = req.body;
+
+        const user = await User.findOne({
+            where: {
+                reset_password_token: token,
+                reset_password_expires: {
+                    [Op.gt]: new Date()
+                }
+            }
+        });
+
+        if (!user) {
+            return errorResponse(res, 'Password reset token is invalid or has expired', 400);
+        }
+
+        // Update password
+        const hashedPassword = await hashPassword(password);
+        await user.update({
+            password: hashedPassword,
+            reset_password_token: null,
+            reset_password_expires: null
+        });
+
+        // Log the security event
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logCustom(
+            user.organization_id,
+            user.id,
+            'PASSWORD_RESET',
+            'User reset their password via email link',
+            ipAddress,
+            userAgent
+        );
+
+        return successResponse(res, null, 'Password has been reset successfully');
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     login,
     refresh,
     logout,
     register,
     me,
-    updateMe
+    updateMe,
+    forgotPassword,
+    resetPassword
 };
