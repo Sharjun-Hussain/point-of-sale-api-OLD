@@ -40,23 +40,88 @@ const sendEmailWithSettings = async (options, organizationId) => {
             });
 
             if (setting && setting.settings_data && setting.settings_data.email && setting.settings_data.email.enabled) {
-                const emailConfig = setting.settings_data.email;
-                const config = emailConfig.config;
+                const emailData = setting.settings_data.email;
+                const { provider, config, fromName: customFromName } = emailData;
 
-                if (config && config.Host && config.Port && config.Username && config.Password) {
-                    activeTransporter = nodemailer.createTransport({
-                        host: config.Host,
-                        port: parseInt(config.Port),
-                        secure: config.Encryption === 'SSL/TLS' || config.Port === '465',
-                        auth: {
-                            user: config.Username,
-                            pass: config.Password
-                        }
-                    });
-                    fromEmail = config.Username;
-                    if (emailConfig.fromName) fromName = emailConfig.fromName;
-                    
-                    console.log(`Using custom SMTP for organization: ${organizationId}`);
+                if (provider && config) {
+                    let transportConfig = null;
+
+                    switch (provider) {
+                        case 'smtp':
+                            if (config.Host && config.Port) {
+                                transportConfig = {
+                                    host: config.Host,
+                                    port: parseInt(config.Port),
+                                    secure: config.Encryption === 'SSL/TLS' || config.Port === '465',
+                                    auth: { user: config.Username, pass: config.Password }
+                                };
+                                fromEmail = config.Username;
+                            }
+                            break;
+
+                        case 'brevo':
+                            if (config['API Key']) {
+                                transportConfig = {
+                                    host: 'smtp-relay.brevo.com',
+                                    port: 587,
+                                    auth: { 
+                                        user: config['From Email'] || fromEmail, 
+                                        pass: config['API Key'] 
+                                    }
+                                };
+                                fromEmail = config['From Email'] || fromEmail;
+                            }
+                            break;
+
+                        case 'sendgrid':
+                            if (config['API Key']) {
+                                transportConfig = {
+                                    host: 'smtp.sendgrid.net',
+                                    port: 587,
+                                    auth: { 
+                                        user: 'apikey', 
+                                        pass: config['API Key'] 
+                                    }
+                                };
+                                fromEmail = config['From Email'] || fromEmail;
+                            }
+                            break;
+
+                        case 'ses':
+                            if (config['Access Key'] && config['Secret Key']) {
+                                const region = config['Region'] || 'us-east-1';
+                                transportConfig = {
+                                    host: `email-smtp.${region}.amazonaws.com`,
+                                    port: 587,
+                                    auth: { 
+                                        user: config['Access Key'], 
+                                        pass: config['Secret Key'] 
+                                    }
+                                };
+                                fromEmail = config['From Email'] || fromEmail;
+                            }
+                            break;
+
+                        case 'mailgun':
+                            if (config['API Key'] && config['Domain']) {
+                                transportConfig = {
+                                    host: config.Region === 'EU' ? 'smtp.eu.mailgun.org' : 'smtp.mailgun.org',
+                                    port: 587,
+                                    auth: { 
+                                        user: config['Username'] || `postmaster@${config['Domain']}`, 
+                                        pass: config['Password'] || config['API Key'] 
+                                    }
+                                };
+                                fromEmail = config['From Email'] || `no-reply@${config['Domain']}`;
+                            }
+                            break;
+                    }
+
+                    if (transportConfig) {
+                        activeTransporter = nodemailer.createTransport(transportConfig);
+                        if (customFromName) fromName = customFromName;
+                        console.log(`Using custom ${provider} transport for organization: ${organizationId}`);
+                    }
                 }
             }
         }
@@ -75,7 +140,7 @@ const sendEmailWithSettings = async (options, organizationId) => {
         return info;
     } catch (error) {
         console.error('Mail generation failed:', error);
-        throw new Error('Could not dispatch protocol email');
+        throw new Error(`Could not dispatch email: ${error.message}`);
     }
 };
 
