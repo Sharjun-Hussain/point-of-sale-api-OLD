@@ -184,6 +184,11 @@ const toggleUserStatus = async (req, res, next) => {
         });
         if (!user) return errorResponse(res, 'User not found', 404);
 
+        // Safety: Prevent self-deactivation
+        if (user.id === req.user.id && user.is_active) {
+            return errorResponse(res, 'Security Breach: You cannot deactivate your own account. This measure prevents total organization lockout.', 400);
+        }
+
         user.is_active = !user.is_active;
         await user.save();
 
