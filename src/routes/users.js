@@ -12,5 +12,6 @@ router.get('/', checkPermission('user:view'), userController.getAllUsers);
 router.post('/', checkPermission('user:create'), upload.single('profile_image'), userController.createUser);
 router.put('/:id', checkPermission('user:edit'), upload.single('profile_image'), userController.updateUser);
 router.patch('/:id/toggle-status', checkPermission('user:edit'), userController.toggleUserStatus);
+router.post('/:id/resend-welcome-email', checkPermission('user:edit'), userController.resendWelcomeEmail);
 
 module.exports = router;

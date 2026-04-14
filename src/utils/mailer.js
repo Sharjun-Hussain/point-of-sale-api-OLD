@@ -269,11 +269,64 @@ const sendWelcomeEmail = async (user, password, organizationId) => {
     }, organizationId);
 };
 
+/**
+ * Send a security notification when a password is changed
+ */
+const sendPasswordChangeNotification = async (user, organizationId, isAdminAction = false) => {
+    const appName = process.env.APP_NAME || 'POS System';
+    const subject = `Security Alert: Your ${appName} Password Was Changed`;
+    
+    const html = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #f1f5f9; border-radius: 24px; background-color: #ffffff;">
+            <div style="margin-bottom: 25px; text-align: center;">
+                <div style="display: inline-block; p-2 bg-red-50 rounded-full; margin-bottom: 15px;">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                </div>
+                <h1 style="color: #1e293b; font-size: 22px; font-weight: 800; margin: 0; letter-spacing: -0.025em;">Security Notification</h1>
+            </div>
+            
+            <div style="background-color: #fef2f2; padding: 25px; border-radius: 16px; border: 1px solid #fee2e2; margin-bottom: 25px;">
+                <p style="margin-top: 0; color: #991b1b; font-weight: 700; font-size: 16px;">Hello ${user.name},</p>
+                <p style="color: #b91c1c; line-height: 1.6; font-size: 14px; margin-bottom: 0;">
+                    ${isAdminAction 
+                        ? 'This is to inform you that your account password has been updated by a system administrator.' 
+                        : 'This is to inform you that your account password has been successfully changed.'}
+                </p>
+            </div>
+
+            <div style="padding: 0 10px; margin-bottom: 30px;">
+                <p style="color: #475569; font-size: 14px; font-weight: 600; margin-bottom: 10px;">If this was YOU:</p>
+                <p style="color: #64748b; font-size: 13px; margin: 0;">You can safely ignore this message. No further action is required.</p>
+                
+                <div style="margin-top: 25px; pt-5 border-top: 1px solid #f1f5f9;">
+                    <p style="color: #991b1b; font-size: 14px; font-weight: 700; margin-bottom: 10px;">If this was NOT you:</p>
+                    <p style="color: #475569; font-size: 13px; line-height: 1.5; margin: 0;">
+                        Please contact your **System Administrator** immediately to secure your account. Your current credentials have been replaced and your previous access has been revoked.
+                    </p>
+                </div>
+            </div>
+
+            <p style="font-size: 11px; color: #94a3b8; text-align: center; margin-top: 25px;">
+                Timestamp: ${new Date().toUTCString()}<br>
+                Security protocol enforced by Inzeedo POS Systems.
+            </p>
+        </div>
+    `;
+
+    return sendEmailWithSettings({
+        to: user.email,
+        subject,
+        html,
+        text: `Security Notification: Your ${appName} password has been changed. If you did not request this, please contact your administrator.`
+    }, organizationId);
+};
+
 const sendEmail = (options) => sendEmailWithSettings(options, null);
 
 module.exports = {
     sendEmail,
     sendEmailWithSettings,
     sendWelcomeEmail,
+    sendPasswordChangeNotification,
     verifyEmailConnection
 };

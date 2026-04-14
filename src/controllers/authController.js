@@ -310,6 +310,27 @@ const updateMe = async (req, res, next) => {
                 return errorResponse(res, 'Current password is incorrect', 401);
             }
             updateData.password = await hashPassword(new_password);
+            
+            // Security Notification: Notify user that their password was changed via profile
+            try {
+                await sendEmailWithSettings({
+                    to: user.email,
+                    subject: 'Security Alert: Your Password Was Changed',
+                    html: `
+                        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #f1f5f9; border-radius: 12px;">
+                            <h2 style="color: #1e293b;">Security Notification</h2>
+                            <p>Hello ${user.name},</p>
+                            <p>This is to inform you that your account password has been successfully updated via your profile settings.</p>
+                            <p style="background-color: #fef2f2; padding: 15px; border: 1px solid #fee2e2; color: #991b1b; border-radius: 8px;">
+                                <strong>Important:</strong> If you did not make this change, please contact your administrator immediately.
+                            </p>
+                            <p style="font-size: 11px; color: #94a3b8; margin-top: 20px;">Timestamp: ${new Date().toUTCString()}</p>
+                        </div>
+                    `
+                }, user.organization_id);
+            } catch (mailErr) {
+                console.error('[MAILER] Profile Password Change Notification Failure:', mailErr);
+            }
         }
 
         await user.update(updateData);
@@ -415,6 +436,27 @@ const resetPassword = async (req, res, next) => {
             ipAddress,
             userAgent
         );
+
+        // Security Notification: Notify user that their password was reset via email link
+        try {
+            await sendEmailWithSettings({
+                to: user.email,
+                subject: 'Security Alert: Your Password Was Reset',
+                html: `
+                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #f1f5f9; border-radius: 12px;">
+                        <h2 style="color: #1e293b;">Security Notification</h2>
+                        <p>Hello ${user.name},</p>
+                        <p>This is to inform you that your account password has been successfully reset using an email verification link.</p>
+                        <p style="background-color: #fef2f2; padding: 15px; border: 1px solid #fee2e2; color: #991b1b; border-radius: 8px;">
+                            <strong>Important:</strong> If you did not request this reset, please contact your administrator immediately.
+                        </p>
+                        <p style="font-size: 11px; color: #94a3b8; margin-top: 20px;">Timestamp: ${new Date().toUTCString()}</p>
+                    </div>
+                `
+            }, user.organization_id);
+        } catch (mailErr) {
+            console.error('[MAILER] Reset Password Confirmation Failure:', mailErr);
+        }
 
         return successResponse(res, null, 'Password has been reset successfully');
     } catch (error) {

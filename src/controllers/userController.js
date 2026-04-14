@@ -145,8 +145,10 @@ const updateUser = async (req, res, next) => {
             try { branch_ids = JSON.parse(branch_ids); } catch (e) { branch_ids = branch_ids.split(',').filter(Boolean); }
         }
 
+        let passwordReassigned = false;
         if (password) {
             updateData.password = await hashPassword(password);
+            passwordReassigned = true;
         }
 
         if (first_name) updateData.first_name = first_name;
@@ -168,6 +170,15 @@ const updateUser = async (req, res, next) => {
 
         if (role_ids) await user.setRoles(role_ids);
         if (branch_ids) await user.setBranches(branch_ids);
+
+        // Security Protocol: If an admin explicitly changes a password, notify the user immediately
+        if (passwordReassigned) {
+            try {
+                await mailer.sendPasswordChangeNotification(user, req.user.organization_id, true);
+            } catch (mailErr) {
+                console.error('[MAILER] Admin Password Notification Failure:', mailErr);
+            }
+        }
 
         // Log user update
         const { ipAddress, userAgent } = auditService.getRequestContext(req);
@@ -240,6 +251,38 @@ const getActiveSellers = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const resendWelcomeEmail = async (req, res, next) => {
+    try {
+        const user = await User.findOne({
+            where: { id: req.params.id, organization_id: req.user.organization_id }
+        });
+
+        if (!user) return errorResponse(res, 'User not found', 404);
+
+        // Security Protocol: Only allow resending for users who have NEVER once accessed the system
+        if (user.last_login) {
+            return errorResponse(res, 'Verification Protocol Failure: Welcome credentials can only be project for fresh accounts with no access history. Use password reset for active users.', 400);
+        }
+
+        // Generate a new temporary password
+        const crypto = require('crypto');
+        const tempPassword = crypto.randomBytes(4).toString('hex'); // 8 chars
+        const hashedPassword = await hashPassword(tempPassword);
+
+        // Update record
+        await user.update({ password: hashedPassword });
+
+        // Dispatch freshly provisioned welcome email
+        try {
+            await mailer.sendWelcomeEmail(user, tempPassword, req.user.organization_id);
+        } catch (mailError) {
+            console.error('[MAILER] Resend Welcome Failure:', mailError);
+        }
+
+        return successResponse(res, null, 'Invitation credentials successfully re-provisioned and dispatched.');
+    } catch (error) { next(error); }
+};
+
 module.exports = {
-    getAllUsers, createUser, updateUser, toggleUserStatus, getActiveSellers
+    getAllUsers, createUser, updateUser, toggleUserStatus, getActiveSellers, resendWelcomeEmail
 };
