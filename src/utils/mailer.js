@@ -19,6 +19,23 @@ const transporter = nodemailer.createTransport({
 });
 
 /**
+ * Normalization helper: find a value by multiple possible key variations
+ */
+const getNormalizedVal = (data, keys) => {
+    if (!data) return null;
+    for (const k of keys) {
+        if (data[k] !== undefined) return data[k];
+        // Also check normalized versions
+        const normalizedK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+        for (const actualKey in data) {
+            const normalizedActual = actualKey.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (normalizedActual === normalizedK) return data[actualKey];
+        }
+    }
+    return null;
+};
+
+/**
  * Helper to generate nodemailer transport configuration based on provider
  * Robustness: Handles variations in key naming (spaces, casing, underscores)
  */
@@ -31,19 +48,7 @@ const getTransportConfig = (provider, config) => {
         decConfig[key] = decrypt(config[key]);
     }
 
-    // Normalization helper: find a value by multiple possible key variations
-    const getVal = (keys) => {
-        for (const k of keys) {
-            if (decConfig[k] !== undefined) return decConfig[k];
-            // Also check normalized versions
-            const normalizedK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
-            for (const actualKey in decConfig) {
-                const normalizedActual = actualKey.toLowerCase().replace(/[^a-z0-9]/g, '');
-                if (normalizedActual === normalizedK) return decConfig[actualKey];
-            }
-        }
-        return null;
-    };
+    const getVal = (keys) => getNormalizedVal(decConfig, keys);
 
     switch (provider) {
         case 'smtp':
@@ -152,7 +157,7 @@ const sendEmailWithSettings = async (options, organizationId) => {
                     activeTransporter = nodemailer.createTransport(transportConfig);
                     
                     // Logic: Priority for From Email in the HEADER, but use Auth User as fallback
-                    const displayEmail = getVal(['From Email', 'fromEmail', 'from_email']);
+                    const displayEmail = getNormalizedVal(config, ['From Email', 'fromEmail', 'from_email']);
                     if (displayEmail) fromEmail = displayEmail;
                     else fromEmail = transportConfig.auth.user || fromEmail;
 
