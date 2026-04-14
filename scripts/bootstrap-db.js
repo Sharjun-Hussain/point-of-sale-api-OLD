@@ -65,7 +65,10 @@ async function bootstrap() {
 
         if (isClearMode) {
             console.log('⚠️  CRITICAL: TOTAL database reset (--clear detected)...');
+            // Disable FK checks so MySQL can drop tables with dependencies cleanly
+            await db.sequelize.query('SET FOREIGN_KEY_CHECKS = 0');
             await db.sequelize.sync({ force: true });
+            await db.sequelize.query('SET FOREIGN_KEY_CHECKS = 1');
         } else {
             await db.sequelize.sync({ force: false });
         }
