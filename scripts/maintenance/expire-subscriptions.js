@@ -1,4 +1,4 @@
-const { Organization } = require('../models');
+const { Organization } = require('../../src/models');
 const { Op } = require('sequelize');
 
 /**

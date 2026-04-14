@@ -1,5 +1,5 @@
 // Quick script to manually activate organizations with Active subscription but is_active=false
-const { Organization } = require('../models');
+const { Organization } = require('../../src/models');
 
 const fixActiveOrganizations = async () => {
     try {
