@@ -26,5 +26,11 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true
     });
 
+    MeasurementUnit.associate = (models) => {
+        MeasurementUnit.hasMany(models.Product, { as: 'products', foreignKey: 'measurement_id' });
+        MeasurementUnit.hasMany(models.Container, { as: 'containers', foreignKey: 'measurement_unit_id' });
+        MeasurementUnit.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+    };
+
     return MeasurementUnit;
 };

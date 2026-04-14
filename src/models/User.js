@@ -50,5 +50,25 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true
     });
 
+    User.associate = (models) => {
+        User.belongsToMany(models.Role, {
+            through: 'user_roles',
+            as: 'roles',
+            foreignKey: 'user_id',
+            otherKey: 'role_id'
+        });
+        User.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+        User.belongsTo(models.Branch, { as: 'branch', foreignKey: 'branch_id' });
+        User.hasMany(models.RefreshToken, { as: 'refresh_tokens', foreignKey: 'user_id' });
+        User.hasOne(models.Employee, { as: 'employee', foreignKey: 'user_id' });
+        User.belongsToMany(models.Branch, {
+            through: 'user_branches',
+            as: 'branches',
+            foreignKey: 'user_id',
+            otherKey: 'branch_id'
+        });
+        User.belongsTo(models.Employee, { as: 'managerProfile', foreignKey: 'id', targetKey: 'user_id', constraints: false });
+    };
+
     return User;
 };

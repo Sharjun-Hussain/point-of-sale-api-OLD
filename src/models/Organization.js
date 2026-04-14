@@ -90,5 +90,25 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true
     });
 
+    Organization.associate = (models) => {
+        Organization.hasMany(models.Branch, { as: 'branches', foreignKey: 'organization_id' });
+        Organization.hasMany(models.SubscriptionHistory, { as: 'subscription_histories', foreignKey: 'organization_id' });
+        Organization.belongsTo(models.BusinessPlan, { as: 'plan', foreignKey: 'plan_id' });
+        Organization.hasMany(models.User, { as: 'users', foreignKey: 'organization_id' });
+        Organization.hasMany(models.Employee, { as: 'employees', foreignKey: 'organization_id' });
+        Organization.hasMany(models.Setting, { as: 'settings', foreignKey: 'organization_id' });
+        Organization.hasMany(models.Customer, { as: 'customers', foreignKey: 'organization_id' });
+        Organization.hasMany(models.Supplier, { as: 'suppliers', foreignKey: 'organization_id' });
+        Organization.hasMany(models.Sale, { as: 'sales', foreignKey: 'organization_id' });
+        Organization.hasMany(models.ExpenseCategory, { as: 'expense_categories', foreignKey: 'organization_id' });
+        Organization.hasMany(models.Expense, { as: 'expenses', foreignKey: 'organization_id' });
+        Organization.hasMany(models.Account, { as: 'accounts', foreignKey: 'organization_id' });
+        Organization.hasMany(models.Transaction, { as: 'transactions', foreignKey: 'organization_id' });
+        Organization.hasMany(models.Cheque, { as: 'cheques', foreignKey: 'organization_id' });
+        Organization.hasMany(models.GRN, { as: 'grns', foreignKey: 'organization_id' });
+        Organization.hasMany(models.ProductBatch, { as: 'batches', foreignKey: 'organization_id' });
+        Organization.hasMany(models.Attribute, { as: 'attributes', foreignKey: 'organization_id' });
+    };
+
     return Organization;
 };

@@ -44,8 +44,10 @@ module.exports = (sequelize, DataTypes) => {
     });
 
     StockOpening.associate = (models) => {
-        StockOpening.belongsTo(models.Branch, { foreignKey: 'branch_id', as: 'branch' });
-        StockOpening.belongsTo(models.User, { foreignKey: 'user_id', as: 'user' });
+        StockOpening.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+        StockOpening.belongsTo(models.Branch, { as: 'branch', foreignKey: 'branch_id' });
+        StockOpening.belongsTo(models.User, { as: 'user', foreignKey: 'user_id' });
+        StockOpening.hasMany(models.ProductBatch, { as: 'batches', foreignKey: 'opening_stock_id' });
     };
 
     return StockOpening;

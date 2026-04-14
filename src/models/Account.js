@@ -40,5 +40,11 @@ module.exports = (sequelize, DataTypes) => {
         ]
     });
 
+    Account.associate = (models) => {
+        Account.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+        Account.hasMany(models.Transaction, { as: 'transactions', foreignKey: 'account_id' });
+        Account.hasMany(models.Cheque, { as: 'cheques', foreignKey: 'account_id' });
+    };
+
     return Account;
 };

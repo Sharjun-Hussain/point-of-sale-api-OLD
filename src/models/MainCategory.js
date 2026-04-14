@@ -26,5 +26,11 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true
     });
 
+    MainCategory.associate = (models) => {
+        MainCategory.hasMany(models.SubCategory, { as: 'sub_categories', foreignKey: 'main_category_id' });
+        MainCategory.hasMany(models.Product, { as: 'products', foreignKey: 'main_category_id' });
+        MainCategory.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+    };
+
     return MainCategory;
 };

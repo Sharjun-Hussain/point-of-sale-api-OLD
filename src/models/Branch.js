@@ -63,5 +63,18 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true
     });
 
+    Branch.associate = (models) => {
+        Branch.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+        Branch.hasMany(models.Employee, { as: 'primaryEmployees', foreignKey: 'branch_id' });
+        Branch.belongsTo(models.Employee, { as: 'manager', foreignKey: 'manager_id' });
+        Branch.hasMany(models.Setting, { as: 'settings', foreignKey: 'branch_id' });
+        Branch.belongsToMany(models.Employee, {
+            through: models.EmployeeBranch,
+            as: 'employees',
+            foreignKey: 'branch_id',
+            otherKey: 'employee_id'
+        });
+    };
+
     return Branch;
 };

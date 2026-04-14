@@ -32,5 +32,10 @@ module.exports = (sequelize, DataTypes) => {
         }
     });
 
+    Setting.associate = (models) => {
+        Setting.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+        Setting.belongsTo(models.Branch, { as: 'branch', foreignKey: 'branch_id' });
+    };
+
     return Setting;
 };

@@ -46,5 +46,12 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true
     });
 
+    SaleItem.associate = (models) => {
+        SaleItem.belongsTo(models.Sale, { as: 'sale', foreignKey: 'sale_id' });
+        SaleItem.belongsTo(models.Product, { as: 'product', foreignKey: 'product_id' });
+        SaleItem.belongsTo(models.ProductVariant, { as: 'variant', foreignKey: 'product_variant_id' });
+        SaleItem.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+    };
+
     return SaleItem;
 };

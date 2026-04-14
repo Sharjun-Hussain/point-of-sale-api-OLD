@@ -78,10 +78,13 @@ module.exports = (sequelize, DataTypes) => {
     });
 
     ProductBatch.associate = (models) => {
-        ProductBatch.belongsTo(models.Product, { foreignKey: 'product_id', as: 'product' });
-        ProductBatch.belongsTo(models.ProductVariant, { foreignKey: 'product_variant_id', as: 'variant' });
-        ProductBatch.belongsTo(models.Branch, { foreignKey: 'branch_id', as: 'branch' });
-        ProductBatch.hasMany(models.GRNItem, { foreignKey: 'product_batch_id', as: 'grn_items' });
+        ProductBatch.belongsTo(models.Product, { as: 'product', foreignKey: 'product_id' });
+        ProductBatch.belongsTo(models.ProductVariant, { as: 'variant', foreignKey: 'product_variant_id' });
+        ProductBatch.belongsTo(models.Branch, { as: 'branch', foreignKey: 'branch_id' });
+        ProductBatch.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+        ProductBatch.belongsTo(models.StockOpening, { as: 'opening', foreignKey: 'opening_stock_id' });
+        ProductBatch.hasMany(models.GRNItem, { as: 'grn_items', foreignKey: 'product_batch_id' });
+        ProductBatch.hasMany(models.PurchaseReturnItem, { as: 'purchase_return_items', foreignKey: 'product_batch_id' });
     };
 
     return ProductBatch;

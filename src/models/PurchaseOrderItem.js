@@ -42,5 +42,12 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true
     });
 
+    PurchaseOrderItem.associate = (models) => {
+        PurchaseOrderItem.belongsTo(models.PurchaseOrder, { as: 'purchase_order', foreignKey: 'purchase_order_id' });
+        PurchaseOrderItem.belongsTo(models.Product, { as: 'product', foreignKey: 'product_id' });
+        PurchaseOrderItem.belongsTo(models.ProductVariant, { as: 'variant', foreignKey: 'product_variant_id' });
+        PurchaseOrderItem.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+    };
+
     return PurchaseOrderItem;
 };

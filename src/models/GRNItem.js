@@ -58,5 +58,13 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true
     });
 
+    GRNItem.associate = (models) => {
+        GRNItem.belongsTo(models.GRN, { as: 'grn', foreignKey: 'grn_id' });
+        GRNItem.belongsTo(models.Product, { as: 'product', foreignKey: 'product_id' });
+        GRNItem.belongsTo(models.ProductVariant, { as: 'variant', foreignKey: 'product_variant_id' });
+        GRNItem.belongsTo(models.ProductBatch, { as: 'batch', foreignKey: 'product_batch_id' });
+        GRNItem.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+    };
+
     return GRNItem;
 };

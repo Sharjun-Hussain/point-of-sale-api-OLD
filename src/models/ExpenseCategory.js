@@ -26,5 +26,10 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true
     });
 
+    ExpenseCategory.associate = (models) => {
+        ExpenseCategory.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+        ExpenseCategory.hasMany(models.Expense, { as: 'expenses', foreignKey: 'expense_category_id' });
+    };
+
     return ExpenseCategory;
 };

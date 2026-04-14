@@ -52,5 +52,12 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true
     });
 
+    Container.associate = (models) => {
+        Container.belongsTo(models.MeasurementUnit, { as: 'measurement_unit', foreignKey: 'measurement_unit_id' });
+        Container.belongsTo(models.Unit, { as: 'base_unit', foreignKey: 'base_unit_id' });
+        Container.hasMany(models.Product, { as: 'products', foreignKey: 'container_id' });
+        Container.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+    };
+
     return Container;
 };

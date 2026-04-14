@@ -46,5 +46,13 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true
     });
 
+    StockAdjustment.associate = (models) => {
+        StockAdjustment.belongsTo(models.Branch, { as: 'branch', foreignKey: 'branch_id' });
+        StockAdjustment.belongsTo(models.Product, { as: 'product', foreignKey: 'product_id' });
+        StockAdjustment.belongsTo(models.ProductVariant, { as: 'variant', foreignKey: 'product_variant_id' });
+        StockAdjustment.belongsTo(models.User, { as: 'adjusted_by_user', foreignKey: 'user_id' });
+        StockAdjustment.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+    };
+
     return StockAdjustment;
 };

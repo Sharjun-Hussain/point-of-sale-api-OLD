@@ -73,5 +73,32 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true
     });
 
+    ProductVariant.associate = (models) => {
+        // Parent & Meta
+        ProductVariant.belongsTo(models.Product, { as: 'product', foreignKey: 'product_id' });
+        ProductVariant.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+
+        // Transactions
+        ProductVariant.hasMany(models.SaleItem, { as: 'sale_items', foreignKey: 'product_variant_id' });
+        ProductVariant.hasMany(models.SaleReturnItem, { as: 'sale_return_items', foreignKey: 'product_variant_id' });
+        ProductVariant.hasMany(models.StockTransferItem, { as: 'transfer_items', foreignKey: 'product_variant_id' });
+        ProductVariant.hasMany(models.PurchaseOrderItem, { as: 'purchase_items', foreignKey: 'product_variant_id' });
+        ProductVariant.hasMany(models.PurchaseReturnItem, { as: 'purchase_return_items', foreignKey: 'product_variant_id' });
+        ProductVariant.hasMany(models.Stock, { as: 'stocks', foreignKey: 'product_variant_id' });
+        ProductVariant.hasMany(models.StockAdjustment, { as: 'stock_adjustments', foreignKey: 'product_variant_id' });
+        ProductVariant.hasMany(models.GRNItem, { as: 'grn_items', foreignKey: 'product_variant_id' });
+        ProductVariant.hasMany(models.ProductBatch, { as: 'batches', foreignKey: 'product_variant_id' });
+
+        // Many-to-Many Attributes
+        ProductVariant.belongsToMany(models.AttributeValue, {
+            through: models.VariantAttributeValue,
+            as: 'attribute_values',
+            foreignKey: 'product_variant_id',
+            otherKey: 'attribute_value_id',
+            uniqueKey: false
+        });
+        ProductVariant.hasMany(models.VariantAttributeValue, { as: 'variant_attribute_links', foreignKey: 'product_variant_id' });
+    };
+
     return ProductVariant;
 };

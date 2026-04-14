@@ -36,5 +36,12 @@ module.exports = (sequelize, DataTypes) => {
         ]
     });
 
+    Stock.associate = (models) => {
+        Stock.belongsTo(models.Branch, { as: 'branch', foreignKey: 'branch_id' });
+        Stock.belongsTo(models.Product, { as: 'product', foreignKey: 'product_id' });
+        Stock.belongsTo(models.ProductVariant, { as: 'variant', foreignKey: 'product_variant_id' });
+        Stock.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+    };
+
     return Stock;
 };

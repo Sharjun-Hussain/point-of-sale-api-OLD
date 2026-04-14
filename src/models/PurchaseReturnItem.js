@@ -50,5 +50,13 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true
     });
 
+    PurchaseReturnItem.associate = (models) => {
+        PurchaseReturnItem.belongsTo(models.PurchaseReturn, { as: 'purchase_return', foreignKey: 'purchase_return_id' });
+        PurchaseReturnItem.belongsTo(models.Product, { as: 'product', foreignKey: 'product_id' });
+        PurchaseReturnItem.belongsTo(models.ProductVariant, { as: 'variant', foreignKey: 'product_variant_id' });
+        PurchaseReturnItem.belongsTo(models.ProductBatch, { as: 'batch', foreignKey: 'product_batch_id' });
+        PurchaseReturnItem.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+    };
+
     return PurchaseReturnItem;
 };

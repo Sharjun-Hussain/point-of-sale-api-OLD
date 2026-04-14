@@ -75,5 +75,21 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true
     });
 
+    Sale.associate = (models) => {
+        Sale.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+        Sale.belongsTo(models.Branch, { as: 'branch', foreignKey: 'branch_id' });
+        Sale.belongsTo(models.User, { as: 'cashier', foreignKey: 'user_id' });
+        Sale.belongsTo(models.Customer, { as: 'customer', foreignKey: 'customer_id' });
+        Sale.belongsToMany(models.User, { 
+            through: 'sale_employees', 
+            as: 'sellers', 
+            foreignKey: 'sale_id', 
+            otherKey: 'user_id' 
+        });
+        Sale.hasMany(models.SaleItem, { as: 'items', foreignKey: 'sale_id' });
+        Sale.hasMany(models.SaleReturn, { as: 'returns', foreignKey: 'sale_id' });
+        Sale.hasMany(models.Cheque, { as: 'cheques', foreignKey: 'reference_id', constraints: false });
+    };
+
     return Sale;
 };

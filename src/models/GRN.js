@@ -59,5 +59,15 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true
     });
 
+    GRN.associate = (models) => {
+        GRN.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+        GRN.belongsTo(models.Branch, { as: 'branch', foreignKey: 'branch_id' });
+        GRN.belongsTo(models.Supplier, { as: 'supplier', foreignKey: 'supplier_id' });
+        GRN.belongsTo(models.PurchaseOrder, { as: 'purchase_order', foreignKey: 'purchase_order_id' });
+        GRN.belongsTo(models.User, { as: 'received_by_user', foreignKey: 'user_id' });
+        GRN.hasMany(models.GRNItem, { as: 'items', foreignKey: 'grn_id' });
+        GRN.hasMany(models.Cheque, { as: 'cheques', foreignKey: 'reference_id', constraints: false });
+    };
+
     return GRN;
 };

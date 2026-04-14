@@ -26,5 +26,11 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true
     });
 
+    Unit.associate = (models) => {
+        Unit.hasMany(models.Product, { as: 'products', foreignKey: 'unit_id' });
+        Unit.hasMany(models.Container, { as: 'containers', foreignKey: 'base_unit_id' });
+        Unit.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+    };
+
     return Unit;
 };

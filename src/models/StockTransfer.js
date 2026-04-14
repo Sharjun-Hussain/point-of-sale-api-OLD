@@ -43,5 +43,13 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true
     });
 
+    StockTransfer.associate = (models) => {
+        StockTransfer.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+        StockTransfer.belongsTo(models.Branch, { as: 'from_branch', foreignKey: 'from_branch_id' });
+        StockTransfer.belongsTo(models.Branch, { as: 'to_branch', foreignKey: 'to_branch_id' });
+        StockTransfer.belongsTo(models.User, { as: 'user', foreignKey: 'user_id' });
+        StockTransfer.hasMany(models.StockTransferItem, { as: 'items', foreignKey: 'stock_transfer_id' });
+    };
+
     return StockTransfer;
 };

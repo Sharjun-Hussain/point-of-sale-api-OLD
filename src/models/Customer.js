@@ -39,5 +39,12 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true
     });
 
+    Customer.associate = (models) => {
+        Customer.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+        Customer.hasMany(models.Sale, { as: 'sales', foreignKey: 'customer_id' });
+        Customer.hasMany(models.Transaction, { as: 'transactions', foreignKey: 'customer_id' });
+        Customer.hasMany(models.SaleReturn, { as: 'sale_returns', foreignKey: 'customer_id' });
+    };
+
     return Customer;
 };

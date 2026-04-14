@@ -54,5 +54,13 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true
     });
 
+    Transaction.associate = (models) => {
+        Transaction.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+        Transaction.belongsTo(models.Branch, { as: 'branch', foreignKey: 'branch_id' });
+        Transaction.belongsTo(models.Account, { as: 'account', foreignKey: 'account_id' });
+        Transaction.belongsTo(models.Customer, { as: 'customer', foreignKey: 'customer_id' });
+        Transaction.belongsTo(models.Supplier, { as: 'supplier', foreignKey: 'supplier_id' });
+    };
+
     return Transaction;
 };

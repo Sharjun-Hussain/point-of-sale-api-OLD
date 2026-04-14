@@ -80,6 +80,9 @@ module.exports = (sequelize, DataTypes) => {
             foreignKey: 'employee_id',
             otherKey: 'branch_id'
         });
+
+        // Branches managed by this employee
+        Employee.hasMany(models.Branch, { as: 'managedBranches', foreignKey: 'manager_id' });
     };
 
     return Employee;

@@ -30,5 +30,12 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true
     });
 
+    StockTransferItem.associate = (models) => {
+        StockTransferItem.belongsTo(models.StockTransfer, { as: 'stock_transfer', foreignKey: 'stock_transfer_id' });
+        StockTransferItem.belongsTo(models.Product, { as: 'product', foreignKey: 'product_id' });
+        StockTransferItem.belongsTo(models.ProductVariant, { as: 'variant', foreignKey: 'product_variant_id' });
+        StockTransferItem.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+    };
+
     return StockTransferItem;
 };

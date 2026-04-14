@@ -47,5 +47,15 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true
     });
 
+    PurchaseOrder.associate = (models) => {
+        PurchaseOrder.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+        PurchaseOrder.belongsTo(models.Branch, { as: 'branch', foreignKey: 'branch_id' });
+        PurchaseOrder.belongsTo(models.Supplier, { as: 'supplier', foreignKey: 'supplier_id' });
+        PurchaseOrder.belongsTo(models.User, { as: 'created_by_user', foreignKey: 'user_id' });
+        PurchaseOrder.hasMany(models.PurchaseOrderItem, { as: 'items', foreignKey: 'purchase_order_id' });
+        PurchaseOrder.hasMany(models.GRN, { as: 'grns', foreignKey: 'purchase_order_id' });
+        PurchaseOrder.hasMany(models.PurchaseReturn, { as: 'returns', foreignKey: 'purchase_order_id' });
+    };
+
     return PurchaseOrder;
 };

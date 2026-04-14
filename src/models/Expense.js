@@ -50,5 +50,13 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true
     });
 
+    Expense.associate = (models) => {
+        Expense.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+        Expense.belongsTo(models.Branch, { as: 'branch', foreignKey: 'branch_id' });
+        Expense.belongsTo(models.ExpenseCategory, { as: 'category', foreignKey: 'expense_category_id' });
+        Expense.belongsTo(models.User, { as: 'recorded_by_user', foreignKey: 'user_id' });
+        Expense.hasMany(models.Cheque, { as: 'cheques', foreignKey: 'reference_id', constraints: false });
+    };
+
     return Expense;
 };

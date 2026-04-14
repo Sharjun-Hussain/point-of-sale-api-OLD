@@ -78,5 +78,16 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true
     });
 
+    Cheque.associate = (models) => {
+        Cheque.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+        Cheque.belongsTo(models.Branch, { as: 'branch', foreignKey: 'branch_id' });
+        Cheque.belongsTo(models.Account, { as: 'account', foreignKey: 'account_id' });
+        
+        // Polymorphic-style associations
+        Cheque.belongsTo(models.Sale, { as: 'sale', foreignKey: 'reference_id', constraints: false });
+        Cheque.belongsTo(models.GRN, { as: 'grn', foreignKey: 'reference_id', constraints: false });
+        Cheque.belongsTo(models.Expense, { as: 'expense', foreignKey: 'reference_id', constraints: false });
+    };
+
     return Cheque;
 };

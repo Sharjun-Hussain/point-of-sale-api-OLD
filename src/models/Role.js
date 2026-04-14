@@ -27,5 +27,20 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true
     });
 
+    Role.associate = (models) => {
+        Role.belongsToMany(models.User, {
+            through: 'user_roles',
+            as: 'users',
+            foreignKey: 'role_id',
+            otherKey: 'user_id'
+        });
+        Role.belongsToMany(models.Permission, {
+            through: 'role_permissions',
+            as: 'permissions',
+            foreignKey: 'role_id',
+            otherKey: 'permission_id'
+        });
+    };
+
     return Role;
 };
