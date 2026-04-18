@@ -195,6 +195,8 @@ class MaintenanceService {
             logger.error(`Telemetry Fetch Error: ${err.message}`);
             return [];
         }
+    }
+
     /**
      * Generate a full SQL dump using mysqldump.
      * Returns the full path to the temporary snapshot.
@@ -205,8 +207,7 @@ class MaintenanceService {
         const filepath = path.join(process.env.UPLOAD_PATH || 'uploads/', filename);
         
         // Build mysqldump command
-        // Note: --column-statistics=0 is used specifically for compatibility with different MySQL versions
-        const command = `mysqldump -h ${host} -P ${port} -u ${username} ${password ? `-p${password}` : ''} --column-statistics=0 ${database} > ${filepath}`;
+        const command = `mysqldump -h ${host} -P ${port} -u ${username} ${password ? `-p${password}` : ''} ${database} > ${filepath}`;
 
         return new Promise((resolve, reject) => {
             exec(command, (error, stdout, stderr) => {

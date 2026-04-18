@@ -12,10 +12,10 @@ router.post('/', checkPermission('product:create'), upload.array('images[]', 10)
 router.get('/active/list', productController.getActiveProductsList);
 router.get('/variants/:variantId', checkPermission('product:view'), productController.getVariantById);
 router.get('/stock/check', productController.getProductStock);
-router.get('/:id', checkPermission('product:view'), productController.getProductById);
 router.post('/opening-stock', checkPermission('product:create'), productController.createOpeningStock);
 router.get('/export', checkPermission('product:view'), productController.exportProducts);
 router.post('/import', checkPermission('product:create'), productController.importProducts);
+router.get('/:id', checkPermission('product:view'), productController.getProductById);
 router.put('/:id', checkPermission('product:edit'), upload.array('images[]', 10), productController.updateProduct);
 router.delete('/:id', checkPermission('product:delete'), productController.deleteProduct);
 
