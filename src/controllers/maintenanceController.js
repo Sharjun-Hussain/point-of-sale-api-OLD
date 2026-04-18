@@ -1,6 +1,7 @@
 const maintenanceService = require('../services/maintenanceService');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const auditService = require('../services/auditService');
+const fs = require('fs');
 
 /**
  * MAINTENANCE CONTROLLER
@@ -66,6 +67,49 @@ class MaintenanceController {
         try {
             const result = await maintenanceService.clearAppCache();
             return successResponse(res, result, 'System cache purged successfully.');
+        } catch (error) { next(error); }
+    }
+
+    /**
+     * Export the full database as a SQL file.
+     */
+    async exportDatabase(req, res, next) {
+        try {
+            const { ipAddress, userAgent } = auditService.getRequestContext(req);
+            await auditService.logCustom(req.user.organization_id, req.user.id, 'DB_EXPORT', 'Generated full SQL snapshot.', ipAddress, userAgent);
+
+            const { filepath, filename } = await maintenanceService.exportSql();
+            
+            res.download(filepath, filename, (err) => {
+                if (err) {
+                    logger.error(`Download Error: ${err.message}`);
+                }
+                // Clean up the temporary backup file
+                fs.unlink(filepath, (unlinkErr) => {
+                    if (unlinkErr) logger.error(`Cleanup Error: ${unlinkErr.message}`);
+                });
+            });
+        } catch (error) { next(error); }
+    }
+
+    /**
+     * Import a SQL snapshot to restore the database.
+     */
+    async importDatabase(req, res, next) {
+        try {
+            if (!req.file) return errorResponse(res, 'No SQL snapshot provided.', 400);
+
+            const { ipAddress, userAgent } = auditService.getRequestContext(req);
+            await auditService.logCustom(req.user.organization_id, req.user.id, 'DB_IMPORT', 'Initiated structural restoration from SQL snapshot.', ipAddress, userAgent);
+
+            const result = await maintenanceService.importSql(req.file.path);
+
+            // Clean up the uploaded file
+            fs.unlink(req.file.path, (err) => {
+                if (err) logger.error(`Upload Cleanup Error: ${err.message}`);
+            });
+
+            return successResponse(res, result, 'Structural restoration finalized.');
         } catch (error) { next(error); }
     }
 }

@@ -2,6 +2,9 @@ const { sequelize } = require('../models');
 const { QueryTypes } = require('sequelize');
 const redisService = require('./redisService');
 const logger = require('../utils/logger');
+const { exec } = require('child_process');
+const path = require('path');
+const fs = require('fs');
 
 /**
  * INDUSTRIAL MAINTENANCE SERVICE
@@ -192,6 +195,48 @@ class MaintenanceService {
             logger.error(`Telemetry Fetch Error: ${err.message}`);
             return [];
         }
+    /**
+     * Generate a full SQL dump using mysqldump.
+     * Returns the full path to the temporary snapshot.
+     */
+    async exportSql() {
+        const { database, username, password, host, port } = sequelize.config;
+        const filename = `db_backup_${Date.now()}.sql`;
+        const filepath = path.join(process.env.UPLOAD_PATH || 'uploads/', filename);
+        
+        // Build mysqldump command
+        // Note: --column-statistics=0 is used specifically for compatibility with different MySQL versions
+        const command = `mysqldump -h ${host} -P ${port} -u ${username} ${password ? `-p${password}` : ''} --column-statistics=0 ${database} > ${filepath}`;
+
+        return new Promise((resolve, reject) => {
+            exec(command, (error, stdout, stderr) => {
+                if (error) {
+                    logger.error(`MySQL Export Error: ${error.message}`);
+                    return reject(new Error('Structural export failed. Check system logs.'));
+                }
+                resolve({ filepath, filename });
+            });
+        });
+    }
+
+    /**
+     * Restore database from a provided SQL file using mysql command.
+     */
+    async importSql(filepath) {
+        if (!fs.existsSync(filepath)) throw new Error('Source snapshot not found.');
+
+        const { database, username, password, host, port } = sequelize.config;
+        const command = `mysql -h ${host} -P ${port} -u ${username} ${password ? `-p${password}` : ''} ${database} < ${filepath}`;
+
+        return new Promise((resolve, reject) => {
+            exec(command, (error, stdout, stderr) => {
+                if (error) {
+                    logger.error(`MySQL Import Error: ${error.message}`);
+                    return reject(new Error('Structural restoration failed. Invalid SQL basis.'));
+                }
+                resolve({ success: true, message: 'Structural restoration finalized.' });
+            });
+        });
     }
 }
 
