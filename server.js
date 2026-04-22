@@ -29,37 +29,46 @@ const maintenanceService = require('./src/services/maintenanceService');
 const app = express();
 
 // CORS configuration - MUST BE FIRST
-const allowedOrigins = process.env.FRONTEND_URL 
-    ? process.env.FRONTEND_URL.split(',').map(origin => origin.trim().replace(/\/$/, "")) 
-    : ['http://localhost:3000', 'https://pos.inzeedo.com'];
+// Production origins from env (comma-separated)
+const envOrigins = process.env.FRONTEND_URL 
+    ? process.env.FRONTEND_URL.split(',').map(o => o.trim().replace(/\/$/, "")) 
+    : [];
 
-// Explicitly add mobile app origins for Capacitor/Ionic
-const mobileOrigins = [
-    'http://localhost',       // Android
-    'capacitor://localhost', // iOS
-    'http://localhost:3000', // Local development
-    'http://localhost:8100', // Ionic/Capacitor livereload
+// Mobile & development origins - ALWAYS allowed, regardless of environment.
+// Native Capacitor/Android apps send no origin at all (handled below),
+// but local dev servers and web-based testing do send these origins.
+const alwaysAllowedOrigins = [
+    'http://localhost',           // Capacitor Android local
+    'http://localhost:3000',      // Next.js dev server
+    'http://localhost:8100',      // Ionic/Capacitor livereload
+    'capacitor://localhost',      // Capacitor iOS
+    'ionic://localhost',          // Ionic iOS
+    'http://10.0.2.2',           // Android emulator → host machine
+    'http://10.0.2.2:3000',
+    'http://127.0.0.1',
+    'http://127.0.0.1:3000',
+    // Production frontend(s)
+    'https://pos.inzeedo.com',
+    'http://pos.inzeedo.com',
 ];
 
-const allAllowedOrigins = [...new Set([...allowedOrigins, ...mobileOrigins])];
+// Merge: env overrides + static whitelist, deduplicated
+const allAllowedOrigins = [...new Set([...envOrigins, ...alwaysAllowedOrigins])];
+
+logger.info(`[CORS] Allowed origins: ${allAllowedOrigins.join(', ')}`);
 
 const corsOptions = {
     origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps, curl requests)
+        // Allow requests with no origin header (native mobile apps, curl, Postman)
         if (!origin) return callback(null, true);
-        
-        // Normalize origin for comparison (remove trailing slash)
-        const normalizedOrigin = origin.replace(/\/$/, "");
-        
-        // In development mode, we can be more permissive if needed
-        const isAllowed = allAllowedOrigins.includes(normalizedOrigin) || 
-                         allAllowedOrigins.includes("*") ||
-                         process.env.NODE_ENV === 'development';
 
-        if (isAllowed) {
+        // Normalize origin for comparison (strip trailing slash)
+        const normalizedOrigin = origin.replace(/\/$/, "");
+
+        if (allAllowedOrigins.includes(normalizedOrigin)) {
             callback(null, true);
         } else {
-            console.warn(`[CORS] Blocked request from unauthorized origin: ${origin}`);
+            logger.warn(`[CORS] Blocked request from unauthorized origin: ${origin}`);
             callback(new Error('Not allowed by CORS'), false);
         }
     },
@@ -67,10 +76,10 @@ const corsOptions = {
     optionsSuccessStatus: 200,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
-        'Content-Type', 
-        'Authorization', 
-        'X-Requested-With', 
-        'Accept', 
+        'Content-Type',
+        'Authorization',
+        'X-Requested-With',
+        'Accept',
         'Origin',
         'X-Branch-Id',   // Custom header for POS branch management
         'Cache-Control',
