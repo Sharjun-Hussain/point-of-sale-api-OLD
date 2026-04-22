@@ -33,15 +33,30 @@ const allowedOrigins = process.env.FRONTEND_URL
     ? process.env.FRONTEND_URL.split(',').map(origin => origin.trim().replace(/\/$/, "")) 
     : ['http://localhost:3000', 'https://pos.inzeedo.com'];
 
+// Explicitly add mobile app origins for Capacitor/Ionic
+const mobileOrigins = [
+    'http://localhost',       // Android
+    'capacitor://localhost', // iOS
+    'http://localhost:3000', // Local development
+    'http://localhost:8100', // Ionic/Capacitor livereload
+];
+
+const allAllowedOrigins = [...new Set([...allowedOrigins, ...mobileOrigins])];
+
 const corsOptions = {
     origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps or curl requests)
+        // Allow requests with no origin (like mobile apps, curl requests)
         if (!origin) return callback(null, true);
         
         // Normalize origin for comparison (remove trailing slash)
         const normalizedOrigin = origin.replace(/\/$/, "");
         
-        if (allowedOrigins.indexOf(normalizedOrigin) !== -1 || allowedOrigins.includes("*")) {
+        // In development mode, we can be more permissive if needed
+        const isAllowed = allAllowedOrigins.includes(normalizedOrigin) || 
+                         allAllowedOrigins.includes("*") ||
+                         process.env.NODE_ENV === 'development';
+
+        if (isAllowed) {
             callback(null, true);
         } else {
             console.warn(`[CORS] Blocked request from unauthorized origin: ${origin}`);
@@ -51,7 +66,16 @@ const corsOptions = {
     credentials: true,
     optionsSuccessStatus: 200,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
+    allowedHeaders: [
+        'Content-Type', 
+        'Authorization', 
+        'X-Requested-With', 
+        'Accept', 
+        'Origin',
+        'X-Branch-Id',   // Custom header for POS branch management
+        'Cache-Control',
+        'Pragma'
+    ]
 };
 app.use(cors(corsOptions));
 
