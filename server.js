@@ -41,12 +41,19 @@ const alwaysAllowedOrigins = [
     'http://localhost',           // Capacitor Android local
     'http://localhost:3000',      // Next.js dev server
     'http://localhost:8100',      // Ionic/Capacitor livereload
+    'https://localhost',          // Capacitor HTTPS scheme
+    'https://localhost:3000',
+    'https://localhost:8100',
     'capacitor://localhost',      // Capacitor iOS
     'ionic://localhost',          // Ionic iOS
     'http://10.0.2.2',           // Android emulator → host machine
     'http://10.0.2.2:3000',
+    'https://10.0.2.2',
+    'https://10.0.2.2:3000',
     'http://127.0.0.1',
     'http://127.0.0.1:3000',
+    'https://127.0.0.1',
+    'https://127.0.0.1:3000',
     // Production frontend(s)
     'https://pos.inzeedo.com',
     'http://pos.inzeedo.com',
