@@ -21,6 +21,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.UUID,
             allowNull: false // Key for the cashier
         },
+        shift_id: {
+            type: DataTypes.UUID,
+            allowNull: true // Link to the active cash register shift
+        },
         invoice_number: {
             type: DataTypes.STRING,
             allowNull: false,
@@ -89,6 +93,11 @@ module.exports = (sequelize, DataTypes) => {
         Sale.hasMany(models.SaleItem, { as: 'items', foreignKey: 'sale_id' });
         Sale.hasMany(models.SaleReturn, { as: 'returns', foreignKey: 'sale_id' });
         Sale.hasMany(models.Cheque, { as: 'cheques', foreignKey: 'reference_id', constraints: false });
+        // NOTE: Although we added shift_id above, we check if models.Shift exists before associating 
+        // to prevent circular dependency races during dynamic loading if Shift is loaded after Sale.
+        if(models.Shift) {
+            Sale.belongsTo(models.Shift, { as: 'shift', foreignKey: 'shift_id' });
+        }
     };
 
     return Sale;

@@ -35,6 +35,7 @@ const chequeRoutes = require('./cheques');
 const accountRoutes = require('./accounts');
 const stockRoutes = require('./stocks');
 const maintenanceRoutes = require('./maintenance');
+const shiftRoutes = require('./shifts');
 
 // Use routes
 router.use('/auth', authRoutes);
@@ -72,5 +73,6 @@ router.use('/reports', reportRoutes);
 router.use('/cheques', chequeRoutes);
 router.use('/common', commonRoutes);
 router.use('/maintenance', maintenanceRoutes);
+router.use('/shifts', shiftRoutes);
 
 module.exports = router;

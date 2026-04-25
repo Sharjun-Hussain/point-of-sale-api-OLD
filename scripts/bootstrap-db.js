@@ -119,6 +119,9 @@ async function bootstrap() {
             { name: 'org:view',               group_name: 'Organization',  description: 'View organization metadata' },
             // POS
             { name: 'pos:access',             group_name: 'POS',           description: 'Access POS workstation' },
+            { name: 'shift:create',           group_name: 'POS',           description: 'Open POS shifts' },
+            { name: 'shift:manage',           group_name: 'POS',           description: 'Close and manage POS shifts' },
+            { name: 'shift:view',             group_name: 'POS',           description: 'View shift history' },
             // Procurement (Purchase Returns)
             { name: 'purchase_return:create', group_name: 'Procurement',   description: 'Create purchase returns' },
             { name: 'purchase_return:view',   group_name: 'Procurement',   description: 'View purchase returns' },
