@@ -12,7 +12,8 @@
     "db:migrate:undo": "sequelize-cli db:migrate:undo",
     "db:bootstrap": "node scripts/bootstrap-db.js",
     "db:seed": "sequelize-cli db:seed:all",
-    "db:seed:undo": "sequelize-cli db:seed:undo:all"
+    "db:seed:undo": "sequelize-cli db:seed:undo:all",
+    "db:seed:foodcity": "node src/seeders/foodCitySeed.js"
   },
   "keywords": [
     "pos",
