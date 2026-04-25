@@ -1408,6 +1408,109 @@ const reportController = {
                 }
             }, 'Dashboard summary fetched');
         } catch (error) { next(error); }
+    },
+
+    // 19. Shift History
+    getShiftHistory: async (req, res, next) => {
+        try {
+            const { start_date, end_date, branch_id, user_id } = req.query;
+            const organization_id = req.user.organization_id;
+
+            const where = { organization_id };
+            if (branch_id && branch_id !== 'all') where.branch_id = branch_id;
+            if (user_id && user_id !== 'all') where.user_id = user_id;
+            
+            if (start_date && end_date) {
+                where.opening_time = {
+                    [Op.between]: [new Date(start_date + 'T00:00:00'), new Date(end_date + 'T23:59:59')]
+                };
+            }
+
+            const shifts = await db.Shift.findAll({
+                where,
+                include: [
+                    { model: db.User, as: 'cashier', attributes: ['name'] },
+                    { model: db.Branch, as: 'branch', attributes: ['name'] }
+                ],
+                order: [['opening_time', 'DESC']]
+            });
+
+            return successResponse(res, shifts, 'Shift history fetched successfully');
+        } catch (error) { next(error); }
+    },
+
+    // 20. Shift Detailed Report (Z-Read)
+    getShiftReport: async (req, res, next) => {
+        try {
+            const { id } = req.params;
+            const organization_id = req.user.organization_id;
+
+            const shift = await db.Shift.findOne({
+                where: { id, organization_id },
+                include: [
+                    { model: db.User, as: 'cashier', attributes: ['name', 'email'] },
+                    { model: db.Branch, as: 'branch', attributes: ['name'] },
+                    { model: db.ShiftTransaction, as: 'transactions' },
+                    { 
+                        model: db.Sale, 
+                        as: 'sales',
+                        where: { status: 'completed' },
+                        required: false,
+                        include: [{ model: db.SalePayment, as: 'payments' }]
+                    }
+                ]
+            });
+
+            if (!shift) return errorResponse(res, 'Shift not found', 404);
+
+            // Aggregate Sales Stats
+            const stats = {
+                totalSales: 0,
+                totalTax: 0,
+                totalDiscount: 0,
+                totalPaid: 0,
+                transactionCount: shift.sales?.length || 0
+            };
+
+            const paymentBreakdown = {};
+
+            if (shift.sales) {
+                for (const sale of shift.sales) {
+                    stats.totalSales += Number(sale.payable_amount);
+                    stats.totalTax += Number(sale.tax_amount);
+                    stats.totalDiscount += Number(sale.discount_amount);
+                    stats.totalPaid += Number(sale.paid_amount);
+
+                    if (sale.payments && sale.payments.length > 0) {
+                        for (const pmt of sale.payments) {
+                            const method = pmt.payment_method || 'Other';
+                            paymentBreakdown[method] = (paymentBreakdown[method] || 0) + Number(pmt.amount);
+                        }
+                    } else {
+                        const method = sale.payment_method || 'Other';
+                        paymentBreakdown[method] = (paymentBreakdown[method] || 0) + Number(sale.paid_amount);
+                    }
+                }
+            }
+
+            return successResponse(res, {
+                shift: {
+                    id: shift.id,
+                    status: shift.status,
+                    opening_time: shift.opening_time,
+                    closing_time: shift.closing_time,
+                    opening_cash: Number(shift.opening_cash),
+                    closing_cash: Number(shift.closing_cash),
+                    expected_cash: Number(shift.expected_cash),
+                    variance: Number(shift.variance),
+                    cashier: shift.cashier,
+                    branch: shift.branch,
+                    transactions: shift.transactions
+                },
+                stats,
+                paymentBreakdown
+            }, 'Shift detailed report fetched');
+        } catch (error) { next(error); }
     }
 };
 
