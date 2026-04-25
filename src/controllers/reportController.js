@@ -40,7 +40,8 @@ const reportController = {
                 where: whereClause,
                 include: [
                     { model: Customer, as: 'customer', attributes: ['name'] },
-                    { model: User, as: 'cashier', attributes: ['name'] }
+                    { model: User, as: 'cashier', attributes: ['name'] },
+                    { model: db.SalePayment, as: 'payments' }
                 ],
                 order: [['created_at', 'DESC']]
             });
@@ -1220,24 +1221,22 @@ const reportController = {
     },
 
     // 17. Dashboard Summary
-    // 18. Card Reconciliation Report
     getCardReconciliation: async (req, res, next) => {
         try {
             const { start_date, end_date, branch_id } = req.query;
             const organization_id = req.user.organization_id;
 
-            const whereClause = {
+            const saleWhere = {
                 organization_id,
-                status: 'completed',
-                payment_method: 'Card'
+                status: 'completed'
             };
 
             if (branch_id && branch_id !== 'all') {
-                whereClause.branch_id = branch_id;
+                saleWhere.branch_id = branch_id;
             }
 
             if (start_date && end_date) {
-                whereClause.created_at = {
+                saleWhere.created_at = {
                     [Op.between]: [
                         new Date(start_date + 'T00:00:00'),
                         new Date(end_date + 'T23:59:59')
@@ -1246,18 +1245,27 @@ const reportController = {
             }
 
             const sales = await Sale.findAll({
-                where: whereClause,
+                where: saleWhere,
                 attributes: ['invoice_number', 'total_amount', 'tax_amount', 'payable_amount', 'created_at', 'payment_method'],
                 include: [
-                    { model: Branch, as: 'branch', attributes: ['name'] }
+                    { model: Branch, as: 'branch', attributes: ['name'] },
+                    { 
+                        model: db.SalePayment, 
+                        as: 'payments',
+                        where: { payment_method: 'Card' }, // Filter sales that HAVE card payments
+                        required: true // INNER JOIN effectively
+                    }
                 ],
                 order: [['created_at', 'DESC']]
             });
 
             const summary = {
-                totalSales: sales.reduce((sum, s) => sum + Number(s.payable_amount), 0),
+                totalSales: sales.reduce((sum, s) => {
+                    // We only sum the CARD portion for this report
+                    const cardPortion = s.payments.reduce((pSum, p) => pSum + Number(p.amount), 0);
+                    return sum + cardPortion;
+                }, 0),
                 count: sales.length,
-                // Mocking discrepancy for now as it usually involves third-party bank settlement data
                 discrepancyCount: 0
             };
 
