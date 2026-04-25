@@ -52,6 +52,8 @@ module.exports = (sequelize, DataTypes) => {
         Supplier.hasMany(models.PurchaseReturn, { as: 'purchase_returns', foreignKey: 'supplier_id' });
         Supplier.hasMany(models.Transaction, { as: 'transactions', foreignKey: 'supplier_id' });
         Supplier.hasMany(models.GRN, { as: 'grns', foreignKey: 'supplier_id' });
+        Supplier.hasMany(models.SupplierPayment, { as: 'payments', foreignKey: 'supplier_id' });
+
     };
 
     return Supplier;

@@ -60,6 +60,8 @@ module.exports = (sequelize, DataTypes) => {
         Transaction.belongsTo(models.Account, { as: 'account', foreignKey: 'account_id' });
         Transaction.belongsTo(models.Customer, { as: 'customer', foreignKey: 'customer_id' });
         Transaction.belongsTo(models.Supplier, { as: 'supplier', foreignKey: 'supplier_id' });
+        Transaction.hasOne(models.SupplierPaymentMethod, { as: 'supplier_payment_method', foreignKey: 'transaction_id' });
+
     };
 
     return Transaction;

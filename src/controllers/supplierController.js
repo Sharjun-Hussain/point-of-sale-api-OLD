@@ -590,126 +590,152 @@ const createSupplierPayment = async (req, res, next) => {
     const t = await db.sequelize.transaction();
     try {
         const { id: supplier_id } = req.params;
-        const { amount, payment_method, reference_number, transaction_date, description, cheque_details, branch_id: payload_branch_id } = req.body;
-        const organization_id = req.user.organization_id;
+        const { 
+            payments, 
+            total_amount: payload_total,
+            transaction_date, 
+            description, 
+            branch_id: payload_branch_id 
+        } = req.body;
         
+        const organization_id = req.user.organization_id;
         let branch_id = payload_branch_id || req.user.branch_id;
 
-        // Fallback to main branch if no branch_id is found
         if (!branch_id) {
-            const mainBranch = await db.Branch.findOne({
-                where: { organization_id, is_main: true }
-            });
-            if (mainBranch) {
-                branch_id = mainBranch.id;
-            } else {
-                // Last resort: find any active branch for this org
-                const anyBranch = await db.Branch.findOne({
-                    where: { organization_id, is_active: true }
-                });
-                if (anyBranch) branch_id = anyBranch.id;
-            }
+            const mainBranch = await db.Branch.findOne({ where: { organization_id, is_main: true } });
+            branch_id = mainBranch ? mainBranch.id : (await db.Branch.findOne({ where: { organization_id, is_active: true } }))?.id;
         }
 
-        if (!branch_id) {
-            return errorResponse(res, 'Branch ID is required but could not be determined.', 400);
-        }
+        if (!branch_id) return errorResponse(res, 'Branch ID is required', 400);
 
-        const supplier = await Supplier.findOne({
-            where: { id: supplier_id, organization_id }
-        });
-        if (!supplier) {
-            return errorResponse(res, 'Supplier not found', 404);
-        }
+        const supplier = await Supplier.findOne({ where: { id: supplier_id, organization_id } });
+        if (!supplier) return errorResponse(res, 'Supplier not found', 404);
 
-        // 1. Get Accounts Payable account
+        const total_to_pay = payload_total || payments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+        if (total_to_pay <= 0) return errorResponse(res, 'Payment amount must be greater than zero', 400);
+
+        // --- 1. GENERATE PAYABLE VOUCHER NUMBER ---
+        const dateStr = format(new Date(), 'yyyyMMdd');
+        const count = await db.SupplierPayment.count({ where: { organization_id } });
+        const voucher_number = `PV-${dateStr}-${(count + 1).toString().padStart(4, '0')}`;
+
+        // --- 2. CREATE PAYMENT HEADER ---
+        const paymentHeader = await db.SupplierPayment.create({
+            organization_id,
+            branch_id,
+            supplier_id,
+            voucher_number,
+            payment_date: transaction_date || new Date(),
+            total_amount: total_to_pay,
+            notes: description
+        }, { transaction: t });
+
+        // --- 3. ACCOUTING: Get Accounts Payable account ---
         const [apAccount] = await Account.findOrCreate({
-            where: {
-                organization_id,
-                code: '2100', // Accounts Payable
-            },
-            defaults: {
-                name: 'Accounts Payable',
-                type: 'liability'
-            },
+            where: { organization_id, code: '2100' },
+            defaults: { name: 'Accounts Payable', type: 'liability' },
             transaction: t
         });
 
-        // 2. Get Cash/Bank account based on payment method
-        const [paymentAccount] = await Account.findOrCreate({
-            where: {
-                organization_id,
-                code: payment_method === 'cash' ? '1010' : (payment_method === 'cheque' ? '2110' : '1020'), // Use Cheques Payable for cheque
-            },
-            defaults: {
-                name: payment_method === 'cash' ? 'Cash in Hand' : (payment_method === 'cheque' ? 'Cheques Payable' : 'Bank'),
-                type: payment_method === 'cheque' ? 'liability' : 'asset'
-            },
-            transaction: t
-        });
-
-        // 3. Record DEBIT in AP (decreases liability)
-        const debitTransaction = await accountingService.recordTransaction({
+        // --- 4. ACCOUTING: Record MASTER DEBIT in AP ---
+        const masterDebitTx = await accountingService.recordTransaction({
             organization_id,
             branch_id,
             account_id: apAccount.id,
             supplier_id,
-            amount,
+            amount: total_to_pay,
             type: 'debit',
-            reference_type: 'Payment',
-            reference_id: reference_number || null,
+            reference_type: 'SupplierPayment',
+            reference_id: paymentHeader.id,
             transaction_date: transaction_date || new Date(),
-            description: description || `Payment to ${supplier.name}`
+            description: `Payment Voucher: ${voucher_number} - ${description || 'N/A'}`
         }, t);
 
-        // 4. Record CREDIT in Cash/Bank/Cheque
-        // Rules: Credit Asset -> Decrease; Credit Liability -> Increase
-        await accountingService.recordTransaction({
-            organization_id,
-            branch_id,
-            account_id: paymentAccount.id,
-            supplier_id,
-            amount,
-            type: 'credit',
-            reference_type: 'Payment',
-            reference_id: debitTransaction.id,
-            transaction_date: transaction_date || new Date(),
-            description: `Payment to ${supplier.name} via ${payment_method}`
-        }, t);
+        // --- 5. SPLIT METHODS & CREDIT ENTRIES ---
+        for (const pmt of payments) {
+            const amt = parseFloat(pmt.amount || 0);
+            if (amt <= 0) continue;
 
-        // Create Cheque record if needed
-        if (payment_method === 'cheque' && cheque_details) {
-            const { bank_name, cheque_number, cheque_date, payee_payor_name } = cheque_details;
-            await Cheque.create({
+            const method = pmt.payment_method.toLowerCase();
+            
+            let accountCode = '1010'; // Default Cash
+            let accountName = 'Cash in Hand';
+            let accountType = 'asset';
+
+            if (method === 'bank' || method === 'bank_transfer' || method === 'card') {
+                accountCode = '1020';
+                accountName = 'Bank';
+            } else if (method === 'cheque') {
+                accountCode = '2110';
+                accountName = 'Cheques Payable';
+                accountType = 'liability';
+            }
+
+            const [paymentAccount] = await Account.findOrCreate({
+                where: { organization_id, code: accountCode },
+                defaults: { name: accountName, type: accountType },
+                transaction: t
+            });
+
+            // Ledger Entry (Credit)
+            const ledgerCreditTx = await accountingService.recordTransaction({
                 organization_id,
                 branch_id,
-                type: 'payable',
-                bank_name,
-                cheque_number,
-                cheque_date,
-                amount,
-                received_issued_date: transaction_date || new Date(),
-                status: 'pending',
-                payee_payor_name: payee_payor_name || supplier.name,
-                reference_type: 'purchase',
-                reference_id: debitTransaction.id // Link to the payment transaction
+                account_id: paymentAccount.id,
+                supplier_id,
+                amount: amt,
+                type: 'credit',
+                reference_type: 'SupplierPayment',
+                reference_id: paymentHeader.id,
+                transaction_date: transaction_date || new Date(),
+                description: `${pmt.notes || `Payment via ${pmt.payment_method}`} | Voucher: ${voucher_number}`
+            }, t);
+
+            // Record Breakdown
+            await db.SupplierPaymentMethod.create({
+                organization_id,
+                supplier_payment_id: paymentHeader.id,
+                payment_method: method,
+                amount: amt,
+                reference_number: pmt.reference_number,
+                transaction_id: ledgerCreditTx.id,
+                notes: pmt.notes
             }, { transaction: t });
+
+            // Handle Cheque
+            if (method === 'cheque' && pmt.cheque_details) {
+                const { bank_name, cheque_number, cheque_date, payee_payor_name } = pmt.cheque_details;
+                await Cheque.create({
+                    organization_id,
+                    branch_id,
+                    type: 'payable',
+                    bank_name,
+                    cheque_number,
+                    cheque_date,
+                    amount: amt,
+                    received_issued_date: transaction_date || new Date(),
+                    status: 'pending',
+                    payee_payor_name: payee_payor_name || supplier.name,
+                    reference_type: 'SupplierPayment',
+                    reference_id: paymentHeader.id
+                }, { transaction: t });
+            }
         }
 
-        // Log payment
+        // Audit Log
         const { ipAddress, userAgent } = auditService.getRequestContext(req);
         await auditService.logCustom(
             organization_id,
             req.user.id,
             'SUPPLIER_PAYMENT',
-            `Payment of ${amount} recorded to supplier ${supplier.name} via ${payment_method}`,
+            `Voucher ${voucher_number} recorded for ${supplier.name}. Total: ${total_to_pay}`,
             ipAddress,
             userAgent,
-            { supplier_id, amount, payment_method, reference_number }
+            { voucher_number, total_amount: total_to_pay, supplier_id }
         );
 
         await t.commit();
-        return successResponse(res, debitTransaction, 'Payment recorded successfully', 201);
+        return successResponse(res, paymentHeader, `Payment Voucher ${voucher_number} recorded successfully`, 201);
     } catch (error) {
         await t.rollback();
         next(error);
