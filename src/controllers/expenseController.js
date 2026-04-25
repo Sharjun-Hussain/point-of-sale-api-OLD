@@ -76,13 +76,12 @@ const createExpense = async (req, res, next) => {
         }
 
         const {
-            payment_method,
-            amount,
+            payments, // Array of { payment_method, amount, reference_number, notes, cheque_details }
+            total_amount: payload_total,
             expense_date,
             category_id,
             expense_category_id,
             branch_id: payload_branch_id,
-            cheque_details,
             reference_no,
             note,
             notes
@@ -98,7 +97,6 @@ const createExpense = async (req, res, next) => {
             if (mainBranch) {
                 branch_id = mainBranch.id;
             } else {
-                // Last resort: find any active branch for this org
                 const anyBranch = await Branch.findOne({
                     where: { organization_id, is_active: true }
                 });
@@ -106,15 +104,18 @@ const createExpense = async (req, res, next) => {
             }
         }
 
-        if (!branch_id) {
-            return errorResponse(res, 'No branch associated with user or organization', 400);
-        }
+        if (!branch_id) return errorResponse(res, 'Branch ID is required', 400);
 
         const actual_category_id = category_id || expense_category_id;
         const actual_notes = note || notes;
+        const total_amount = payload_total || payments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
 
+        if (total_amount <= 0) return errorResponse(res, 'Expense amount must be greater than zero', 400);
+
+        // --- 1. CREATE EXPENSE HEADER ---
         const expense = await Expense.create({
             ...bodyData,
+            amount: total_amount,
             expense_category_id: actual_category_id,
             notes: actual_notes,
             receipt_image: req.file ? req.file.path : null,
@@ -123,73 +124,94 @@ const createExpense = async (req, res, next) => {
             branch_id
         }, { transaction: t });
 
-        // Create Cheque if payment method is cheque
-        if (payment_method === 'cheque' && cheque_details) {
-            const { bank_name, cheque_number, cheque_date, payee_payor_name } = cheque_details;
-            await Cheque.create({
-                organization_id,
-                branch_id,
-                type: 'payable',
-                bank_name,
-                cheque_number,
-                cheque_date,
-                amount,
-                received_issued_date: expense_date || new Date(),
-                status: 'pending',
-                payee_payor_name: payee_payor_name || null,
-                reference_type: 'expense',
-                reference_id: expense.id
-            }, { transaction: t });
-        }
-
-        // Financial Transaction (Optional but recommended for consistency)
-        // Find Expense Account and Cash/Cheque Account
+        // --- 2. ACCOUNTING: DEBIT THE EXPENSE ACCOUNT ---
         const [expenseAccount] = await Account.findOrCreate({
             where: { organization_id, code: '5000' },
             defaults: { name: 'General Expenses', type: 'expense' },
             transaction: t
         });
 
-        const [cashAccount] = await Account.findOrCreate({
-            where: { organization_id, code: '1000' },
-            defaults: { name: 'Cash', type: 'asset' },
-            transaction: t
-        });
-
-        const [chequesPayableAccount] = await Account.findOrCreate({
-            where: { organization_id, code: '2100' },
-            defaults: { name: 'Cheques Payable', type: 'liability' },
-            transaction: t
-        });
-
-        // Debit Expense
         await accountingService.recordTransaction({
             organization_id,
             branch_id,
             account_id: expenseAccount.id,
-            amount,
+            amount: total_amount,
             type: 'debit',
             reference_type: 'Expense',
             reference_id: expense.id,
             transaction_date: expense_date || new Date(),
-            description: `Expense: ${reference_no || expense.id}`
+            description: `Expense: ${reference_no || expense.id} | ${actual_notes || 'N/A'}`
         }, t);
 
-        // Credit Cash or Cheques Payable
-        const targetAccountId = payment_method === 'cheque' ? chequesPayableAccount.id : cashAccount.id;
-        const accountName = payment_method === 'cheque' ? 'Cheques Payable' : 'Cash';
+        // --- 3. PROCESS SPLIT PAYMENTS & CREDITS ---
+        for (const pmt of payments) {
+            const amt = parseFloat(pmt.amount || 0);
+            if (amt <= 0) continue;
 
-        await accountingService.recordTransaction({
-            organization_id,
-            branch_id,
-            account_id: targetAccountId,
-            amount,
-            type: 'credit',
-            reference_type: 'Expense',
-            reference_id: expense.id,
-            transaction_date: expense_date || new Date(),
-            description: `Payment for Expense via ${accountName}`
-        }, t);
+            const method = pmt.payment_method.toLowerCase();
+            
+            let accountCode = '1010'; // Default Cash
+            let accountName = 'Cash in Hand';
+            let accountType = 'asset';
+
+            if (method === 'bank' || method === 'bank_transfer' || method === 'card' || method === 'credit_card') {
+                accountCode = '1020';
+                accountName = 'Bank';
+            } else if (method === 'cheque') {
+                accountCode = '2110';
+                accountName = 'Cheques Payable';
+                accountType = 'liability';
+            }
+
+            const [paymentAccount] = await Account.findOrCreate({
+                where: { organization_id, code: accountCode },
+                defaults: { name: accountName, type: accountType },
+                transaction: t
+            });
+
+            // Credit Entry
+            const ledgerCreditTx = await accountingService.recordTransaction({
+                organization_id,
+                branch_id,
+                account_id: paymentAccount.id,
+                amount: amt,
+                type: 'credit',
+                reference_type: 'Expense',
+                reference_id: expense.id,
+                transaction_date: expense_date || new Date(),
+                description: `Payment for Expense ${reference_no || expense.id} via ${method}`
+            }, t);
+
+            // Record Breakdown
+            await db.ExpensePaymentMethod.create({
+                organization_id,
+                expense_id: expense.id,
+                payment_method: method,
+                amount: amt,
+                reference_number: pmt.reference_number,
+                transaction_id: ledgerCreditTx.id,
+                notes: pmt.notes
+            }, { transaction: t });
+
+            // Handle Cheque
+            if (method === 'cheque' && pmt.cheque_details) {
+                const { bank_name, cheque_number, cheque_date, payee_payor_name } = pmt.cheque_details;
+                await Cheque.create({
+                    organization_id,
+                    branch_id,
+                    type: 'payable',
+                    bank_name,
+                    cheque_number,
+                    cheque_date,
+                    amount: amt,
+                    received_issued_date: expense_date || new Date(),
+                    status: 'pending',
+                    payee_payor_name: payee_payor_name || null,
+                    reference_type: 'expense',
+                    reference_id: expense.id
+                }, { transaction: t });
+            }
+        }
 
         await t.commit();
 
@@ -200,14 +222,7 @@ const createExpense = async (req, res, next) => {
             user_id,
             'Expense',
             expense.id,
-            {
-                amount,
-                expense_date: expense.expense_date,
-                payment_method,
-                expense_category_id: actual_category_id,
-                reference_no,
-                branch_id
-            },
+            { total_amount, expense_date, reference_no, methods: payments.map(p => p.payment_method) },
             ipAddress,
             userAgent
         );

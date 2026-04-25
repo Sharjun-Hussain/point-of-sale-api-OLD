@@ -66,6 +66,8 @@ module.exports = (sequelize, DataTypes) => {
         SaleReturn.belongsTo(models.Sale, { as: 'sale', foreignKey: 'sale_id' });
         SaleReturn.belongsTo(models.User, { as: 'cashier', foreignKey: 'user_id' });
         SaleReturn.hasMany(models.SaleReturnItem, { as: 'items', foreignKey: 'sale_return_id' });
+        SaleReturn.hasMany(models.SaleReturnPayment, { as: 'payments', foreignKey: 'sale_return_id' });
+
     };
 
     return SaleReturn;

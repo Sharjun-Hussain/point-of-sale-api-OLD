@@ -170,7 +170,7 @@ const createSaleReturn = async (req, res, next) => {
             }
         }
 
-        // 3. Accounting Transactions
+        // 3. Accounting & Payments
         const [cashAccount] = await Account.findOrCreate({
             where: { organization_id, code: '1000' },
             defaults: { name: 'Cash', type: 'asset' },
@@ -203,39 +203,60 @@ const createSaleReturn = async (req, res, next) => {
             description: `Sales Return for Invoice ${sale.invoice_number}`
         }, t);
 
-        // Credit Refund source (Cash or AR)
-        if (refund_amount > 0) {
-            // Case where we give back cash
-            await accountingService.recordTransaction({
-                organization_id,
-                branch_id,
-                account_id: cashAccount.id,
-                customer_id: sale.customer_id,
-                amount: refund_amount,
-                type: 'credit',
-                reference_type: 'SaleReturn',
-                reference_id: saleReturn.id,
-                transaction_date: return_date || new Date(),
-                description: `Refund for Sales Return ${return_number}`
-            }, t);
+        // Process Refunds (Split Methods)
+        // If no refunds passed in body, fallback to legacy single method
+        let refundPayments = req.body.refunds || [];
+        if (refundPayments.length === 0 && (refund_amount > 0 || refund_method)) {
+            refundPayments.push({
+                payment_method: refund_method || 'cash',
+                amount: refund_amount || 0
+            });
         }
 
-        // If it was a credit sale, reduce the AR balance for the remaining return amount
-        const appliedToAR = total_return_amount - (refund_amount || 0);
-        if (appliedToAR > 0 && sale.customer_id) {
-            await accountingService.recordTransaction({
+        for (const refund of refundPayments) {
+            const amt = parseFloat(refund.amount || 0);
+            if (amt <= 0) continue;
+
+            const method = refund.payment_method.toLowerCase();
+            let targetAccountId = cashAccount.id;
+            let description = `Refund via ${method} for Sales Return ${return_number}`;
+
+            if (method === 'ar_adjustment' || method === 'store_credit') {
+                targetAccountId = arAccount.id;
+                description = `AR Adjustment for Sales Return ${return_number}`;
+            } else if (method === 'bank' || method === 'bank_transfer') {
+                const [bankAccount] = await Account.findOrCreate({
+                    where: { organization_id, code: '1020' },
+                    defaults: { name: 'Bank', type: 'asset' },
+                    transaction: t
+                });
+                targetAccountId = bankAccount.id;
+            }
+
+            const ledgerTx = await accountingService.recordTransaction({
                 organization_id,
                 branch_id,
-                account_id: arAccount.id,
+                account_id: targetAccountId,
                 customer_id: sale.customer_id,
-                amount: appliedToAR,
+                amount: amt,
                 type: 'credit',
                 reference_type: 'SaleReturn',
                 reference_id: saleReturn.id,
                 transaction_date: return_date || new Date(),
-                description: `Adjustment to AR for Sales Return ${return_number}`
+                description
             }, t);
+
+            // Record Breakdown
+            await db.SaleReturnPayment.create({
+                organization_id,
+                sale_return_id: saleReturn.id,
+                payment_method: method,
+                amount: amt,
+                transaction_id: ledgerTx.id,
+                notes: refund.notes
+            }, { transaction: t });
         }
+
 
         // 4. Update Original Sale Status if needed (Optional)
         // If everything is returned, set status to 'returned'

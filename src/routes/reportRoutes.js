@@ -29,6 +29,8 @@ router.get('/finance/tax', checkPermission('report:view'), reportController.getT
 router.get('/finance/capital-balance', checkPermission('report:view'), reportController.getCapitalBalance);
 router.get('/finance/cheques', checkPermission('report:view'), reportController.getChequeSummary);
 router.get('/finance/trial-balance', checkPermission('report:view'), reportController.getTrialBalance);
+router.get('/finance/payments', checkPermission('report:view'), reportController.getPaymentRegister);
+
 
 // Customer Reports
 router.get('/customers/history', checkPermission('report:view'), reportController.getCustomerHistory);

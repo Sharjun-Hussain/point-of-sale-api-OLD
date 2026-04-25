@@ -33,6 +33,10 @@ module.exports = (sequelize, DataTypes) => {
         notes: {
             type: DataTypes.TEXT,
             allowNull: true
+        },
+        created_by: {
+            type: DataTypes.UUID,
+            allowNull: true
         }
     }, {
         tableName: 'supplier_payments',
@@ -44,8 +48,10 @@ module.exports = (sequelize, DataTypes) => {
         SupplierPayment.belongsTo(models.Supplier, { as: 'supplier', foreignKey: 'supplier_id' });
         SupplierPayment.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
         SupplierPayment.belongsTo(models.Branch, { as: 'branch', foreignKey: 'branch_id' });
+        SupplierPayment.belongsTo(models.User, { as: 'cashier', foreignKey: 'created_by' });
         SupplierPayment.hasMany(models.SupplierPaymentMethod, { as: 'methods', foreignKey: 'supplier_payment_id' });
     };
+
 
     return SupplierPayment;
 };

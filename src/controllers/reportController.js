@@ -1,7 +1,8 @@
 const db = require('../models');
 const {
     Sale, SaleItem, Product, ProductVariant, Customer, User,
-    Stock, Branch, Supplier, PurchaseOrder, Expense, Organization
+    Stock, Branch, Supplier, PurchaseOrder, Expense, Organization,
+    SupplierPayment, SupplierPaymentMethod, ExpensePaymentMethod, SaleReturnPayment
 } = db;
 const { Op, Sequelize } = require('sequelize');
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
@@ -1511,7 +1512,93 @@ const reportController = {
                 paymentBreakdown
             }, 'Shift detailed report fetched');
         } catch (error) { next(error); }
+    },
+    
+    // 21. Payment Register (Suppliers & Expenses)
+    getPaymentRegister: async (req, res, next) => {
+        try {
+            const { start_date, end_date, type, branch_id } = req.query; // type: supplier, expense, all
+            const organization_id = req.user.organization_id;
+
+            const dateFilter = {};
+            if (start_date && end_date) {
+                dateFilter.created_at = {
+                    [Op.between]: [new Date(start_date + 'T00:00:00'), new Date(end_date + 'T23:59:59')]
+                };
+            }
+
+            const results = [];
+
+            // 1. Supplier Payments
+            if (!type || type === 'all' || type === 'supplier') {
+                const supplierPayments = await db.SupplierPayment.findAll({
+                    where: { organization_id, ...dateFilter },
+                    include: [
+                        { model: db.Supplier, as: 'supplier', attributes: ['name'] },
+                        { model: db.User, as: 'cashier', attributes: ['name'] },
+                        { model: db.SupplierPaymentMethod, as: 'methods' }
+                    ]
+                });
+
+                supplierPayments.forEach(p => {
+                    results.push({
+                        id: p.id,
+                        voucher_number: p.voucher_number,
+                        date: p.payment_date,
+                        payee: p.supplier?.name,
+                        type: 'Supplier Settlement',
+                        total_amount: p.total_amount,
+                        status: 'completed',
+                        methods: p.methods.map(m => ({
+                            method: m.payment_method,
+                            amount: m.amount,
+                            account: m.account_id
+                        }))
+                    });
+                });
+            }
+
+            // 2. Expenses
+            if (!type || type === 'all' || type === 'expense') {
+                const expenseDateFilter = {};
+                if (start_date && end_date) {
+                    expenseDateFilter.expense_date = {
+                        [Op.between]: [new Date(start_date), new Date(end_date)]
+                    };
+                }
+
+                const expenses = await db.Expense.findAll({
+                    where: { organization_id, ...expenseDateFilter },
+                    include: [
+                        { model: db.User, as: 'cashier', attributes: ['name'] },
+                        { model: db.ExpensePaymentMethod, as: 'payments' }
+                    ]
+                });
+
+                expenses.forEach(e => {
+                    results.push({
+                        id: e.id,
+                        voucher_number: e.id.substring(0, 8).toUpperCase(),
+                        date: e.expense_date,
+                        payee: e.payee || 'Other',
+                        type: `Expense (${e.category})`,
+                        total_amount: e.amount,
+                        status: 'completed',
+                        methods: e.payments.map(m => ({
+                            method: m.payment_method,
+                            amount: m.amount
+                        }))
+                    });
+                });
+            }
+
+            // Sort by date DESC
+            results.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            return successResponse(res, results, 'Payment register fetched successfully');
+        } catch (error) { next(error); }
     }
 };
+
 
 module.exports = reportController;

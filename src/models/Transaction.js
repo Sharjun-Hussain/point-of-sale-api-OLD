@@ -61,6 +61,10 @@ module.exports = (sequelize, DataTypes) => {
         Transaction.belongsTo(models.Customer, { as: 'customer', foreignKey: 'customer_id' });
         Transaction.belongsTo(models.Supplier, { as: 'supplier', foreignKey: 'supplier_id' });
         Transaction.hasOne(models.SupplierPaymentMethod, { as: 'supplier_payment_method', foreignKey: 'transaction_id' });
+        Transaction.hasOne(models.ExpensePaymentMethod, { as: 'expense_payment_method', foreignKey: 'transaction_id' });
+        Transaction.hasOne(models.SaleReturnPayment, { as: 'sale_return_payment', foreignKey: 'transaction_id' });
+
+
 
     };
 

@@ -627,8 +627,10 @@ const createSupplierPayment = async (req, res, next) => {
             voucher_number,
             payment_date: transaction_date || new Date(),
             total_amount: total_to_pay,
-            notes: description
+            notes: description,
+            created_by: req.user.id
         }, { transaction: t });
+
 
         // --- 3. ACCOUTING: Get Accounts Payable account ---
         const [apAccount] = await Account.findOrCreate({
