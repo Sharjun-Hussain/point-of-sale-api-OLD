@@ -35,7 +35,8 @@ const getAllSales = async (req, res, next) => {
                         { model: Product, as: 'product', attributes: ['name', 'image'] },
                         { model: ProductVariant, as: 'variant', attributes: ['name', 'image'] }
                     ]
-                }
+                },
+                { model: SalePayment, as: 'payments' }
             ],
             distinct: true, // Important for correct count with includes
             order: [['created_at', 'DESC']]
@@ -74,7 +75,8 @@ const getSaleById = async (req, res, next) => {
                         { model: Product, as: 'product', attributes: ['name', 'code'] },
                         { model: ProductVariant, as: 'variant', attributes: ['name', 'sku'] }
                     ]
-                }
+                },
+                { model: SalePayment, as: 'payments' }
             ]
         });
 

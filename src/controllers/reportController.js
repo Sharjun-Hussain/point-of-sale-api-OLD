@@ -52,24 +52,39 @@ const reportController = {
             const totalDiscounts = sales.reduce((sum, sale) => sum + Number(sale.discount_amount), 0);
             const totalTax = sales.reduce((sum, sale) => sum + Number(sale.tax_amount), 0);
 
-            const paymentBreakdown = sales.reduce((acc, sale) => {
-                let category = sale.payment_method || 'Other';
+            // ── Split Payment Aware Breakdown ──────────────────────────────────────
+            const categoryAmounts = {};
+            const categoryCounts = {};
 
-                // If the sale is not fully paid, categorize it as "Credit" or "Partial"
-                // However, user specifically asked for "Credit" with amber color
-                if (sale.payment_status === 'unpaid' || sale.payment_status === 'partially_paid') {
-                    category = 'Credit';
+            for (const sale of sales) {
+                // Determine if there's any credit component
+                const isPartiallyUnpaid = sale.payment_status === 'unpaid' || sale.payment_status === 'partially_paid';
+                const remaining = Number(sale.payable_amount) - Number(sale.paid_amount);
+
+                if (isPartiallyUnpaid && remaining > 0) {
+                    categoryAmounts['Credit'] = (categoryAmounts['Credit'] || 0) + remaining;
+                    categoryCounts['Credit'] = (categoryCounts['Credit'] || 0) + 1;
                 }
 
-                acc[category] = (acc[category] || 0) + 1;
-                return acc;
-            }, {});
+                // Process actual payments
+                if (sale.payments && sale.payments.length > 0) {
+                    for (const pmt of sale.payments) {
+                        const method = pmt.payment_method || 'Other';
+                        categoryAmounts[method] = (categoryAmounts[method] || 0) + Number(pmt.amount);
+                        categoryCounts[method] = (categoryCounts[method] || 0) + 1;
+                    }
+                } else {
+                    // Fallback for legacy data/drafts
+                    const method = sale.payment_method || 'Other';
+                    categoryAmounts[method] = (categoryAmounts[method] || 0) + Number(sale.paid_amount);
+                    categoryCounts[method] = (categoryCounts[method] || 0) + 1;
+                }
+            }
 
-            // Calculate percentages for breakdown
-            const totalCount = sales.length;
+            // Calculate percentages based on AMOUNT (more useful for financial reports)
             const breakdownPercentages = {};
-            for (const [category, count] of Object.entries(paymentBreakdown)) {
-                breakdownPercentages[category] = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
+            for (const [category, amount] of Object.entries(categoryAmounts)) {
+                breakdownPercentages[category] = totalSales > 0 ? Math.round((amount / totalSales) * 100) : 0;
             }
 
             return successResponse(res, {
@@ -77,23 +92,25 @@ const reportController = {
                     id: s.invoice_number || s.id.substring(0, 8).toUpperCase(),
                     date: s.created_at,
                     customer: s.customer ? s.customer.name : 'Walk-in',
-                    total: Number(s.payable_amount), // Use payable_amount as total revenue
+                    total: Number(s.payable_amount), 
                     subtotal: Number(s.total_amount),
                     discount: Number(s.discount_amount),
                     tax: Number(s.tax_amount),
                     status: s.status,
-                    type: s.payment_method, // Cash/Card/Cheque
-                    payment_status: s.payment_status, // unpaid/partially_paid/paid
+                    type: s.payment_method, // legacy field remains for simple list
+                    payment_status: s.payment_status, 
                     paid_amount: Number(s.paid_amount),
-                    cashier: s.cashier ? s.cashier.name : 'Unknown'
+                    cashier: s.cashier ? s.cashier.name : 'Unknown',
+                    payments: s.payments // include detail
                 })),
                 stats: {
                     totalSales,
-                    totalTransactions: totalCount,
+                    totalTransactions: sales.length,
                     totalDiscounts,
                     totalTax,
-                    avgValue: totalCount > 0 ? totalSales / totalCount : 0,
-                    paymentBreakdown: breakdownPercentages
+                    avgValue: sales.length > 0 ? totalSales / sales.length : 0,
+                    paymentBreakdown: breakdownPercentages,
+                    paymentAmounts: categoryAmounts
                 }
             }, 'Daily sales report fetched successfully');
 
