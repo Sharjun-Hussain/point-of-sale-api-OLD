@@ -1,6 +1,7 @@
 const db = require('../models');
 const { Shift, ShiftTransaction, User, Branch } = db;
 const { successResponse, errorResponse } = require('../utils/responseHandler');
+const auditService = require('../services/auditService');
 
 /**
  * Open a new shift
@@ -37,6 +38,20 @@ const openShift = async (req, res, next) => {
             user_id,
             opening_cash: opening_cash || 0.00,
             status: 'open'
+        });
+
+        // Audit Log: Shift Opened
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.log({
+            organizationId: organization_id,
+            userId: user_id,
+            action: 'SHIFT_OPEN',
+            entityType: 'Shift',
+            entityId: shift.id,
+            description: `Shift opened with opening cash: ${opening_cash || 0.00}`,
+            newValues: { opening_cash: shift.opening_cash, branch_id: targetBranchId },
+            ipAddress,
+            userAgent
         });
 
         return successResponse(res, shift, 'Shift opened successfully', 201);
@@ -89,6 +104,21 @@ const addTransaction = async (req, res, next) => {
             type,
             amount,
             notes
+        });
+
+        // Audit Log: Shift Transaction
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.log({
+            organizationId: req.user.organization_id,
+            userId: user_id,
+            action: 'SHIFT_TRANSACTION',
+            entityType: 'ShiftTransaction',
+            entityId: transaction.id,
+            description: `Recorded shift ${type.replace('_', ' ')}: ${amount}`,
+            newValues: transaction,
+            ipAddress,
+            userAgent,
+            metadata: { shift_id }
         });
 
         return successResponse(res, transaction, 'Transaction recorded successfully', 201);
@@ -155,6 +185,21 @@ const closeShift = async (req, res, next) => {
         shift.status = 'closed';
 
         await shift.save({ transaction: t });
+        
+        // Audit Log: Shift Closed
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.log({
+            organizationId: req.user.organization_id,
+            userId: user_id,
+            action: 'SHIFT_CLOSE',
+            entityType: 'Shift',
+            entityId: shift.id,
+            description: `Shift closed. Expected: ${expected_cash}, Actual: ${closing_cash}, Variance: ${variance}`,
+            newValues: { closing_cash, expected_cash, variance },
+            ipAddress,
+            userAgent
+        });
+
         await t.commit();
 
         return successResponse(res, shift, 'Shift closed successfully');

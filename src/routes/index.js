@@ -5,6 +5,7 @@ const router = express.Router();
 const authRoutes = require('./auth');
 const authController = require('../controllers/authController');
 const authenticate = require('../middleware/auth');
+const auditMiddleware = require('../middleware/auditLogger');
 const upload = require('../middleware/upload');
 const userRoutes = require('./users');
 const roleRoutes = require('./roles');
@@ -36,6 +37,9 @@ const accountRoutes = require('./accounts');
 const stockRoutes = require('./stocks');
 const maintenanceRoutes = require('./maintenance');
 const shiftRoutes = require('./shifts');
+
+// Activate global audit logger for all non-GET mutations
+router.use(auditMiddleware());
 
 // Use routes
 router.use('/auth', authRoutes);
