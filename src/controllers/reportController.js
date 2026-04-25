@@ -1597,8 +1597,122 @@ const reportController = {
 
             return successResponse(res, results, 'Payment register fetched successfully');
         } catch (error) { next(error); }
+    },
+
+    // 22. Inventory Insights
+    getInventoryInsights: async (req, res, next) => {
+        try {
+            const organization_id = req.user.organization_id;
+            const { branch_id } = req.query;
+
+            const stockWhere = { organization_id };
+            if (branch_id && branch_id !== 'all') stockWhere.branch_id = branch_id;
+
+            // 1. Stock Aging & Valuation
+            const stocks = await db.Stock.findAll({
+                where: stockWhere,
+                include: [
+                    { model: db.Product, as: 'product', attributes: ['name'] },
+                    { model: db.ProductVariant, as: 'variant', attributes: ['name', 'cost_price', 'sales_price'] }
+                ]
+            });
+
+            const now = new Date();
+            const agingDistribution = {
+                '0-30_days': 0,
+                '31-60_days': 0,
+                '61-90_days': 0,
+                '90+_days': 0
+            };
+
+            let totalStockValue = 0;
+            let totalPotentialRevenue = 0;
+
+            stocks.forEach(s => {
+                const ageInDays = Math.floor((now - new Date(s.updated_at)) / (1000 * 60 * 60 * 24));
+                const qty = Number(s.quantity);
+                const cost = Number(s.variant?.cost_price || 0);
+                const price = Number(s.variant?.sales_price || 0);
+
+                totalStockValue += (qty * cost);
+                totalPotentialRevenue += (qty * price);
+
+                if (ageInDays <= 30) agingDistribution['0-30_days'] += (qty * cost);
+                else if (ageInDays <= 60) agingDistribution['31-60_days'] += (qty * cost);
+                else if (ageInDays <= 90) agingDistribution['61-90_days'] += (qty * cost);
+                else agingDistribution['90+_days'] += (qty * cost);
+            });
+
+            // 2. Performance Metrics (Last 30 Days)
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+            const saleItems = await db.SaleItem.findAll({
+                include: [
+                    { 
+                        model: db.Sale, 
+                        as: 'sale', 
+                        where: { 
+                            organization_id, 
+                            status: 'completed',
+                            created_at: { [Op.gte]: thirtyDaysAgo }
+                        },
+                        attributes: []
+                    },
+                    { model: db.ProductVariant, as: 'variant', attributes: ['cost_price', 'name'] },
+                    { model: db.Product, as: 'product', attributes: ['name'] }
+                ]
+            });
+
+            const performanceByVariant = {};
+
+            saleItems.forEach(item => {
+                const vid = item.variant_id;
+                if (!performanceByVariant[vid]) {
+                    performanceByVariant[vid] = {
+                        name: `${item.product?.name} (${item.variant?.name})`,
+                        soldQty: 0,
+                        revenue: 0,
+                        cogs: 0,
+                        profit: 0
+                    };
+                }
+                const qty = Number(item.quantity);
+                const revenue = Number(item.total_amount);
+                const cogs = Number(item.variant?.cost_price || 0) * qty;
+
+                performanceByVariant[vid].soldQty += qty;
+                performanceByVariant[vid].revenue += revenue;
+                performanceByVariant[vid].cogs += cogs;
+                performanceByVariant[vid].profit += (revenue - cogs);
+            });
+
+            const topPerformers = Object.values(performanceByVariant)
+                .map(p => ({
+                    ...p,
+                    roi: p.cogs > 0 ? (p.profit / p.cogs) * 100 : 0
+                }))
+                .sort((a, b) => b.profit - a.profit)
+                .slice(0, 10);
+
+            const monthlyCogs = Object.values(performanceByVariant).reduce((acc, p) => acc + p.cogs, 0);
+            const inventoryTurnover = totalStockValue > 0 ? (monthlyCogs / totalStockValue) : 0;
+
+            return successResponse(res, {
+                summary: {
+                    totalStockValue,
+                    totalPotentialRevenue,
+                    potentialProfit: totalPotentialRevenue - totalStockValue,
+                    inventoryTurnover: inventoryTurnover.toFixed(2),
+                    monthlyCogs
+                },
+                agingDistribution,
+                topPerformers
+            }, 'Inventory insights fetched successfully');
+        } catch (error) { next(error); }
     }
 };
+
 
 
 module.exports = reportController;

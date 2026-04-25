@@ -22,6 +22,7 @@ router.get('/stocks/value', checkPermission('report:view'), reportController.get
 router.get('/stocks/low-stock', checkPermission('report:view'), reportController.getLowStock);
 router.get('/stocks/transfers', checkPermission('report:view'), reportController.getStockTransfers);
 router.get('/stocks/summary', checkPermission('report:view'), reportController.getStockSummary);
+router.get('/stocks/insights', checkPermission('report:view'), reportController.getInventoryInsights);
 
 // Financial Reports
 router.get('/finance/profit-loss', checkPermission('report:view'), reportController.getProfitLoss);
