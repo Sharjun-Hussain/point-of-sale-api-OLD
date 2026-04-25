@@ -119,19 +119,21 @@ const closeShift = async (req, res, next) => {
         }
 
         // Calculate expected cash
-        // Example: logic would require pulling Sales recorded during this shift
         const sales = await db.Sale.findAll({
             where: { shift_id },
+            include: [{ model: db.SalePayment, as: 'payments' }],
             transaction: t
         });
         
         let cashSales = 0;
         for (const sale of sales) {
-            // Support backward compat single payment string 'Cash' or new SalePayment model (future)
-            if (sale.payment_method && sale.payment_method.toLowerCase() === 'cash') {
-                cashSales += parseFloat(sale.paid_amount || sale.payable_amount);
+            if (sale.payments && sale.payments.length > 0) {
+                const cashLine = sale.payments.filter(p => p.payment_method.toLowerCase() === 'cash');
+                cashSales += cashLine.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+            } else if (sale.payment_method && sale.payment_method.toLowerCase() === 'cash') {
+                // Fallback for legacy records created before SalePayment migration
+                cashSales += parseFloat(sale.paid_amount || 0);
             }
-            // For SplitPayments we would loop through SalePayments where method == 'cash'
         }
 
         let payIns = 0;

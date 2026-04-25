@@ -91,10 +91,9 @@ module.exports = (sequelize, DataTypes) => {
             otherKey: 'user_id' 
         });
         Sale.hasMany(models.SaleItem, { as: 'items', foreignKey: 'sale_id' });
+        Sale.hasMany(models.SalePayment, { as: 'payments', foreignKey: 'sale_id' });
         Sale.hasMany(models.SaleReturn, { as: 'returns', foreignKey: 'sale_id' });
         Sale.hasMany(models.Cheque, { as: 'cheques', foreignKey: 'reference_id', constraints: false });
-        // NOTE: Although we added shift_id above, we check if models.Shift exists before associating 
-        // to prevent circular dependency races during dynamic loading if Shift is loaded after Sale.
         if(models.Shift) {
             Sale.belongsTo(models.Shift, { as: 'shift', foreignKey: 'shift_id' });
         }

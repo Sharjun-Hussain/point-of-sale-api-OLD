@@ -1,5 +1,5 @@
 const db = require('../models');
-const { Sale, SaleItem, Product, ProductVariant, Stock, ProductBatch, Transaction, Account, Customer, Branch, User, SaleEmployee, Cheque } = db;
+const { Sale, SaleItem, SalePayment, Product, ProductVariant, Stock, ProductBatch, Transaction, Account, Customer, Branch, User, SaleEmployee, Cheque } = db;
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
 const auditService = require('../services/auditService');
@@ -93,13 +93,16 @@ const createSale = async (req, res, next) => {
             customer_id,
             branch_id: payload_branch_id,
             items, // Array of { product_id, product_variant_id, quantity, discount_amount }
-            payment_method,
+            payments, // Array of { payment_method, amount, transaction_reference, notes }
+            payment_method: legacy_method,
+            paid_amount: legacy_paid_amount,
             notes,
             adjustment,
             status: payload_status,
             seller_ids,
             cheque_details,
             is_wholesale: payload_is_wholesale,
+            shift_id
         } = req.body;
 
         const organization_id = req.user.organization_id;
@@ -202,13 +205,33 @@ const createSale = async (req, res, next) => {
         const safe_adjustment = parseFloat(adjustment || 0);
         final_payable_amount += safe_adjustment;
 
-        // --- 2. VALIDATE PAYMENTS (Logic Fix) ---
-        let paid_amount = parseFloat(req.body.paid_amount || 0);
+        // --- 2. VALIDATE PAYMENTS (Split Payments Integration) ---
+        let processedPayments = [];
+        let total_paid = 0;
+
+        if (payments && Array.isArray(payments) && payments.length > 0) {
+            processedPayments = payments.map(p => ({
+                payment_method: p.payment_method || 'cash',
+                amount: parseFloat(p.amount || 0),
+                transaction_reference: p.transaction_reference || null,
+                notes: p.notes || null
+            }));
+            total_paid = processedPayments.reduce((sum, p) => sum + p.amount, 0);
+        } else if (legacy_method || legacy_paid_amount) {
+            // Backward compatibility
+            const amount = parseFloat(legacy_paid_amount || 0);
+            processedPayments = [{
+                payment_method: legacy_method || 'cash',
+                amount: amount,
+                transaction_reference: null,
+                notes: null
+            }];
+            total_paid = amount;
+        }
 
         // Rule: Guest/Walk-in must pay in full (SKIP for drafts)
-        if (payload_status !== 'draft' && !customer_id && paid_amount < final_payable_amount) {
-            // Allow small rounding diffs? e.g. 1.0
-            if ((final_payable_amount - paid_amount) > 1.0) {
+        if (payload_status !== 'draft' && !customer_id && total_paid < final_payable_amount) {
+            if ((final_payable_amount - total_paid) > 1.0) {
                 await t.rollback();
                 return errorResponse(res, 'Walk-in (Guest) customers must pay in full.', 400);
             }
@@ -216,10 +239,9 @@ const createSale = async (req, res, next) => {
 
         // Determine Status
         let payment_status = 'unpaid';
-        if (paid_amount >= final_payable_amount) {
+        if (total_paid >= final_payable_amount) {
             payment_status = 'paid';
-            // paid_amount = final_payable_amount; // Keep what was paid
-        } else if (paid_amount > 0) {
+        } else if (total_paid > 0) {
             payment_status = 'partially_paid';
         }
 
@@ -242,15 +264,16 @@ const createSale = async (req, res, next) => {
             discount_amount: final_discount_amount,
             tax_amount: final_tax_amount,
             payable_amount: final_payable_amount,
-            paid_amount,
+            paid_amount: total_paid,
             payment_status,
-            payment_method,
+            payment_method: processedPayments.length === 1 ? processedPayments[0].payment_method : 'split',
             status: payload_status || 'completed',
             notes,
-            is_wholesale: !!payload_is_wholesale
+            is_wholesale: !!payload_is_wholesale,
+            shift_id: shift_id || null
         }, { transaction: t });
 
-        // --- 5. CREATE ITEMS ---
+        // --- 5. CREATE ITEMS & PAYMENTS ---
         for (const pItem of processedItems) {
             await SaleItem.create({
                 sale_id: sale.id,
@@ -258,9 +281,18 @@ const createSale = async (req, res, next) => {
             }, { transaction: t });
         }
 
-        // --- 6. HANDLE CHEQUE ---
-        if (payment_method === 'cheque' && cheque_details) {
+        for (const pmt of processedPayments) {
+            await SalePayment.create({
+                sale_id: sale.id,
+                organization_id,
+                ...pmt
+            }, { transaction: t });
+        }
+
+        // --- 6. HANDLE CHEQUE (Legacy Logic - ideally moved to Payment loops) ---
+        if (processedPayments.some(p => p.payment_method === 'cheque') && cheque_details) {
             const { bank_name, cheque_number, cheque_date, payee_payor_name } = cheque_details;
+            const chequePayment = processedPayments.find(p => p.payment_method === 'cheque');
             await Cheque.create({
                 organization_id,
                 branch_id,
@@ -268,7 +300,7 @@ const createSale = async (req, res, next) => {
                 bank_name,
                 cheque_number,
                 cheque_date,
-                amount: paid_amount,
+                amount: chequePayment.amount,
                 received_issued_date: new Date(),
                 status: 'pending',
                 payee_payor_name: payee_payor_name || (sale.customer_id ? (await Customer.findOne({ where: { id: sale.customer_id, organization_id }, transaction: t })).name : 'Guest'),
@@ -384,27 +416,44 @@ const createSale = async (req, res, next) => {
                 description: `Sales Revenue from Invoice ${invoice_number}`
             }, t);
 
-            // B. Debit Payments (Cash/Cheque) -> Increase Asset
-            if (paid_amount > 0) {
-                const targetAccount = payment_method === 'cheque' ? chequesInHandAccount : cashAccount;
-                const accountName = payment_method === 'cheque' ? 'Cheques in Hand' : 'Cash';
+            // B. Debit Payments (Multi-method support) -> Increase Asset
+            for (const pmt of processedPayments) {
+                if (pmt.amount <= 0) continue;
+
+                // Map payment methods to accounts
+                let accountCode = '1000'; // Default Cash
+                let accountName = 'Cash';
+
+                if (pmt.payment_method === 'bank_transfer' || pmt.payment_method === 'card') {
+                    accountCode = '1010';
+                    accountName = 'Bank/Card';
+                } else if (pmt.payment_method === 'cheque') {
+                    accountCode = '1050';
+                    accountName = 'Cheques in Hand';
+                }
+
+                const [pmtAccount] = await Account.findOrCreate({
+                    where: { organization_id, code: accountCode },
+                    defaults: { name: accountName, type: 'asset' },
+                    transaction: t
+                });
 
                 await accountingService.recordTransaction({
                     organization_id,
                     branch_id,
-                    account_id: targetAccount.id,
+                    account_id: pmtAccount.id,
                     customer_id: customer_id || null,
-                    amount: paid_amount,
+                    amount: pmt.amount,
                     type: 'debit',
                     reference_type: 'Sale',
                     reference_id: sale.id,
                     transaction_date: date,
-                    description: `${accountName} payment for Invoice ${invoice_number}`
+                    description: `${pmt.payment_method.toUpperCase()} payment for Invoice ${invoice_number}`
                 }, t);
             }
 
             // C. Debit AR (Remaining) -> Increase Asset
-            const remaining = final_payable_amount - paid_amount;
+            const remaining = final_payable_amount - total_paid;
             if (remaining > 0 && customer_id) {
                 await accountingService.recordTransaction({
                     organization_id,
@@ -446,6 +495,7 @@ const createSale = async (req, res, next) => {
                 payable_amount: sale.payable_amount,
                 paid_amount: sale.paid_amount,
                 payment_method: sale.payment_method,
+                payments: processedPayments,
                 items_count: items.length,
                 sellers: seller_ids || [req.user.id]
             },
