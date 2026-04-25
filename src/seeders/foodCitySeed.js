@@ -192,7 +192,7 @@ const seedFoodCity = async () => {
         // 4. Attributes for Variants
         const attributes = [
             { name: 'Size', values: ['Small', 'Medium', 'Large', 'Family Pack', 'Value Pack'] },
-            { name: 'Weight/Volume', values: ['100g', '250g', '500g', '1kg', '2kg', '5kg', '180ml', '500ml', '1L', '1.5L', '2L'] },
+            { name: 'Weight/Volume', values: ['100g', '250g', '500g', '1kg', '2kg', '5kg', '10kg', '180ml', '250ml', '500ml', '1L', '1.5L', '2L'] },
             { name: 'Flavor', values: ['Original', 'Chocolate', 'Vanilla', 'Strawberry', 'Lemon', 'Spicy'] }
         ];
         const attrMap = {};
@@ -235,6 +235,7 @@ const seedFoodCity = async () => {
         let productCounter = 0;
         const usedCodes = new Set();
         const usedSkus = new Set();
+        const usedBarcodes = new Set();
 
         const generateCode = (prefix) => {
             let code;
@@ -254,11 +255,22 @@ const seedFoodCity = async () => {
             return sku;
         };
 
+        const generateBarcode = () => {
+            let barcode;
+            do {
+                barcode = Math.floor(Math.random() * 900000000000 + 100000000000).toString();
+            } while (usedBarcodes.has(barcode));
+            usedBarcodes.add(barcode);
+            return barcode;
+        };
+
         for (const catGroup of foodCityData) {
             for (const item of catGroup.items) {
-                if (productCounter >= 55) break; // Supporting up to 55 to be safe
+                if (productCounter >= 55) break; 
 
+                const isMultiVariant = Math.random() > 0.3; // 70% chance of being multi-variant
                 const pCode = generateCode(item.name.substring(0, 3).toUpperCase());
+
                 const [product] = await Product.findOrCreate({
                     where: { name: item.name, organization_id },
                     defaults: {
@@ -271,45 +283,55 @@ const seedFoodCity = async () => {
                         sub_category_id: subCatMap[`${catGroup.category}:${catGroup.subs[0]}`],
                         unit_id: unitMap[item.unit],
                         is_active: true,
-                        is_variant: true
+                        is_variant: isMultiVariant
                     },
                     transaction: t
                 });
 
                 // Determine variant options based on category
                 let variantsToCreate = [];
-                if (catGroup.category === 'Beverages') {
-                    variantsToCreate = ['180ml', '250ml', '500ml', '1L', '1.5L', '2L'].map(v => ({ name: `${item.name} ${v}`, attr: 'Weight/Volume', val: v }));
-                } else if (catGroup.category === 'Grocery') {
-                    variantsToCreate = ['500g', '1kg', '2kg', '5kg', '10kg'].map(v => ({ name: `${item.name} ${v}`, attr: 'Weight/Volume', val: v }));
-                } else if (catGroup.category === 'Snacks & Confectionery') {
-                    variantsToCreate = ['Small', 'Medium', 'Large', 'Family Pack', 'Value Pack'].map(v => ({ name: `${item.name} ${v}`, attr: 'Size', val: v }));
-                } else if (catGroup.category === 'Dairy & Chilled') {
-                    variantsToCreate = ['Original', 'Strawberry', 'Vanilla', 'Chocolate', 'Lemon'].map(v => ({ name: `${item.name} ${v}`, attr: 'Flavor', val: v }));
-                } else if (catGroup.category === 'Household & Personal Care') {
-                    variantsToCreate = ['100g', '250g', '500g', '1kg', '1L', '2L'].map(v => ({ name: `${item.name} ${v}`, attr: 'Weight/Volume', val: v }));
+                if (!isMultiVariant) {
+                    // Single variant (Master Default)
+                    variantsToCreate = [{ name: null, attr: null, val: null }];
                 } else {
-                    variantsToCreate = ['Value Pack', 'Family Pack'].map(v => ({ name: `${item.name} ${v}`, attr: 'Size', val: v }));
+                    if (catGroup.category === 'Beverages') {
+                        variantsToCreate = ['180ml', '250ml', '500ml', '1L', '1.5L', '2L'].map(v => ({ name: `${item.name} ${v}`, attr: 'Weight/Volume', val: v }));
+                    } else if (catGroup.category === 'Grocery') {
+                        variantsToCreate = ['500g', '1kg', '2kg', '5kg', '10kg'].map(v => ({ name: `${item.name} ${v}`, attr: 'Weight/Volume', val: v }));
+                    } else if (catGroup.category === 'Snacks & Confectionery') {
+                        variantsToCreate = ['Small', 'Medium', 'Large', 'Family Pack', 'Value Pack'].map(v => ({ name: `${item.name} ${v}`, attr: 'Size', val: v }));
+                    } else if (catGroup.category === 'Dairy & Chilled') {
+                        variantsToCreate = ['Original', 'Strawberry', 'Vanilla', 'Chocolate', 'Lemon'].map(v => ({ name: `${item.name} ${v}`, attr: 'Flavor', val: v }));
+                    } else if (catGroup.category === 'Household & Personal Care') {
+                        variantsToCreate = ['100g', '250g', '500g', '1kg', '1L', '2L'].map(v => ({ name: `${item.name} ${v}`, attr: 'Weight/Volume', val: v }));
+                    } else {
+                        variantsToCreate = ['Value Pack', 'Family Pack'].map(v => ({ name: `${item.name} ${v}`, attr: 'Size', val: v }));
+                    }
                 }
 
-                // Hit 200 total target
                 for (const vData of variantsToCreate) {
-                    if (totalVariantsCount >= 250) break; // Allow some buffer
-
+                    if (totalVariantsCount >= 250) break; 
 
                     const vSku = generateSku(pCode);
+                    const vBarcode = generateBarcode();
                     const cost = parseFloat((50 + Math.random() * 500).toFixed(2));
                     const price = parseFloat((cost * 1.25).toFixed(2));
                     const stockQty = Math.floor(20 + Math.random() * 200);
 
                     const [variant] = await ProductVariant.findOrCreate({
-                        where: { name: vData.name, product_id: product.id, organization_id },
+                        where: { 
+                            name: vData.name, 
+                            product_id: product.id, 
+                            organization_id 
+                        },
                         defaults: {
                             id: crypto.randomUUID(),
                             product_id: product.id,
                             organization_id,
                             name: vData.name,
                             sku: vSku,
+                            code: vSku, // Use SKU as the variant code for uniqueness
+                            barcode: vBarcode,
                             price: price,
                             cost_price: cost,
                             stock_quantity: stockQty,
@@ -318,19 +340,29 @@ const seedFoodCity = async () => {
                         transaction: t
                     });
 
+                    // Update existing ones if they missing SKU/Barcode/Code from previous run
+                    if (!variant.sku || !variant.barcode || !variant.code) {
+                        variant.sku = variant.sku || vSku;
+                        variant.barcode = variant.barcode || vBarcode;
+                        variant.code = variant.code || variant.sku || vSku;
+                        await variant.save({ transaction: t });
+                    }
+
                     // Link Attributes
-                    const attrValId = attrValueMap[`${vData.attr}:${vData.val}`];
-                    if (attrValId) {
-                        await VariantAttributeValue.findOrCreate({
-                            where: { product_variant_id: variant.id, attribute_value_id: attrValId, organization_id },
-                            defaults: {
-                                id: crypto.randomUUID(),
-                                product_variant_id: variant.id,
-                                attribute_value_id: attrValId,
-                                organization_id
-                            },
-                            transaction: t
-                        });
+                    if (vData.attr && vData.val) {
+                        const attrValId = attrValueMap[`${vData.attr}:${vData.val}`];
+                        if (attrValId) {
+                            await VariantAttributeValue.findOrCreate({
+                                where: { product_variant_id: variant.id, attribute_value_id: attrValId, organization_id },
+                                defaults: {
+                                    id: crypto.randomUUID(),
+                                    product_variant_id: variant.id,
+                                    attribute_value_id: attrValId,
+                                    organization_id
+                                },
+                                transaction: t
+                            });
+                        }
                     }
 
                     // Create Stock Record
@@ -372,7 +404,7 @@ const seedFoodCity = async () => {
 
         await t.commit();
         console.log(`✅ Seeded ${productCounter} products correctly.`);
-        console.log(`✅ Seeded ${totalVariantsCount} variants with opening stocks.`);
+        console.log(`✅ Seeded ${totalVariantsCount} variants with SKUs, barcodes, and opening stocks.`);
         console.log('✨ Food City Seeding Completed Successfully!');
         process.exit(0);
     } catch (error) {
