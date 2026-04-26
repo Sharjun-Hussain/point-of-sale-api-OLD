@@ -4,6 +4,7 @@ const { successResponse, errorResponse, paginatedResponse } = require('../utils/
 const { getPagination } = require('../utils/pagination');
 const auditService = require('../services/auditService');
 const accountingService = require('../services/accountingService');
+const { checkLowStockAlert, checkHighSalesAlert } = require('../utils/alertManager');
 const { Sequelize, Op } = require('sequelize');
 
 /**
@@ -508,6 +509,25 @@ const createSale = async (req, res, next) => {
                 branch_id: sale.branch_id
             }
         );
+
+        // --- 10. TRIGGER ALERTS ---
+        if (sale.status === 'completed') {
+            // High Sales Alert
+            checkHighSalesAlert(createdSale).catch(err => console.error('[ALERTS] High sales trigger failed:', err));
+            
+            // Low Stock Alerts (per item)
+            for (const pItem of processedItems) {
+                const stockWhere = { organization_id, branch_id, product_id: pItem.product_id };
+                stockWhere.product_variant_id = pItem.product_variant_id || null;
+                
+                // Fetch current stock after decrement
+                Stock.findOne({ where: stockWhere }).then(stock => {
+                    if (stock) {
+                        checkLowStockAlert(organization_id, branch_id, pItem.product_id, pItem.product_variant_id, stock.quantity);
+                    }
+                }).catch(err => console.error('[ALERTS] Low stock check failed:', err));
+            }
+        }
 
         return successResponse(res, createdSale, 'Sale created successfully', 201);
 

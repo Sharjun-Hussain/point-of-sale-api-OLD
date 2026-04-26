@@ -14,6 +14,7 @@ const { successResponse, errorResponse, paginatedResponse } = require('../utils/
 const { getPagination } = require('../utils/pagination');
 const { Op } = require('sequelize');
 const auditService = require('../services/auditService');
+const { checkLowStockAlert } = require('../utils/alertManager');
 
 /**
  * Get All Stocks
@@ -202,6 +203,23 @@ const createStockAdjustment = async (req, res, next) => {
         );
 
         await t.commit();
+
+        // Trigger Alert Check (Post-transaction)
+        if (type !== 'addition') {
+            Stock.findOne({
+                where: {
+                    organization_id,
+                    branch_id,
+                    product_id,
+                    product_variant_id: product_variant_id || null
+                }
+            }).then(stock => {
+                if (stock) {
+                    checkLowStockAlert(organization_id, branch_id, product_id, product_variant_id, stock.quantity);
+                }
+            }).catch(console.error);
+        }
+
         return successResponse(res, adjustment, 'Stock adjusted successfully', 201);
     } catch (error) {
         await t.rollback();

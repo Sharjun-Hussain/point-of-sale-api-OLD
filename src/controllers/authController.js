@@ -4,6 +4,7 @@ const { generateAccessToken, generateRefreshToken, verifyToken, decodeToken } = 
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const { sendEmailWithSettings } = require('../utils/mailer');
 const auditService = require('../services/auditService');
+const { checkUnusualLoginActivity } = require('../utils/alertManager');
 const upload = require('../middleware/upload');
 const crypto = require('crypto');
 const { Op } = require('sequelize');
@@ -98,6 +99,9 @@ const login = async (req, res, next) => {
             auditService.getUserAgent(req),
             true
         );
+        
+        // --- TRIGGER ALERTS ---
+        checkUnusualLoginActivity(user, auditService.getIpAddress(req), auditService.getUserAgent(req)).catch(err => console.error('[ALERTS] Login alert failed:', err));
 
         // Consolidate branches from both User (Super Admin) and Employee assignments
         let allBranches = [...(user.branches || [])];
