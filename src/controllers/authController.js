@@ -4,7 +4,7 @@ const { generateAccessToken, generateRefreshToken, verifyToken, decodeToken } = 
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const { sendEmailWithSettings } = require('../utils/mailer');
 const auditService = require('../services/auditService');
-const { checkUnusualLoginActivity } = require('../utils/alertManager');
+const { checkUnusualLoginActivity, checkFailedLoginAlert } = require('../utils/alertManager');
 const upload = require('../middleware/upload');
 const crypto = require('crypto');
 const { Op } = require('sequelize');
@@ -71,6 +71,10 @@ const login = async (req, res, next) => {
                 false,
                 'Invalid password'
             );
+
+            // --- TRIGGER FAILED LOGIN ALERT ---
+            checkFailedLoginAlert(user, auditService.getIpAddress(req), auditService.getUserAgent(req)).catch(err => console.error('[ALERTS] Failed login alert failed:', err));
+
             return errorResponse(res, 'Invalid credentials', 401);
         }
 

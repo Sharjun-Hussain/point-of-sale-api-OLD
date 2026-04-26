@@ -25,7 +25,7 @@ const checkLowStockAlert = async (organizationId, branchId, productId, productVa
 
             const itemName = variant ? `${product.name} (${variant.name})` : product.name;
             const subject = `⚠️ Low Stock Alert: ${itemName}`;
-            
+
             const html = `
                 <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
                     <h2 style="color: #d32f2f;">Low Stock Warning</h2>
@@ -46,7 +46,7 @@ const checkLowStockAlert = async (organizationId, branchId, productId, productVa
                 html,
                 text: `Low Stock Alert: ${itemName} is at ${currentQuantity} (Threshold: ${threshold})`
             }, organizationId);
-            
+
             logger.info(`[ALERTS] Low stock email sent for Org: ${organizationId}, Product: ${productId}`);
         }
     } catch (err) {
@@ -90,7 +90,7 @@ const checkHighSalesAlert = async (sale) => {
                 html,
                 text: `High Sale Notification: ${sale.invoice_number} for ${sale.payable_amount}`
             }, organizationId);
-            
+
             logger.info(`[ALERTS] High sale notification sent for Org: ${organizationId}, Sale: ${sale.id}`);
         }
     } catch (err) {
@@ -131,15 +131,76 @@ const checkUnusualLoginActivity = async (user, ipAddress, userAgent) => {
             html,
             text: `Security Alert: Login detected for ${user.name} from ${ipAddress}`
         }, organizationId);
-        
+
         logger.info(`[ALERTS] Security login alert sent for User: ${user.id}`);
     } catch (err) {
         logger.error(`[ALERTS] Failed to process login alert: ${err.message}`);
     }
 };
 
+const checkFailedLoginAlert = async (user, ipAddress, userAgent) => {
+    try {
+        const organizationId = user.organization_id;
+        const setting = await Setting.findOne({
+            where: { organization_id: organizationId, category: 'communication', branch_id: null }
+        });
+
+        if (!setting) return;
+
+        const alerts = setting.settings_data?.email?.alerts;
+        if (!alerts?.unusualLogin?.enabled) return;
+
+        const subject = `❌ Failed Login Attempt: ${user.name}`;
+
+        // Generate a recovery/password reset URL (valid for 1 hour)
+        const crypto = require('crypto');
+        const token = crypto.randomBytes(32).toString('hex');
+        const expiry = new Date(Date.now() + 3600000);
+        await user.update({ reset_password_token: token, reset_password_expires: expiry });
+
+        const frontendUrls = (process.env.FRONTEND_URL || 'http://localhost:3000').split(',');
+        const resetUrl = `${frontendUrls[0]}/reset-password?token=${token}`;
+
+        const html = `
+            <div style="font-family: sans-serif; padding: 25px; border: 1px solid #fecaca; border-radius: 12px; max-width: 600px; margin: 0 auto; background-color: #fffafb;">
+                <h2 style="color: #dc2626; margin-top: 0;">Failed Login Detected</h2>
+                <p style="color: #4b5563;">An incorrect password was entered for your account. If this was not you, your account may be under attack.</p>
+                
+                <div style="background-color: #ffffff; padding: 15px; border: 1px solid #e5e7eb; border-radius: 8px; margin: 20px 0;">
+                    <table style="width: 100%; font-size: 13px;">
+                        <tr><td style="color: #6b7280; width: 100px; padding: 5px 0;">IP Address:</td><td style="font-weight: bold;">${ipAddress}</td></tr>
+                        <tr><td style="color: #6b7280; padding: 5px 0;">Device/Info:</td><td style="font-weight: bold;">${userAgent}</td></tr>
+                        <tr><td style="color: #6b7280; padding: 5px 0;">Timestamp:</td><td style="font-weight: bold;">${new Date().toUTCString()}</td></tr>
+                    </table>
+                </div>
+
+                <div style="text-align: center; margin-top: 30px;">
+                    <p style="font-size: 14px; font-weight: bold; color: #1f2937;">Is your account secure?</p>
+                    <a href="${resetUrl}" style="display: inline-block; background-color: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 10px;">Secure Account & Reset Password</a>
+                </div>
+
+                <p style="margin-top: 25px; font-size: 11px; color: #9ca3af; text-align: center;">
+                    If this was you, you can safely ignore this email.
+                </p>
+            </div>
+        `;
+
+        await sendEmailWithSettings({
+            to: user.email,
+            subject,
+            html,
+            text: `Critical Security Alert: Failed login attempt detected for your account from ${ipAddress}.`
+        }, organizationId);
+
+        logger.info(`[ALERTS] Failed login alert sent for User: ${user.id}`);
+    } catch (err) {
+        logger.error(`[ALERTS] Failed login alert error: ${err.message}`);
+    }
+};
+
 module.exports = {
     checkLowStockAlert,
     checkHighSalesAlert,
-    checkUnusualLoginActivity
+    checkUnusualLoginActivity,
+    checkFailedLoginAlert
 };
