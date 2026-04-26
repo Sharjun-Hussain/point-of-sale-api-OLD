@@ -22,6 +22,7 @@ const rateLimiter = require('./src/middleware/rateLimiter');
 // Import scheduled jobs
 const { scheduleSubscriptionCheck } = require('./src/jobs/subscriptionScheduler');
 const { scheduleExpiryWatcher } = require('./src/jobs/expiryWatcher');
+const { scheduleInventoryWatcher } = require('./src/jobs/inventoryWatcher');
 const cron = require('node-cron');
 const maintenanceService = require('./src/services/maintenanceService');
 
@@ -176,6 +177,7 @@ const startServer = async () => {
             // Start scheduled jobs
             await scheduleSubscriptionCheck();
             await scheduleExpiryWatcher();
+            await scheduleInventoryWatcher();
 
             // Telemetry: Record system metrics every minute
             await maintenanceService.recordSystemMetrics(); // Initial point on boot
