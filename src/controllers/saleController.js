@@ -331,17 +331,38 @@ const createSale = async (req, res, next) => {
 
         // --- 8. STOCK & BATCH UPDATE ---
         if (sale.status === 'completed') {
-            for (const pItem of processedItems) {
-                // A. Update Global Stock
-                const stockWhere = { organization_id, branch_id, product_id: pItem.product_id };
-                stockWhere.product_variant_id = pItem.product_variant_id || null;
-
-                const stock = await Stock.findOne({ where: stockWhere, transaction: t });
-                if (stock) {
-                    await stock.decrement('quantity', { by: pItem.quantity, transaction: t });
+            // Group items to handle duplicates and prevent race conditions within the same sale
+            const stockUpdates = processedItems.reduce((acc, current) => {
+                const key = `${current.product_id}_${current.product_variant_id || 'null'}`;
+                if (!acc[key]) {
+                    acc[key] = { ...current };
                 } else {
-                    await Stock.create({ ...stockWhere, branch_id, quantity: -pItem.quantity }, { transaction: t });
+                    acc[key].quantity += current.quantity;
                 }
+                return acc;
+            }, {});
+
+            for (const key in stockUpdates) {
+                const pItem = stockUpdates[key];
+                
+                // A. Update Global Stock (Atomic)
+                const stockWhere = { 
+                    branch_id, 
+                    product_id: pItem.product_id,
+                    product_variant_id: pItem.product_variant_id || null
+                };
+
+                const [stock, created] = await Stock.findOrCreate({
+                    where: stockWhere,
+                    defaults: { 
+                        ...stockWhere, 
+                        organization_id, 
+                        quantity: 0 
+                    },
+                    transaction: t
+                });
+
+                await stock.decrement('quantity', { by: pItem.quantity, transaction: t });
 
                 // B. Update Batches (FIFO - First Expiring First Out)
                 // Fetch batches with quantity > 0, ordered by expiry (asc) or creation (asc)
@@ -480,7 +501,16 @@ const createSale = async (req, res, next) => {
             where: { id: sale.id, organization_id },
             include: [
                 { model: User, as: 'sellers', attributes: ['id', 'name', 'email'] },
-                { model: Customer, as: 'customer', attributes: ['id', 'name', 'phone'] }
+                { model: User, as: 'cashier', attributes: ['id', 'name'] },
+                { model: Customer, as: 'customer', attributes: ['id', 'name', 'phone'] },
+                {
+                    model: SaleItem,
+                    as: 'items',
+                    include: [
+                        { model: Product, as: 'product', attributes: ['name', 'image'] },
+                        { model: ProductVariant, as: 'variant', attributes: ['name', 'image'] }
+                    ]
+                }
             ]
         });
 
