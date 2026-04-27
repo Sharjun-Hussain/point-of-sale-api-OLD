@@ -94,15 +94,33 @@ const createSaleReturn = async (req, res, next) => {
         const count = await SaleReturn.count({ where: { organization_id } });
         const return_number = `SR-${dateStr}-${(count + 1).toString().padStart(4, '0')}`;
 
-        // Calculate Total Return Amount
+        // Calculate Total Return Amount & Validate Quantities
         let total_return_amount = 0;
         for (const item of items) {
             const saleItem = sale.items.find(si => si.product_id === item.product_id &&
                 (si.product_variant_id === item.product_variant_id || (!si.product_variant_id && !item.product_variant_id)));
 
             if (!saleItem) throw new Error(`Product ${item.product_id} was not part of original sale`);
-            if (parseFloat(item.quantity) > parseFloat(saleItem.quantity)) {
-                throw new Error(`Cannot return more than purchased quantity for product ${item.product_id}`);
+
+            // Check previous returns for this item
+            const previousReturns = await SaleReturnItem.findAll({
+                include: [{
+                    model: SaleReturn,
+                    as: 'sale_return',
+                    where: { sale_id, organization_id }
+                }],
+                where: {
+                    product_id: item.product_id,
+                    product_variant_id: item.product_variant_id || null
+                },
+                transaction: t
+            });
+
+            const alreadyReturned = previousReturns.reduce((sum, r) => sum + parseFloat(r.quantity || 0), 0);
+            const remainingToReturn = parseFloat(saleItem.quantity) - alreadyReturned;
+
+            if (parseFloat(item.quantity) > remainingToReturn) {
+                throw new Error(`Limit exceeded for product ${item.product_id}. Purchased: ${saleItem.quantity}, Already Returned: ${alreadyReturned}, Attempting: ${item.quantity}`);
             }
 
             total_return_amount += parseFloat(item.quantity) * parseFloat(saleItem.unit_price);
