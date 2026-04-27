@@ -424,21 +424,38 @@ const deleteProduct = async (req, res, next) => {
 
 const getActiveProductsList = async (req, res, next) => {
     try {
+        const { branch_id } = req.query;
         const products = await Product.findAll({
             where: { is_active: true, organization_id: req.user.organization_id },
+            attributes: ['id', 'name', 'sku', 'barcode', 'code', 'image', 'main_category_id', 'is_variant'],
             include: [
-                { model: MainCategory, as: 'main_category' },
-                { model: Brand, as: 'brand' },
+                { model: MainCategory, as: 'main_category', attributes: ['id', 'name'] },
+                { model: Brand, as: 'brand', attributes: ['id', 'name'] },
+                {
+                    model: Stock,
+                    as: 'stocks',
+                    attributes: ['quantity', 'branch_id'],
+                    where: branch_id ? { branch_id } : {},
+                    required: false
+                },
                 {
                     model: ProductVariant,
                     as: 'variants',
                     where: { is_active: true, organization_id: req.user.organization_id },
                     required: false,
+                    attributes: ['id', 'product_id', 'name', 'sku', 'barcode', 'price', 'wholesale_price', 'stock_quantity'],
                     include: [
                         {
                             model: AttributeValue,
                             as: 'attribute_values',
-                            include: [{ model: Attribute, as: 'attribute' }]
+                            include: [{ model: Attribute, as: 'attribute', attributes: ['id', 'name'] }]
+                        },
+                        {
+                            model: Stock,
+                            as: 'stocks',
+                            attributes: ['quantity', 'branch_id'],
+                            where: branch_id ? { branch_id } : {},
+                            required: false
                         }
                     ]
                 }
