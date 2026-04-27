@@ -73,6 +73,10 @@ module.exports = (sequelize, DataTypes) => {
         is_wholesale: {
             type: DataTypes.BOOLEAN,
             defaultValue: false
+        },
+        return_status: {
+            type: DataTypes.ENUM('none', 'partial', 'full'),
+            defaultValue: 'none'
         }
     }, {
         tableName: 'sales',

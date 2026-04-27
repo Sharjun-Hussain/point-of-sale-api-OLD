@@ -149,6 +149,7 @@ const createSaleReturn = async (req, res, next) => {
                 (si.product_variant_id === item.product_variant_id || (!si.product_variant_id && !item.product_variant_id)));
 
             await SaleReturnItem.create({
+                organization_id,
                 sale_return_id: saleReturn.id,
                 product_id: item.product_id,
                 product_variant_id: item.product_variant_id || null,
@@ -276,9 +277,31 @@ const createSaleReturn = async (req, res, next) => {
         }
 
 
-        // 4. Update Original Sale Status if needed (Optional)
-        // If everything is returned, set status to 'returned'
-        // For simplicity, we just keep the return record.
+        // 4. Update Original Sale Status
+        // Calculate total qty purchased vs total qty returned
+        const totalPurchasedQty = sale.items.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0);
+        
+        const allReturnItems = await SaleReturnItem.findAll({
+            include: [{
+                model: SaleReturn,
+                as: 'sale_return',
+                where: { sale_id: sale.id, organization_id }
+            }],
+            transaction: t
+        });
+        
+        const totalReturnedQty = allReturnItems.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0);
+        
+        if (totalReturnedQty >= totalPurchasedQty) {
+            await sale.update({ 
+                return_status: 'full',
+                status: 'returned'
+            }, { transaction: t });
+        } else if (totalReturnedQty > 0) {
+            await sale.update({ 
+                return_status: 'partial'
+            }, { transaction: t });
+        }
 
         await t.commit();
 
