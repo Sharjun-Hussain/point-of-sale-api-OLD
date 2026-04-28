@@ -39,7 +39,7 @@ echo "🔍 Performing health check..."
 HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/v1/health || echo "FAILED")
 
 if [ "$HEALTH_STATUS" == "200" ]; then
-    echo "✅ Deployment Successful! API is healthy at https://api-pos.inzeedo.com"
+    echo "✅ Deployment Successful! API is healthy at https://api-pos.inzeedo.lk"
 else
     echo "⚠️  Deployment finished but health check failed (Status: $HEALTH_STATUS)."
     echo "📑 Check logs with: docker compose logs -f api"

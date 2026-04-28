@@ -145,7 +145,7 @@ const seed = async () => {
         const [branch] = await Branch.findOrCreate({
             where: { name: 'Central Branch', organization_id: org.id },
             defaults: {
-                email: 'hello@inzeedo.com',
+                email: 'hello@inzeedo.lk',
                 phone: '0112233446',
                 address: 'Colombo 01',
                 status: 'active'

@@ -84,7 +84,7 @@ echo "✅ Database tables created and seeded with admin user."
 # 6. Nginx & SSL Setup
 echo ""
 echo "🛡️  Step: Nginx & SSL Configuration"
-DOMAIN="api-pos.inzeedo.com"
+DOMAIN="api-pos.inzeedo.lk"
 read -p "Confirm domain for SSL [$DOMAIN]: " USER_DOMAIN
 DOMAIN=${USER_DOMAIN:-$DOMAIN}
 

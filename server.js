@@ -56,8 +56,8 @@ const alwaysAllowedOrigins = [
     'https://127.0.0.1',
     'https://127.0.0.1:3000',
     // Production frontend(s)
-    'https://pos.inzeedo.com',
-    'http://pos.inzeedo.com',
+    'https://pos.inzeedo.lk',
+    'http://pos.inzeedo.lk',
 ];
 
 // Merge: env overrides + static whitelist, deduplicated
