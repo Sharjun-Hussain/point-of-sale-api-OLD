@@ -33,6 +33,8 @@ const getContainers = async (req, res, next) => {
 
 const getBulkOptions = async (req, res, next) => {
     try {
+        const where = { organization_id: req.user.organization_id, is_active: true };
+
         const [
             mainCategories,
             subCategories,
@@ -42,13 +44,13 @@ const getBulkOptions = async (req, res, next) => {
             containers,
             attributes
         ] = await Promise.all([
-            MainCategory.findAll({ where: { is_active: true }, order: [['name', 'ASC']] }),
-            SubCategory.findAll({ where: { is_active: true }, order: [['name', 'ASC']] }),
-            Brand.findAll({ where: { is_active: true }, order: [['name', 'ASC']] }),
-            Unit.findAll({ where: { is_active: true }, order: [['name', 'ASC']] }),
-            MeasurementUnit.findAll({ where: { is_active: true }, order: [['name', 'ASC']] }),
-            Container.findAll({ where: { is_active: true }, order: [['name', 'ASC']] }),
-            Attribute.findAll({ order: [['name', 'ASC']] })
+            MainCategory.findAll({ where, order: [['name', 'ASC']] }),
+            SubCategory.findAll({ where, order: [['name', 'ASC']] }),
+            Brand.findAll({ where, order: [['name', 'ASC']] }),
+            Unit.findAll({ where, order: [['name', 'ASC']] }),
+            MeasurementUnit.findAll({ where, order: [['name', 'ASC']] }),
+            Container.findAll({ where, order: [['name', 'ASC']] }),
+            Attribute.findAll({ where: { organization_id: req.user.organization_id }, order: [['name', 'ASC']] })
         ]);
 
         return successResponse(res, {
