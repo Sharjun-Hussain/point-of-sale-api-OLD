@@ -1,13 +1,18 @@
 const { Sequelize } = require('sequelize');
 
+// Detect platform
+const isDesktop = process.env.APP_PLATFORM === 'DESKTOP' || process.env.ELECTRON_RUNNING === 'true';
+
 // Database configuration
 const sequelize = new Sequelize(
     process.env.DB_NAME || 'pos_system',
     process.env.DB_USER || 'root',
     process.env.DB_PASSWORD || '',
     {
-        host: process.env.DB_HOST || 'localhost',
-        port: process.env.DB_PORT || 3306,
+        // On desktop, we default to localhost. If using portable MariaDB, 
+        // we might use a custom port like 3307 to avoid conflicts.
+        host: isDesktop ? '127.0.0.1' : (process.env.DB_HOST || 'localhost'),
+        port: isDesktop ? (process.env.DB_PORT || 3306) : (process.env.DB_PORT || 3306),
         dialect: process.env.DB_DIALECT || 'mysql',
         logging: process.env.DB_LOGGING === 'true' ? console.log : false,
         pool: {

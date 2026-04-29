@@ -31,8 +31,8 @@ const app = express();
 
 // CORS configuration - MUST BE FIRST
 // Production origins from env (comma-separated)
-const envOrigins = process.env.FRONTEND_URL 
-    ? process.env.FRONTEND_URL.split(',').map(o => o.trim().replace(/\/$/, "")) 
+const envOrigins = process.env.FRONTEND_URL
+    ? process.env.FRONTEND_URL.split(',').map(o => o.trim().replace(/\/$/, ""))
     : [];
 
 // Mobile & development origins - ALWAYS allowed, regardless of environment.
@@ -166,13 +166,13 @@ const startServer = async () => {
             await db.authenticate();
             logger.info('✅ Database connection established successfully.');
 
-            /* 
-            // Sync database (in development only)
-            if (process.env.NODE_ENV === 'development') {
-                await db.sync({ alter: false });
-                logger.info('✅ Database synchronized.');
+            // Auto-Sync for Desktop Mode
+            // This ensures that when the user updates the .exe, the database schema updates automatically
+            if (process.env.APP_PLATFORM === 'DESKTOP' || process.env.ELECTRON_RUNNING === 'true') {
+                logger.info('🖥️  Desktop mode: Synchronizing database schema...');
+                await db.sync({ alter: true });
+                logger.info('✅ Database schema synchronized.');
             }
-            */
 
             // Start scheduled jobs
             await scheduleSubscriptionCheck();
