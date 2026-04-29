@@ -7,6 +7,8 @@ const {
     ProductVariant,
     Branch,
     ProductBatch,
+    Attribute,
+    AttributeValue,
     User,
     sequelize
 } = require('../models');
@@ -60,7 +62,21 @@ const getAllStocks = async (req, res, next) => {
                     as: 'variant',
                     where: { ...variantWhere, organization_id: req.user.organization_id },
                     attributes: ['id', 'name', 'sku', 'image'],
-                    required: Object.keys(variantWhere).length > 0 ? true : false
+                    required: Object.keys(variantWhere).length > 0 ? true : false,
+                    include: [
+                        {
+                            model: AttributeValue,
+                            as: 'attribute_values',
+                            include: [
+                                {
+                                    model: Attribute,
+                                    as: 'attribute',
+                                    attributes: ['id', 'name']
+                                }
+                            ],
+                            attributes: ['id', 'value']
+                        }
+                    ]
                 },
                 { 
                     model: Branch, 
@@ -69,6 +85,7 @@ const getAllStocks = async (req, res, next) => {
                     attributes: ['id', 'name'] 
                 }
             ],
+            subQuery: false,
             order: [[{ model: Product, as: 'product' }, 'name', 'ASC']]
         });
 
