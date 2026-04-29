@@ -148,6 +148,63 @@ const createProduct = async (req, res, next) => {
                         }, { transaction: t });
                     }
                 }
+
+                // --- STOCK: Initialize Stock if provided ---
+                if (parseFloat(v.stock_quantity) > 0) {
+                    let branch_id = req.body.branch_id || req.user.branch_id;
+                    
+                    if (!branch_id && req.user.branches && req.user.branches.length > 0) {
+                        branch_id = req.user.branches[0].id;
+                    }
+                    
+                    if (!branch_id && req.user.employee) {
+                        branch_id = req.user.employee.branch_id;
+                        if (!branch_id && req.user.employee.branches && req.user.employee.branches.length > 0) {
+                            branch_id = req.user.employee.branches[0].id;
+                        }
+                    }
+
+                    if (!branch_id) {
+                        const firstBranch = await Branch.findOne({ where: { organization_id } });
+                        if (firstBranch) branch_id = firstBranch.id;
+                    }
+
+                    if (branch_id) {
+                        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+                        const reference_number = `OS-PRD-VAR-${variant.sku}-${dateStr}`;
+
+                        const opening = await StockOpening.create({
+                            organization_id,
+                            branch_id,
+                            user_id: req.user.id,
+                            reference_number,
+                            opening_date: new Date(),
+                            notes: `Opening stock for variant ${variant.sku} during product creation`,
+                            total_value: parseFloat(v.stock_quantity) * (parseFloat(v.cost_price) || 0)
+                        }, { transaction: t });
+
+                        await ProductBatch.create({
+                            organization_id,
+                            branch_id,
+                            product_id: product.id,
+                            product_variant_id: variant.id,
+                            quantity: parseFloat(v.stock_quantity),
+                            cost_price: parseFloat(v.cost_price) || 0,
+                            selling_price: parseFloat(v.price) || 0,
+                            wholesale_price: parseFloat(v.wholesale_price) || 0,
+                            purchase_date: new Date(),
+                            is_active: true,
+                            opening_stock_id: opening.id
+                        }, { transaction: t });
+
+                        const [stockRecord] = await Stock.findOrCreate({
+                            where: { organization_id, branch_id, product_id: product.id, product_variant_id: variant.id },
+                            defaults: { quantity: 0 },
+                            transaction: t
+                        });
+                        await stockRecord.increment('quantity', { by: parseFloat(v.stock_quantity), transaction: t });
+                    }
+                }
             }
         }
 
@@ -336,10 +393,67 @@ const updateProduct = async (req, res, next) => {
                     }
                 } else {
                     // Create new variant
-                    await ProductVariant.create({
+                    const variant = await ProductVariant.create({
                         ...variantData,
                         product_id: id
                     }, { transaction: t });
+
+                    // --- STOCK: Initialize Stock if provided ---
+                    if (parseFloat(variantData.stock_quantity) > 0) {
+                        let branch_id = req.body.branch_id || req.user.branch_id;
+                        
+                        if (!branch_id && req.user.branches && req.user.branches.length > 0) {
+                            branch_id = req.user.branches[0].id;
+                        }
+                        
+                        if (!branch_id && req.user.employee) {
+                            branch_id = req.user.employee.branch_id;
+                            if (!branch_id && req.user.employee.branches && req.user.employee.branches.length > 0) {
+                                branch_id = req.user.employee.branches[0].id;
+                            }
+                        }
+
+                        if (!branch_id) {
+                            const firstBranch = await Branch.findOne({ where: { organization_id } });
+                            if (firstBranch) branch_id = firstBranch.id;
+                        }
+
+                        if (branch_id) {
+                            const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+                            const reference_number = `OS-PRD-EDIT-VAR-${variant.sku}-${dateStr}`;
+
+                            const opening = await StockOpening.create({
+                                organization_id,
+                                branch_id,
+                                user_id: req.user.id,
+                                reference_number,
+                                opening_date: new Date(),
+                                notes: `Opening stock for new variant ${variant.sku} added during product edit`,
+                                total_value: parseFloat(variantData.stock_quantity) * (parseFloat(variantData.cost_price) || 0)
+                            }, { transaction: t });
+
+                            await ProductBatch.create({
+                                organization_id,
+                                branch_id,
+                                product_id: id,
+                                product_variant_id: variant.id,
+                                quantity: parseFloat(variantData.stock_quantity),
+                                cost_price: parseFloat(variantData.cost_price) || 0,
+                                selling_price: parseFloat(variantData.price) || 0,
+                                wholesale_price: parseFloat(variantData.wholesale_price) || 0,
+                                purchase_date: new Date(),
+                                is_active: true,
+                                opening_stock_id: opening.id
+                            }, { transaction: t });
+
+                            const [stockRecord] = await Stock.findOrCreate({
+                                where: { organization_id, branch_id, product_id: id, product_variant_id: variant.id },
+                                defaults: { quantity: 0 },
+                                transaction: t
+                            });
+                            await stockRecord.increment('quantity', { by: parseFloat(variantData.stock_quantity), transaction: t });
+                        }
+                    }
                 }
             }
         }
@@ -606,6 +720,70 @@ const createVariant = async (req, res, next) => {
                         organization_id
                     }, { transaction: t });
                 }
+            }
+        }
+
+        if (variant && parseFloat(stock_quantity) > 0) {
+            let branch_id = req.body.branch_id || req.user.branch_id;
+            
+            if (!branch_id && req.user.branches && req.user.branches.length > 0) {
+                branch_id = req.user.branches[0].id;
+            }
+            
+            if (!branch_id && req.user.employee) {
+                branch_id = req.user.employee.branch_id;
+                if (!branch_id && req.user.employee.branches && req.user.employee.branches.length > 0) {
+                    branch_id = req.user.employee.branches[0].id;
+                }
+            }
+
+            if (!branch_id) {
+                const firstBranch = await Branch.findOne({ where: { organization_id } });
+                if (firstBranch) branch_id = firstBranch.id;
+            }
+
+            if (branch_id) {
+                // 1. Create Opening Stock Header for this specific variant initialization
+                const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+                const reference_number = `OS-VAR-${variant.sku}-${dateStr}`;
+
+                const opening = await StockOpening.create({
+                    organization_id,
+                    branch_id,
+                    user_id: req.user.id,
+                    reference_number,
+                    opening_date: new Date(),
+                    notes: `Opening stock for new variant: ${variant.sku}`,
+                    total_value: parseFloat(stock_quantity) * (parseFloat(cost_price) || 0)
+                }, { transaction: t });
+
+                // 2. Create Product Batch
+                await ProductBatch.create({
+                    organization_id,
+                    branch_id,
+                    product_id: id,
+                    product_variant_id: variant.id,
+                    quantity: parseFloat(stock_quantity),
+                    cost_price: parseFloat(cost_price) || 0,
+                    selling_price: parseFloat(price) || 0,
+                    wholesale_price: parseFloat(wholesale_price) || 0,
+                    purchase_date: new Date(),
+                    is_active: true,
+                    opening_stock_id: opening.id
+                }, { transaction: t });
+
+                // 3. Update/Create Global Stock
+                const [stockRecord] = await Stock.findOrCreate({
+                    where: {
+                        organization_id,
+                        branch_id,
+                        product_id: id,
+                        product_variant_id: variant.id
+                    },
+                    defaults: { quantity: 0 },
+                    transaction: t
+                });
+                await stockRecord.increment('quantity', { by: parseFloat(stock_quantity), transaction: t });
             }
         }
 

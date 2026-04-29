@@ -144,9 +144,10 @@ const createSale = async (req, res, next) => {
 
         // Fetch all products/variants involved
         for (const item of items) {
-            const { product_id, product_variant_id, quantity, discount_amount: claimed_discount } = item;
+            const { product_id, product_variant_id, quantity: raw_quantity, discount_amount: claimed_discount } = item;
+            const quantity = parseFloat(raw_quantity || 0);
 
-            if (!product_id || !quantity) continue;
+            if (!product_id || quantity <= 0) continue;
 
             const product = await Product.findOne({ 
                 where: { id: product_id, organization_id }, 
