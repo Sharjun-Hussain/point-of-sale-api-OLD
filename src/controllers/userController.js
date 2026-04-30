@@ -121,9 +121,13 @@ const createUser = async (req, res, next) => {
 
 const updateUser = async (req, res, next) => {
     try {
-        const user = await User.findOne({ 
-            where: { id: req.params.id, organization_id: req.user.organization_id } 
-        });
+        const isSuperAdmin = req.user.roles.some(role => role.name === 'Super Admin');
+        const where = { id: req.params.id };
+        if (!isSuperAdmin) {
+            where.organization_id = req.user.organization_id;
+        }
+
+        const user = await User.findOne({ where });
         if (!user) return errorResponse(res, 'User not found', 404);
 
         let { role_ids, branch_ids, password, first_name, last_name, name, phone, nic, joined_date, profile_image, ...otherData } = req.body;
@@ -174,7 +178,7 @@ const updateUser = async (req, res, next) => {
         // Security Protocol: If an admin explicitly changes a password, notify the user immediately
         if (passwordReassigned) {
             try {
-                await mailer.sendPasswordChangeNotification(user, req.user.organization_id, true);
+                await mailer.sendPasswordChangeNotification(user, user.organization_id, true);
             } catch (mailErr) {
                 console.error('[MAILER] Admin Password Notification Failure:', mailErr);
             }
@@ -183,7 +187,7 @@ const updateUser = async (req, res, next) => {
         // Log user update
         const { ipAddress, userAgent } = auditService.getRequestContext(req);
         await auditService.logUpdate(
-            req.user.organization_id,
+            user.organization_id,
             req.user.id,
             'User',
             user.id,
@@ -200,9 +204,13 @@ const updateUser = async (req, res, next) => {
 
 const toggleUserStatus = async (req, res, next) => {
     try {
-        const user = await User.findOne({ 
-            where: { id: req.params.id, organization_id: req.user.organization_id } 
-        });
+        const isSuperAdmin = req.user.roles.some(role => role.name === 'Super Admin');
+        const where = { id: req.params.id };
+        if (!isSuperAdmin) {
+            where.organization_id = req.user.organization_id;
+        }
+
+        const user = await User.findOne({ where });
         if (!user) return errorResponse(res, 'User not found', 404);
 
         // Safety: Prevent self-deactivation
@@ -216,7 +224,7 @@ const toggleUserStatus = async (req, res, next) => {
         // Log status toggle
         const { ipAddress, userAgent } = auditService.getRequestContext(req);
         await auditService.logCustom(
-            req.user.organization_id,
+            user.organization_id,
             req.user.id,
             user.is_active ? 'ACTIVATE_USER' : 'DEACTIVATE_USER',
             `User ${user.name} ${user.is_active ? 'activated' : 'deactivated'}`,
@@ -253,9 +261,13 @@ const getActiveSellers = async (req, res, next) => {
 
 const resendWelcomeEmail = async (req, res, next) => {
     try {
-        const user = await User.findOne({
-            where: { id: req.params.id, organization_id: req.user.organization_id }
-        });
+        const isSuperAdmin = req.user.roles.some(role => role.name === 'Super Admin');
+        const where = { id: req.params.id };
+        if (!isSuperAdmin) {
+            where.organization_id = req.user.organization_id;
+        }
+
+        const user = await User.findOne({ where });
 
         if (!user) return errorResponse(res, 'User not found', 404);
 
@@ -274,7 +286,7 @@ const resendWelcomeEmail = async (req, res, next) => {
 
         // Dispatch freshly provisioned welcome email
         try {
-            await mailer.sendWelcomeEmail(user, tempPassword, req.user.organization_id);
+            await mailer.sendWelcomeEmail(user, tempPassword, user.organization_id);
         } catch (mailError) {
             console.error('[MAILER] Resend Welcome Failure:', mailError);
         }
