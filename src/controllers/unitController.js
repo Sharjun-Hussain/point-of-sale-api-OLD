@@ -97,6 +97,30 @@ const toggleUnitStatus = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const deleteUnit = async (req, res, next) => {
+    try {
+        const unit = await Unit.findOne({
+            where: { id: req.params.id, organization_id: req.user.organization_id }
+        });
+        if (!unit) return errorResponse(res, 'Unit not found', 404);
+
+        // Log unit deletion
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logDelete(
+            req.user.organization_id,
+            req.user.id,
+            'Unit',
+            unit.id,
+            { name: unit.name },
+            ipAddress,
+            userAgent
+        );
+
+        await unit.destroy();
+        return successResponse(res, null, 'Unit deleted successfully');
+    } catch (error) { next(error); }
+};
+
 // --- Measurement Unit ---
 const getAllMeasurementUnits = async (req, res, next) => {
     try {
@@ -190,7 +214,31 @@ const toggleMeasurementStatus = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const deleteMeasurementUnit = async (req, res, next) => {
+    try {
+        const unit = await MeasurementUnit.findOne({
+            where: { id: req.params.id, organization_id: req.user.organization_id }
+        });
+        if (!unit) return errorResponse(res, 'Measurement Unit not found', 404);
+
+        // Log measurement unit deletion
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logDelete(
+            req.user.organization_id,
+            req.user.id,
+            'MeasurementUnit',
+            unit.id,
+            { name: unit.name },
+            ipAddress,
+            userAgent
+        );
+
+        await unit.destroy();
+        return successResponse(res, null, 'Measurement Unit deleted successfully');
+    } catch (error) { next(error); }
+};
+
 module.exports = {
-    getAllUnits, getActiveUnitsList, createUnit, updateUnit, toggleUnitStatus,
-    getAllMeasurementUnits, getActiveMeasurementUnitsList, createMeasurementUnit, updateMeasurementUnit, toggleMeasurementStatus
+    getAllUnits, getActiveUnitsList, createUnit, updateUnit, toggleUnitStatus, deleteUnit,
+    getAllMeasurementUnits, getActiveMeasurementUnitsList, createMeasurementUnit, updateMeasurementUnit, toggleMeasurementStatus, deleteMeasurementUnit
 };

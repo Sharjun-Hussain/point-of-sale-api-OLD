@@ -10,6 +10,7 @@ router.get('/', checkPermission('unit:view'), unitController.getAllUnits);
 router.get('/active/list', unitController.getActiveUnitsList);
 router.post('/', checkPermission('unit:create'), unitController.createUnit);
 router.put('/:id', checkPermission('unit:edit'), unitController.updateUnit);
+router.delete('/:id', checkPermission('unit:delete'), unitController.deleteUnit);
 
 router.patch('/:id/activate', checkPermission('unit:edit'), (req, res, next) => {
     req.params.action = 'activate';
