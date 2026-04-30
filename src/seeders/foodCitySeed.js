@@ -250,14 +250,15 @@ const seedFoodCity = async () => {
         }
 
         // 5. Stock Opening Header
+        const refNumber = `OPN-FOODCITY-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
         const [opening] = await StockOpening.findOrCreate({
-            where: { reference_number: 'OPN-FOODCITY-001', organization_id },
+            where: { reference_number: refNumber, organization_id },
             defaults: {
                 id: crypto.randomUUID(),
                 organization_id,
                 branch_id,
                 user_id,
-                reference_number: 'OPN-FOODCITY-001',
+                reference_number: refNumber,
                 opening_date: new Date(),
                 notes: 'Food City initial stock bootstrap',
                 total_value: 1500000.00
