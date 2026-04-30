@@ -113,20 +113,25 @@ const updateRole = async (req, res, next) => {
 const getAllPermissions = async (req, res, next) => {
     try {
         const isSuperAdmin = req.user.roles.some(role => role.name === 'Super Admin');
+        const allPermissions = await Permission.findAll();
         
-        let permissions;
-        if (isSuperAdmin) {
-            permissions = await Permission.findAll();
-        } else {
-            // Extract unique permissions from all roles assigned to the user
-            const permissionMap = new Map();
+        // Non-SuperAdmins can only assign permissions they themselves have
+        const userPermissionIds = new Set();
+        if (!isSuperAdmin) {
             req.user.roles.forEach(role => {
                 role.permissions?.forEach(perm => {
-                    permissionMap.set(perm.id, perm);
+                    userPermissionIds.add(perm.id);
                 });
             });
-            permissions = Array.from(permissionMap.values());
         }
+
+        const permissions = allPermissions.map(perm => {
+            const p = perm.get({ plain: true });
+            return {
+                ...p,
+                can_assign: isSuperAdmin || userPermissionIds.has(p.id)
+            };
+        });
 
         return successResponse(res, { data: permissions }, 'Permissions fetched successfully');
     } catch (error) { next(error); }

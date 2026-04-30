@@ -215,6 +215,21 @@ async function bootstrap() {
         await adminRole.setPermissions(allPerms);
         console.log(`✅ Super Admin role assigned ${allPerms.length} permissions.`);
 
+        // ── Organization Admin Role ───────────────────────────────────────────
+        const [orgAdminRole] = await db.Role.findOrCreate({
+            where: { name: 'Organization Admin' },
+            defaults: { id: crypto.randomUUID(), description: 'Tenant Administrator Access' }
+        });
+        
+        // Filter out restricted permissions for Org Admin
+        const restrictedPerms = [
+            'org:create', 'org:delete', 'org:edit', 'org:view',
+            'system:settings', 'system:audit_log'
+        ];
+        const orgAdminPerms = allPerms.filter(p => !restrictedPerms.includes(p.name));
+        await orgAdminRole.setPermissions(orgAdminPerms);
+        console.log(`✅ Organization Admin role assigned ${orgAdminPerms.length} permissions.`);
+
         // ── Master Organization ───────────────────────────────────────────────
         const [org] = await db.Organization.findOrCreate({
             where: { email: MASTER_EMAIL },
