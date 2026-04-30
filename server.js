@@ -179,9 +179,9 @@ const startServer = async () => {
             await scheduleExpiryWatcher();
             await scheduleInventoryWatcher();
 
-            // Telemetry: Record system metrics every minute
+            // Telemetry: Record system metrics every 30 seconds
             await maintenanceService.recordSystemMetrics(); // Initial point on boot
-            cron.schedule('* * * * *', async () => {
+            cron.schedule('*/30 * * * * *', async () => {
                 await maintenanceService.recordSystemMetrics();
             });
 

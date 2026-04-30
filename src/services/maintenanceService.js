@@ -5,6 +5,9 @@ const logger = require('../utils/logger');
 const { exec } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
+const { promisify } = require('util');
+const execPromise = promisify(exec);
 
 /**
  * INDUSTRIAL MAINTENANCE SERVICE
@@ -124,6 +127,39 @@ class MaintenanceService {
             dbStatus = 'unstable';
         }
 
+        // System wide metrics (Linux optimized)
+        let systemMetrics = {
+            ram: { total: os.totalmem(), free: os.freemem(), used: os.totalmem() - os.freemem() },
+            swap: { total: 0, used: 0, free: 0 },
+            load: os.loadavg(), // [1m, 5m, 15m]
+            io: 0 // % utilization
+        };
+
+        try {
+            // Get Swap from free -m
+            const { stdout: freeOut } = await execPromise('free -b');
+            const lines = freeOut.split('\n');
+            const swapLine = lines.find(l => l.startsWith('Swap:'));
+            if (swapLine) {
+                const parts = swapLine.split(/\s+/);
+                systemMetrics.swap = {
+                    total: parseInt(parts[1]),
+                    used: parseInt(parts[2]),
+                    free: parseInt(parts[3])
+                };
+            }
+
+            // Get I/O from iostat
+            const { stdout: ioOut } = await execPromise('iostat -dx 1 1');
+            const ioLines = ioOut.trim().split('\n');
+            const lastLine = ioLines[ioLines.length - 1];
+            const ioParts = lastLine.trim().split(/\s+/);
+            // %util is usually the last column in iostat -dx
+            systemMetrics.io = parseFloat(ioParts[ioParts.length - 1]) || 0;
+        } catch (e) {
+            logger.error(`System Metric Exec Error: ${e.message}`);
+        }
+
         // Redis stats
         const cacheStats = await redisService.getStats();
 
@@ -136,6 +172,7 @@ class MaintenanceService {
                 heapTotal: `${Math.round(mem.heapTotal / 1024 / 1024)} MB`,
                 rss      : `${Math.round(mem.rss / 1024 / 1024)} MB`
             },
+            system: systemMetrics,
             db    : dbDiagnostics,
             cache : cacheStats
         };
@@ -168,6 +205,10 @@ class MaintenanceService {
                 timestamp: new Date().toISOString(),
                 heapUsed: parseInt(health.memory.heapUsed),
                 rss: parseInt(health.memory.rss),
+                sysRam: Math.round(health.system.ram.used / 1024 / 1024),
+                sysSwap: Math.round(health.system.swap.used / 1024 / 1024),
+                cpuLoad: health.system.load[0], // 1m average
+                ioUtil: health.system.io,
                 threads: health.db.threadsConnected || 0,
                 slowQueries: health.db.slowQueries || 0
             };
