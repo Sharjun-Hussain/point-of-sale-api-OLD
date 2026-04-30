@@ -9,6 +9,7 @@ router.use(authenticate);
 router.get('/', checkPermission('role:view'), roleController.getAllRoles);
 router.post('/', checkPermission('role:create'), roleController.createRole);
 router.put('/:id', checkPermission('role:edit'), roleController.updateRole);
+router.delete('/:id', checkPermission('role:delete'), roleController.deleteRole);
 router.get('/permissions', checkPermission('role:view'), roleController.getAllPermissions);
 
 module.exports = router;

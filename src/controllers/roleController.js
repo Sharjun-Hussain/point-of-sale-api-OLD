@@ -1,4 +1,5 @@
 const { Role, Permission } = require('../models');
+const { Op } = require('sequelize');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 
 const getAllRoles = async (req, res, next) => {
@@ -6,7 +7,7 @@ const getAllRoles = async (req, res, next) => {
         const isSuperAdmin = req.user.roles.some(role => role.name === 'Super Admin');
         
         const where = {
-            [require('sequelize').Op.or]: [
+            [Op.or]: [
                 { organization_id: req.user.organization_id },
                 { organization_id: null }
             ]
@@ -14,7 +15,7 @@ const getAllRoles = async (req, res, next) => {
 
         // Hide Super Admin role from everyone except Super Admins
         if (!isSuperAdmin) {
-            where.name = { [require('sequelize').Op.ne]: 'Super Admin' };
+            where.name = { [Op.ne]: 'Super Admin' };
         }
 
         const roles = await Role.findAll({
@@ -137,6 +138,29 @@ const getAllPermissions = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const deleteRole = async (req, res, next) => {
+    try {
+        const isSuperAdmin = req.user.roles.some(role => role.name === 'Super Admin');
+        const role = await Role.findByPk(req.params.id);
+
+        if (!role) return errorResponse(res, 'Role not found', 404);
+
+        // Security check
+        if (!isSuperAdmin && role.organization_id !== req.user.organization_id) {
+            return errorResponse(res, 'Security Breach: Access Denied to this role configuration.', 403);
+        }
+
+        // Hard protection for Super Admin and Organization Admin roles
+        const protectedRoles = ['Super Admin', 'Organization Admin'];
+        if (protectedRoles.includes(role.name)) {
+             return errorResponse(res, `Critical Security Violation: The ${role.name} role is a core system component and cannot be deleted.`, 403);
+        }
+
+        await role.destroy();
+        return successResponse(res, null, 'Role deleted successfully');
+    } catch (error) { next(error); }
+};
+
 module.exports = {
-    getAllRoles, createRole, updateRole, getAllPermissions
+    getAllRoles, createRole, updateRole, deleteRole, getAllPermissions
 };
