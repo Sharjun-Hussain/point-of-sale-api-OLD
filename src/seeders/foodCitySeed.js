@@ -21,37 +21,72 @@ const {
     ProductBatch
 } = require('../models');
 const crypto = require('crypto');
+const readline = require('readline');
+
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
+
+const askQuestion = (query) => new Promise((resolve) => rl.question(query, resolve));
 
 const seedFoodCity = async () => {
-    const t = await sequelize.transaction();
     try {
         console.log('🌱 Starting Food City Enterprise Seed...');
 
-        // 1. Get Organization and Branch
-        const adminUser = await User.findOne({ where: { email: 'mrjoon005@gmail.com' } });
-        let organization_id;
-        let branch_id;
-        let user_id;
+        // 1. Interactive Organization Selection
+        const organizations = await Organization.findAll({
+            attributes: ['id', 'name', 'email']
+        });
 
-        if (adminUser) {
-            organization_id = adminUser.organization_id;
-            user_id = adminUser.id;
-            const branch = await Branch.findOne({ where: { organization_id, is_main: true } });
-            branch_id = branch ? branch.id : null;
+        if (organizations.length === 0) {
+            console.error('❌ No organizations found in the database. Please run bootstrap-db.js first.');
+            process.exit(1);
         }
 
-        if (!organization_id || !branch_id) {
-            const org = await Organization.findOne();
-            const branch = await Branch.findOne();
-            const user = await User.findOne();
-            organization_id = org.id;
-            branch_id = branch.id;
-            user_id = user.id;
+        console.log('\nAvailable Organizations:');
+        organizations.forEach((org, index) => {
+            console.log(`${index + 1}. ${org.name} (${org.email})`);
+        });
+
+        const choice = await askQuestion('\nSelect organization number to seed: ');
+        const selectedIndex = parseInt(choice) - 1;
+
+        if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= organizations.length) {
+            console.error('❌ Invalid selection. Exiting.');
+            process.exit(1);
         }
 
-        console.log(`🏢 Using Org: ${organization_id}, Branch: ${branch_id}`);
+        const org = organizations[selectedIndex];
+        const organization_id = org.id;
 
-        // 2. Base Metadata
+        // Get Main Branch for this Org
+        const branch = await Branch.findOne({ where: { organization_id, is_main: true } });
+        if (!branch) {
+            console.error(`❌ No main branch found for organization: ${org.name}`);
+            process.exit(1);
+        }
+        const branch_id = branch.id;
+
+        // Get Admin User for this Org
+        const adminUser = await User.findOne({ where: { organization_id } });
+        const user_id = adminUser ? adminUser.id : (await User.findOne()).id;
+
+        console.log(`✅ Selected Org: ${org.name}`);
+        console.log(`🏢 Target Branch: ${branch.name} (${branch_id})`);
+        
+        const confirm = await askQuestion('\nProceed with seeding? (y/n): ');
+        if (confirm.toLowerCase() !== 'y') {
+            console.log('Seed cancelled.');
+            process.exit(0);
+        }
+
+        rl.close();
+
+        // Start Transaction
+        const t = await sequelize.transaction();
+        try {
+            // 2. Base Metadata
         const mUnits = [
             { name: 'Kilogram', short_name: 'kg' },
             { name: 'Gram', short_name: 'g' },
@@ -408,10 +443,14 @@ const seedFoodCity = async () => {
         console.log('✨ Food City Seeding Completed Successfully!');
         process.exit(0);
     } catch (error) {
-        await t.rollback();
+        if (t) await t.rollback();
         console.error('❌ Seeding failed:', error);
         process.exit(1);
     }
+} catch (outerError) {
+    console.error('❌ Script failed:', outerError);
+    process.exit(1);
+}
 };
 
 seedFoodCity();
