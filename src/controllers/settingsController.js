@@ -35,10 +35,16 @@ const processSecrets = (data, mode = 'mask', existingData = null) => {
 
         if (isSensitive) {
             if (mode === 'encrypt') {
-                // If it's a mask, keep the existing encrypted value
+                // INDUSTRIAL SHIELD: Never save '********' to the DB.
                 if (isMasked(value)) {
-                    result[key] = existingData ? existingData[key] : value;
+                    // Restore the original encrypted value from existing DB data
+                    const existingVal = existingData ? existingData[key] : null;
+                    if (existingVal) {
+                        result[key] = existingVal; // Keep the real pos-enc:... blob
+                    }
+                    // If no existing value, simply omit this key — DO NOT write stars
                 } else {
+                    // New value provided — encrypt and save
                     result[key] = value ? encrypt(value) : '';
                 }
             } else if (mode === 'decrypt') {

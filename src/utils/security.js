@@ -49,12 +49,14 @@ const decrypt = (text) => {
     if (!text || typeof text !== 'string' || !text.startsWith('pos-enc:')) return text;
 
     try {
-        const parts = text.split(':');
-        if (parts.length !== 4) return text;
+        // Split only on first 3 colons to handle any colons inside ciphertext
+        const withoutPrefix = text.slice('pos-enc:'.length); // strip "pos-enc:"
+        const firstColon = withoutPrefix.indexOf(':');
+        const secondColon = withoutPrefix.indexOf(':', firstColon + 1);
 
-        const iv = Buffer.from(parts[1], 'hex');
-        const authTag = Buffer.from(parts[2], 'hex');
-        const encryptedText = parts[3];
+        const iv = Buffer.from(withoutPrefix.substring(0, firstColon), 'hex');
+        const authTag = Buffer.from(withoutPrefix.substring(firstColon + 1, secondColon), 'hex');
+        const encryptedText = withoutPrefix.substring(secondColon + 1);
         
         const key = getEncryptionKey();
         const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
@@ -66,7 +68,7 @@ const decrypt = (text) => {
         return decrypted;
     } catch (error) {
         // If decryption fails, it might be unencrypted legacy data or wrong key
-        console.error('Decryption failed, returning original text');
+        console.error('Decryption failed, returning original text:', error.message);
         return text;
     }
 };

@@ -37,6 +37,7 @@ const accountRoutes = require('./accounts');
 const stockRoutes = require('./stocks');
 const maintenanceRoutes = require('./maintenance');
 const shiftRoutes = require('./shifts');
+const aiRoutes = require('./aiRoutes');
 
 // Activate global audit logger for all non-GET mutations
 router.use(auditMiddleware());
@@ -78,5 +79,6 @@ router.use('/cheques', chequeRoutes);
 router.use('/common', commonRoutes);
 router.use('/maintenance', maintenanceRoutes);
 router.use('/shifts', shiftRoutes);
+router.use('/ai', aiRoutes);
 
 module.exports = router;
