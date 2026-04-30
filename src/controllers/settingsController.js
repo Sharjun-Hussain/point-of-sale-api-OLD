@@ -202,6 +202,19 @@ const updateSettingsByCategory = async (req, res, next) => {
         // ENCRYPT: Protect sensitive fields before saving
         const securedData = processSecrets(cleanData, 'encrypt', existingData);
 
+        // PROTECT: Preserve usage_stats from existing data if missing or older in incoming data
+        if (existingData.usage_stats && !securedData.usage_stats) {
+            securedData.usage_stats = existingData.usage_stats;
+        } else if (existingData.usage_stats && securedData.usage_stats) {
+            // Merge logic: Always take the higher/newer counts
+            securedData.usage_stats = {
+                ...existingData.usage_stats,
+                ...securedData.usage_stats,
+                total_tokens: Math.max(existingData.usage_stats.total_tokens || 0, securedData.usage_stats.total_tokens || 0),
+                total_requests: Math.max(existingData.usage_stats.total_requests || 0, securedData.usage_stats.total_requests || 0)
+            };
+        }
+
         const [setting, created] = await Setting.findOrCreate({
             where: {
                 organization_id: req.user.organization_id,

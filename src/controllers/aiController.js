@@ -92,6 +92,8 @@ const generateUnits = async (req, res, next) => {
 
         // 3. Dispatch to appropriate AI Provider
         let content = '';
+        let usage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+
         if (isClaude) {
             const response = await fetch('https://api.anthropic.com/v1/messages', {
                 method: 'POST',
@@ -115,6 +117,12 @@ const generateUnits = async (req, res, next) => {
 
             const result = await response.json();
             content = result.content[0].text;
+            // Claude usage is in result.usage
+            usage = {
+                prompt_tokens: result.usage?.input_tokens || 0,
+                completion_tokens: result.usage?.output_tokens || 0,
+                total_tokens: (result.usage?.input_tokens || 0) + (result.usage?.output_tokens || 0)
+            };
         } else {
             // Default to OpenAI
             const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -140,9 +148,29 @@ const generateUnits = async (req, res, next) => {
 
             const result = await response.json();
             content = result.choices[0].message.content;
+            // OpenAI usage is in result.usage
+            usage = {
+                prompt_tokens: result.usage?.prompt_tokens || 0,
+                completion_tokens: result.usage?.completion_tokens || 0,
+                total_tokens: result.usage?.total_tokens || 0
+            };
         }
         
-        // Parse the JSON
+        // 4. Update Token Usage Stats in DB
+        const currentStats = rawData.usage_stats || { total_tokens: 0, prompt_tokens: 0, completion_tokens: 0, total_requests: 0 };
+        const updatedStats = {
+            total_tokens: currentStats.total_tokens + usage.total_tokens,
+            prompt_tokens: currentStats.prompt_tokens + usage.prompt_tokens,
+            completion_tokens: currentStats.completion_tokens + usage.completion_tokens,
+            total_requests: (currentStats.total_requests || 0) + 1,
+            last_request_at: new Date()
+        };
+
+        await aiSetting.update({
+            settings_data: { ...rawData, usage_stats: updatedStats }
+        });
+
+        // 5. Parse the JSON
         let rawUnits = [];
         try {
             rawUnits = JSON.parse(content.match(/\[.*\]/s)[0]);
@@ -158,7 +186,7 @@ const generateUnits = async (req, res, next) => {
             is_active: true
         }));
 
-        return successResponse(res, units, 'AI Units Generated');
+        return successResponse(res, { units, usage: updatedStats }, 'AI Units Generated');
 
     } catch (error) {
         next(error);
