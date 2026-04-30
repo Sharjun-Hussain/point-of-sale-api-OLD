@@ -23,6 +23,7 @@ router.get('/stocks/low-stock', checkPermission('report:view'), reportController
 router.get('/stocks/transfers', checkPermission('report:view'), reportController.getStockTransfers);
 router.get('/stocks/summary', checkPermission('report:view'), reportController.getStockSummary);
 router.get('/stocks/insights', checkPermission('report:view'), reportController.getInventoryInsights);
+router.get('/stocks/expiring', checkPermission('report:view'), reportController.getExpiringProducts);
 
 // Financial Reports
 router.get('/finance/profit-loss', checkPermission('report:view'), reportController.getProfitLoss);

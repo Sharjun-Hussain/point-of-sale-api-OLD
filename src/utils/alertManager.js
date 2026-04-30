@@ -198,9 +198,66 @@ const checkFailedLoginAlert = async (user, ipAddress, userAgent) => {
     }
 };
 
+const checkExpiryAlert = async (batch) => {
+    try {
+        const organizationId = batch.organization_id;
+        const setting = await Setting.findOne({
+            where: { organization_id: organizationId, category: 'communication', branch_id: null }
+        });
+
+        if (!setting) return;
+
+        const alerts = setting.settings_data?.email?.alerts;
+        if (!alerts?.expiryAlert?.enabled) return;
+
+        // Fetch details if not provided
+        const product = await Product.findByPk(batch.product_id);
+        const variant = batch.product_variant_id ? await ProductVariant.findByPk(batch.product_variant_id) : null;
+        const organization = await Organization.findByPk(organizationId);
+
+        const itemName = variant ? `${product.name} (${variant.name})` : product.name;
+        const statusLabel = batch.expiration_status.toUpperCase();
+        const color = batch.expiration_status === 'critical' ? '#d32f2f' : '#f57c00';
+
+        const subject = `📅 Expiry Alert [${statusLabel}]: ${itemName}`;
+        const html = `
+            <div style="font-family: sans-serif; padding: 25px; border: 1px solid #eee; border-radius: 12px; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: ${color}; margin-top: 0;">Product Expiry Notification</h2>
+                <p>An inventory batch has reached <strong>${statusLabel}</strong> status:</p>
+                
+                <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                        <tr><td style="padding: 8px 0; color: #666; width: 120px;">Product:</td><td style="font-weight: bold;">${itemName}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #666;">Batch #:</td><td style="font-weight: bold;">${batch.batch_number || 'N/A'}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #666;">Expiry Date:</td><td style="font-weight: bold; color: ${color};">${new Date(batch.expiry_date).toLocaleDateString()}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #666;">Current Qty:</td><td style="font-weight: bold;">${batch.quantity}</td></tr>
+                    </table>
+                </div>
+
+                <p style="font-size: 13px; color: #4b5563;">Please take necessary action to move this stock before it expires.</p>
+                <p style="margin-top: 30px; font-size: 11px; color: #9ca3af; border-top: 1px solid #eee; pt: 10px;">
+                    Automated Alert from Inzeedo POS Monitoring System.
+                </p>
+            </div>
+        `;
+
+        await sendEmailWithSettings({
+            to: organization.email,
+            subject,
+            html,
+            text: `Expiry Alert: ${itemName} (Batch: ${batch.batch_number}) is ${statusLabel}. Expiry Date: ${new Date(batch.expiry_date).toLocaleDateString()}`
+        }, organizationId);
+
+        logger.info(`[ALERTS] Expiry alert sent for Org: ${organizationId}, Batch: ${batch.id}`);
+    } catch (err) {
+        logger.error(`[ALERTS] Failed to process expiry alert: ${err.message}`);
+    }
+};
+
 module.exports = {
     checkLowStockAlert,
     checkHighSalesAlert,
     checkUnusualLoginActivity,
-    checkFailedLoginAlert
+    checkFailedLoginAlert,
+    checkExpiryAlert
 };

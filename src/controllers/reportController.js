@@ -1599,7 +1599,49 @@ const reportController = {
         } catch (error) { next(error); }
     },
 
-    // 22. Inventory Insights
+    // 22. Expiring Products Report
+    getExpiringProducts: async (req, res, next) => {
+        try {
+            const organization_id = req.user.organization_id;
+            const { branch_id, status } = req.query;
+
+            const where = { 
+                organization_id,
+                quantity: { [Op.gt]: 0 },
+                expiration_status: status && status !== 'all' ? status : { [Op.in]: ['expired', 'critical', 'warning'] }
+            };
+
+            if (branch_id && branch_id !== 'all') {
+                where.branch_id = branch_id;
+            }
+
+            const batches = await db.ProductBatch.findAll({
+                where,
+                include: [
+                    {
+                        model: db.Product,
+                        as: 'product',
+                        attributes: ['name', 'code', 'image']
+                    },
+                    {
+                        model: db.ProductVariant,
+                        as: 'variant',
+                        attributes: ['name', 'sku']
+                    },
+                    {
+                        model: db.Branch,
+                        as: 'branch',
+                        attributes: ['name']
+                    }
+                ],
+                order: [['expiry_date', 'ASC']]
+            });
+
+            return successResponse(res, batches, 'Expiring products report fetched successfully');
+        } catch (error) { next(error); }
+    },
+
+    // 23. Inventory Insights
     getInventoryInsights: async (req, res, next) => {
         try {
             const organization_id = req.user.organization_id;
