@@ -78,6 +78,15 @@ const createUser = async (req, res, next) => {
             try { branch_ids = JSON.parse(branch_ids); } catch (e) { branch_ids = branch_ids.split(',').filter(Boolean); }
         }
 
+        // Role Assignment Security: Prevent non-Super Admins from assigning the Super Admin role
+        if (role_ids && role_ids.length > 0) {
+            const requestedRoles = await Role.findAll({ where: { id: role_ids } });
+            const isTargetingSuperAdmin = requestedRoles.some(r => r.name === 'Super Admin');
+            if (isTargetingSuperAdmin && !isSuperAdmin) {
+                return errorResponse(res, 'Security Violation: You do not have the clearance to provision Super Admin credentials. This event has been flagged for audit.', 403);
+            }
+        }
+
         const user = await User.create({
             name: userName, first_name, last_name, email, password: hashedPassword, organization_id, nic, joined_date, phone, profile_image
         });
@@ -170,6 +179,15 @@ const updateUser = async (req, res, next) => {
             const currentFirstName = first_name || user.first_name;
             const currentLastName = last_name || user.last_name;
             updateData.name = [currentFirstName, currentLastName].filter(Boolean).join(' ');
+        }
+
+        // Role Assignment Security: Prevent non-Super Admins from assigning the Super Admin role
+        if (role_ids && role_ids.length > 0) {
+            const requestedRoles = await Role.findAll({ where: { id: role_ids } });
+            const isTargetingSuperAdmin = requestedRoles.some(r => r.name === 'Super Admin');
+            if (isTargetingSuperAdmin && !isSuperAdmin) {
+                return errorResponse(res, 'Security Violation: Escalation of privilege detected. You cannot assign Super Admin roles.', 403);
+            }
         }
 
         await user.update(updateData);

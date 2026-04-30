@@ -130,10 +130,26 @@ const seed = async () => {
             where: { name: 'Super Admin' },
             defaults: { description: 'Full system access' }
         });
+        const [orgAdminRole] = await Role.findOrCreate({
+            where: { name: 'Organization Admin' },
+            defaults: { description: 'Full organization management access' }
+        });
 
         const allPermissionInstances = await Permission.findAll();
         await adminRole.setPermissions(allPermissionInstances);
         console.log('✅ Assigned all permissions to Super Admin role.');
+
+        // Assign filtered permissions to Organization Admin
+        const excludedPermNames = [
+            'org:view',
+            'org:create',
+            'org:delete',
+            'system:settings',
+            'system:audit_log'
+        ];
+        const orgAdminPermissions = allPermissionInstances.filter(p => !excludedPermNames.includes(p.name));
+        await orgAdminRole.setPermissions(orgAdminPermissions);
+        console.log('✅ Assigned filtered permissions to Organization Admin role.');
 
         console.log('🌱 Standardized Permissions Seeding Completed Successfully!');
         process.exit(0);

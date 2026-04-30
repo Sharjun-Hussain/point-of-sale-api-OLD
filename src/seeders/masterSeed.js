@@ -120,6 +120,10 @@ const seed = async () => {
             where: { name: 'Super Admin' },
             defaults: { description: 'Full system access' }
         });
+        const [orgAdminRole] = await Role.findOrCreate({
+            where: { name: 'Organization Admin' },
+            defaults: { description: 'Full organization management access' }
+        });
         const [managerRole] = await Role.findOrCreate({
             where: { name: 'Manager' },
             defaults: { description: 'Branch management access' }
@@ -129,6 +133,17 @@ const seed = async () => {
         const allPermissionInstances = await Permission.findAll();
         await adminRole.setPermissions(allPermissionInstances);
         console.log('✅ Created Super Admin role and assigned all permissions.');
+
+        // Assign filtered permissions to Organization Admin
+        // Exclude sensitive system-level permissions
+        const excludedPermNames = [
+            'Organization View',
+            'Organization Create',
+            'Organization Delete'
+        ];
+        const orgAdminPermissions = allPermissionInstances.filter(p => !excludedPermNames.includes(p.name));
+        await orgAdminRole.setPermissions(orgAdminPermissions);
+        console.log('✅ Created Organization Admin role and assigned filtered permissions.');
 
         // 3. Organization & Branch
         const [org] = await Organization.findOrCreate({
