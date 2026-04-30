@@ -1371,7 +1371,7 @@ const importProducts = async (req, res, next) => {
                     transaction: t
                 });
 
-                // 2. Resolve Brand (if provided)
+                // 2. Resolve Brand
                 let brand_id = null;
                 if (p.brand) {
                     const [brand] = await Brand.findOrCreate({
@@ -1381,7 +1381,7 @@ const importProducts = async (req, res, next) => {
                     brand_id = brand.id;
                 }
 
-                // 3. Resolve Unit (if provided)
+                // 3. Resolve Unit
                 let unit_id = null;
                 if (p.unit) {
                     const [unit] = await Unit.findOrCreate({
@@ -1391,38 +1391,117 @@ const importProducts = async (req, res, next) => {
                     unit_id = unit.id;
                 }
 
-                // 4. Create Product
-                const product = await Product.create({
-                    organization_id,
-                    name: p.name,
-                    code: p.code || `PRD-${Date.now()}-${index}`,
-                    main_category_id: category.id,
-                    brand_id,
-                    unit_id,
-                    description: p.description || '',
-                    sku: p.sku || p.code,
-                    is_active: true,
-                    is_variant: false // Bulk import usually creates simple products first
-                }, { transaction: t });
+                // 4. Find or Create Product (Deduplicate by Name or Code)
+                const [product, productCreated] = await Product.findOrCreate({
+                    where: {
+                        organization_id,
+                        [Op.or]: [
+                            { name: p.name },
+                            { code: p.code || '___NON_EXISTENT_CODE___' }
+                        ]
+                    },
+                    defaults: {
+                        name: p.name,
+                        code: p.code || `PRD-${Date.now()}-${index}`,
+                        main_category_id: category.id,
+                        brand_id,
+                        unit_id,
+                        description: p.description || '',
+                        sku: p.sku || p.code,
+                        is_active: true,
+                        is_variant: true // Enable variants support
+                    },
+                    transaction: t
+                });
 
-                // 5. Create Default Variant
-                await ProductVariant.create({
-                    organization_id,
-                    product_id: product.id,
-                    name: 'Default',
-                    sku: product.sku,
-                    code: product.code,
-                    price: parseFloat(p.selling_price || 0),
-                    cost_price: parseFloat(p.cost_price || 0),
-                    stock_quantity: 0, // Stock handled separately via batch/opening
-                    is_active: true,
-                    is_default: true
-                }, { transaction: t });
+                // 5. Find or Create Variant
+                const variantSku = p.sku || p.code || `${product.code}-DEF`;
+                const [variant, variantCreated] = await ProductVariant.findOrCreate({
+                    where: {
+                        organization_id,
+                        product_id: product.id,
+                        sku: variantSku
+                    },
+                    defaults: {
+                        name: p.variant_name || (productCreated ? 'Default' : `Variant ${variantSku}`),
+                        sku: variantSku,
+                        code: p.code || product.code,
+                        barcode: p.barcode || p.code,
+                        price: parseFloat(p.selling_price || 0),
+                        cost_price: parseFloat(p.cost_price || 0),
+                        stock_quantity: 0,
+                        is_active: true,
+                        is_default: productCreated
+                    },
+                    transaction: t
+                });
+
+                if (!variantCreated) {
+                    // Update existing variant price/cost if it already exists
+                    await variant.update({
+                        price: parseFloat(p.selling_price || variant.price),
+                        cost_price: parseFloat(p.cost_price || variant.cost_price)
+                    }, { transaction: t });
+                }
+
+                // 6. Handle Initial Stock if provided
+                if (parseFloat(p.stock_qty) > 0) {
+                    // Resolve Branch (Default to user's branch or first available)
+                    let branch_id = req.user.branch_id;
+                    if (!branch_id && req.user.branches && req.user.branches.length > 0) {
+                        branch_id = req.user.branches[0].id;
+                    }
+                    if (!branch_id) {
+                        const firstBranch = await Branch.findOne({ where: { organization_id } });
+                        if (firstBranch) branch_id = firstBranch.id;
+                    }
+
+                    if (branch_id) {
+                        // Create Opening Stock Header if not exists for this import
+                        const reference_number = `IMP-OS-${product.code}-${Date.now()}`;
+                        const opening = await StockOpening.create({
+                            organization_id,
+                            branch_id,
+                            user_id: req.user.id,
+                            reference_number,
+                            opening_date: new Date(),
+                            notes: 'Automatic opening stock from bulk import',
+                            total_value: parseFloat(p.stock_qty) * parseFloat(p.cost_price || 0)
+                        }, { transaction: t });
+
+                        // Create Batch
+                        await ProductBatch.create({
+                            organization_id,
+                            branch_id,
+                            product_id: product.id,
+                            product_variant_id: variant.id,
+                            quantity: parseFloat(p.stock_qty),
+                            cost_price: parseFloat(p.cost_price || 0),
+                            selling_price: parseFloat(p.selling_price || 0),
+                            purchase_date: new Date(),
+                            is_active: true,
+                            opening_stock_id: opening.id
+                        }, { transaction: t });
+
+                        // Update Global Stock
+                        const [stockRecord] = await Stock.findOrCreate({
+                            where: {
+                                organization_id,
+                                branch_id,
+                                product_id: product.id,
+                                product_variant_id: variant.id
+                            },
+                            defaults: { quantity: 0 },
+                            transaction: t
+                        });
+                        await stockRecord.increment('quantity', { by: parseFloat(p.stock_qty), transaction: t });
+                    }
+                }
 
                 results.success++;
             } catch (error) {
                 results.failed++;
-                results.logs.push({ row: index + 1, msg: error.message });
+                results.logs.push({ row: index + 1, name: p.name, msg: error.message });
             }
         }
 
