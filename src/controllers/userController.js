@@ -52,8 +52,10 @@ const getAllUsers = async (req, res, next) => {
 
 const createUser = async (req, res, next) => {
     try {
-        let { name, first_name, last_name, email, password, role_ids, branch_ids, nic, joined_date, phone, profile_image } = req.body;
-        const organization_id = req.user.organization_id;
+        let { name, first_name, last_name, email, password, role_ids, branch_ids, nic, joined_date, phone, profile_image, organization_id: selected_org_id } = req.body;
+        
+        const isSuperAdmin = req.user.roles.some(role => role.name === 'Super Admin');
+        const organization_id = (isSuperAdmin && selected_org_id) ? selected_org_id : req.user.organization_id;
 
         // Handle File Upload
         if (req.file) {
@@ -84,7 +86,7 @@ const createUser = async (req, res, next) => {
         if (branch_ids) await user.setBranches(branch_ids);
 
         const createdUser = await User.findOne({
-            where: { id: user.id, organization_id: req.user.organization_id },
+            where: { id: user.id, organization_id: organization_id },
             include: [{ model: Role, as: 'roles' }, { model: Branch, as: 'branches' }]
         });
 
