@@ -1403,6 +1403,17 @@ const reportController = {
                         ? `${((lowStockCount / totalStockItems) * 100).toFixed(1)}%`
                         : '0%'
                 },
+                expiringCount: {
+                    value: await db.ProductBatch.count({
+                        where: {
+                            organization_id,
+                            quantity: { [Op.gt]: 0 },
+                            expiration_status: { [Op.in]: ['expired', 'critical', 'warning'] }
+                        }
+                    }),
+                    trend: 'stable',
+                    change: 'Alerts'
+                },
                 newCustomers: {
                     value: newCustomers,
                     ...customerTrend
