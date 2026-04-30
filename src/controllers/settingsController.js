@@ -9,7 +9,7 @@ const { encrypt, decrypt, isMasked, MASK } = require('../utils/security');
 
 const SENSITIVE_KEYS = [
     'Password', 'API Key', 'Secret Key', 'Access Key',
-    'Auth Token', 'API Secret', 'Username'
+    'Auth Token', 'API Secret', 'Username', 'key', 'secret', 'token'
 ];
 
 /**
@@ -29,16 +29,20 @@ const processSecrets = (data, mode = 'mask', existingData = null) => {
             continue;
         }
 
-        if (SENSITIVE_KEYS.includes(key)) {
+        const isSensitive = SENSITIVE_KEYS.some(s => 
+            key.toLowerCase().includes(s.toLowerCase())
+        );
+
+        if (isSensitive) {
             if (mode === 'encrypt') {
                 // If it's a mask, keep the existing encrypted value
                 if (isMasked(value)) {
                     result[key] = existingData ? existingData[key] : value;
                 } else {
-                    result[key] = encrypt(value);
+                    result[key] = value ? encrypt(value) : '';
                 }
             } else if (mode === 'decrypt') {
-                result[key] = decrypt(value);
+                result[key] = (value && !isMasked(value)) ? decrypt(value) : value;
             } else if (mode === 'mask') {
                 result[key] = value ? MASK : '';
             }
@@ -284,21 +288,32 @@ const testConnection = async (req, res, next) => {
         const hasMaskedFields = Object.values(config).some(v => isMasked(v));
 
         if (hasMaskedFields) {
+            const categoryMap = { 'email': 'communication', 'sms': 'communication', 'ai': 'ai' };
+            const category = categoryMap[type] || 'communication';
+
             const existingSetting = await Setting.findOne({
                 where: {
                     organization_id: req.user.organization_id,
-                    category: 'communication'
+                    category
                 }
             });
 
             if (existingSetting) {
                 const existingData = sanitizeSettings(existingSetting.settings_data);
-                const categoryData = type === 'email' ? existingData?.email?.config : existingData?.sms?.config;
+                let categoryData = null;
+                if (type === 'email') categoryData = existingData?.email?.config;
+                else if (type === 'sms') categoryData = existingData?.sms?.config;
+                else if (type === 'ai') categoryData = existingData;
 
                 if (categoryData) {
                     for (const key in finalConfig) {
-                        if (isMasked(finalConfig[key]) && categoryData[key]) {
-                            finalConfig[key] = categoryData[key];
+                        if (isMasked(finalConfig[key])) {
+                            // Map 'apiKey' from frontend to the specific key in DB if needed
+                            if (type === 'ai' && key === 'apiKey') {
+                                finalConfig[key] = provider === 'openai' ? categoryData.openai_key : categoryData.claude_key;
+                            } else if (categoryData[key]) {
+                                finalConfig[key] = categoryData[key];
+                            }
                         }
                     }
                 }
@@ -340,12 +355,51 @@ const testConnection = async (req, res, next) => {
                     if (response.ok) return successResponse(res, null, 'Nexmo connectivity verified');
                     throw new Error('Vonage/Nexmo rejected credentials');
                 }
-
                 throw new Error('Unsupported SMS provider');
             } catch (err) {
                 return errorResponse(res, err.message, 400);
             }
         }
+
+        if (type === 'ai') {
+            try {
+                const decConfig = processSecrets(finalConfig, 'decrypt');
+                const apiKey = decConfig.apiKey;
+
+                if (provider === 'openai') {
+                    const response = await fetch('https://api.openai.com/v1/models', {
+                        headers: { Authorization: `Bearer ${apiKey}` }
+                    });
+                    if (response.ok) return successResponse(res, null, 'OpenAI connectivity verified');
+                    const errData = await response.json();
+                    throw new Error(errData.error?.message || 'OpenAI rejected credentials');
+                }
+
+                if (provider === 'claude') {
+                    const response = await fetch('https://api.anthropic.com/v1/messages', {
+                        method: 'POST',
+                        headers: {
+                            'x-api-key': apiKey,
+                            'anthropic-version': '2023-06-01',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ 
+                            model: 'claude-3-haiku-20240307', 
+                            max_tokens: 1, 
+                            messages: [{ role: 'user', content: 'ping' }] 
+                        })
+                    });
+                    if (response.ok) return successResponse(res, null, 'Claude connectivity verified');
+                    const errData = await response.json();
+                    throw new Error(errData.error?.message || 'Anthropic rejected credentials');
+                }
+
+                throw new Error('Unsupported AI provider for testing');
+            } catch (err) {
+                return errorResponse(res, err.message, 400);
+            }
+        }
+
         return errorResponse(res, 'Invalid test type', 400);
     } catch (error) { next(error); }
 };
