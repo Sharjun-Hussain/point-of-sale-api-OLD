@@ -664,10 +664,11 @@ const seedFoodCity = async () => {
 
         await SalePayment.create({
             id: crypto.randomUUID(),
+            organization_id,
             sale_id: sale.id,
             payment_method: 'cash',
-            amount: 1500.00,
-            payment_date: new Date()
+            amount: 1500.00
+
         }, { transaction: t });
 
         // Cheque Sale
@@ -697,7 +698,8 @@ const seedFoodCity = async () => {
             cheque_number: 'CHQ-123456',
             bank_name: 'Sampath Bank',
             amount: 5000.00,
-            due_date: new Date(Date.now() + 86400000 * 7),
+            cheque_date: new Date(Date.now() + 86400000 * 7),
+            reference_type: 'sale',
             status: 'pending'
         }, { transaction: t });
 
@@ -749,11 +751,11 @@ const seedFoodCity = async () => {
             organization_id,
             branch_id,
             supplier_id: supplierMap['Unilever Sri Lanka'],
+            voucher_number: `VOUCH-${crypto.randomBytes(3).toString('hex').toUpperCase()}`,
             payment_date: new Date(),
-            amount: 5000.00,
-            payment_method: 'cash',
-            reference: 'Partial payment for PO-001',
-            user_id
+            total_amount: 5000.00,
+            notes: 'Partial payment for PO-001',
+            created_by: user_id
         }, { transaction: t });
 
         // 14. Manual Ledger Transactions
@@ -763,12 +765,11 @@ const seedFoodCity = async () => {
             organization_id,
             branch_id,
             account_id: accountMap['Main Cash'],
-            date: new Date(),
+            transaction_date: new Date(),
             type: 'credit',
             amount: 1000.00,
             description: 'Manual cash deposit for initial change',
-            reference_type: 'manual',
-            user_id
+            reference_type: 'manual'
         }, { transaction: t });
 
         // 15. SPECIAL SCENARIO: The "Coca-Cola Pricing Headache" (Same Barcode, Different Prices)
