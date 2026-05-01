@@ -395,11 +395,13 @@ const seedFoodCity = async () => {
                         transaction: t
                     });
 
-                    // Update existing ones if they missing SKU/Barcode/Code from previous run
-                    if (!variant.sku || !variant.barcode || !variant.code) {
+                    // Update existing ones if they missing SKU/Barcode/Code or Prices from previous run
+                    if (!variant.sku || !variant.barcode || !variant.code || !variant.cost_price || !variant.price) {
                         variant.sku = variant.sku || vSku;
                         variant.barcode = variant.barcode || vBarcode;
                         variant.code = variant.code || variant.sku || vSku;
+                        variant.cost_price = variant.cost_price || cost;
+                        variant.price = variant.price || price;
                         await variant.save({ transaction: t });
                     }
 
@@ -471,7 +473,13 @@ const seedFoodCity = async () => {
         for (const s of suppliersData) {
             const [supplier] = await Supplier.findOrCreate({
                 where: { name: s.name, organization_id },
-                defaults: { ...s, id: crypto.randomUUID(), organization_id, status: 'active' },
+                defaults: { 
+                    id: crypto.randomUUID(), 
+                    name: s.name,
+                    phone: s.contact,
+                    email: s.email,
+                    organization_id 
+                },
                 transaction: t
             });
             supplierMap[s.name] = supplier.id;
@@ -488,7 +496,14 @@ const seedFoodCity = async () => {
         for (const acc of accountsData) {
             const [account] = await Account.findOrCreate({
                 where: { code: acc.code, organization_id },
-                defaults: { ...acc, id: crypto.randomUUID(), organization_id, branch_id },
+                defaults: { 
+                    id: crypto.randomUUID(), 
+                    name: acc.name,
+                    code: acc.code,
+                    type: acc.type,
+                    balance: acc.initial_balance || 0,
+                    organization_id 
+                },
                 transaction: t
             });
             accountMap[acc.name] = account.id;
@@ -552,14 +567,15 @@ const seedFoodCity = async () => {
         // Add 2 items to PO
         const poItems = allCreatedVariants.slice(0, 2);
         for (const v of poItems) {
+            const cost = v.cost_price || 0;
             await PurchaseOrderItem.create({
                 id: crypto.randomUUID(),
                 purchase_order_id: po.id,
                 product_id: v.product_id,
                 product_variant_id: v.id,
                 quantity: 50,
-                unit_cost: v.cost_price,
-                total_amount: 50 * v.cost_price,
+                unit_cost: cost,
+                total_amount: 50 * cost,
                 organization_id
             }, { transaction: t });
         }
@@ -598,6 +614,7 @@ const seedFoodCity = async () => {
                 transaction: t
             });
 
+            const cost = v.cost_price || 0;
             await GRNItem.create({
                 id: crypto.randomUUID(),
                 grn_id: grn.id,
@@ -605,8 +622,8 @@ const seedFoodCity = async () => {
                 product_variant_id: v.id,
                 quantity_ordered: 50,
                 quantity_received: 50,
-                unit_cost: v.cost_price,
-                total_amount: 50 * v.cost_price,
+                unit_cost: cost,
+                total_amount: 50 * cost,
                 product_batch_id: batch.id,
                 batch_number: batchNum,
                 organization_id
