@@ -1,6 +1,7 @@
 require('dotenv').config();
 const {
     sequelize,
+    Sequelize,
     Organization,
     Branch,
     Brand,
@@ -18,8 +19,25 @@ const {
     Supplier,
     Stock,
     StockOpening,
-    ProductBatch
+    ProductBatch,
+    PurchaseOrder,
+    PurchaseOrderItem,
+    GRN,
+    GRNItem,
+    Sale,
+    SaleItem,
+    SalePayment,
+    SaleReturn,
+    SaleReturnItem,
+    ExpenseCategory,
+    Expense,
+    Account,
+    Transaction,
+    SupplierPayment,
+    Cheque,
+    Customer
 } = require('../models');
+const { Op } = Sequelize;
 const crypto = require('crypto');
 const readline = require('readline');
 
@@ -272,6 +290,7 @@ const seedFoodCity = async () => {
         const usedCodes = new Set();
         const usedSkus = new Set();
         const usedBarcodes = new Set();
+        const allCreatedVariants = [];
 
         const generateCode = (prefix) => {
             let code;
@@ -433,8 +452,343 @@ const seedFoodCity = async () => {
                     }
 
                     totalVariantsCount++;
+                    // Collect some variants for later seeding (PO, Sales, etc)
+                    if (allCreatedVariants.length < 50) allCreatedVariants.push(variant);
                 }
                 productCounter++;
+            }
+        }
+
+        // 7. Suppliers
+        console.log('🚚 Seeding Suppliers...');
+        const suppliersData = [
+            { name: 'Unilever Sri Lanka', contact: '0112345678', email: 'orders@unilever.lk' },
+            { name: 'Coca-Cola Beverages', contact: '0119876543', email: 'sales@coca-cola.lk' },
+            { name: 'Ceylon Cold Stores', contact: '0115554433', email: 'info@ccs.lk' },
+            { name: 'Cargills Quality Foods', contact: '0112221100', email: 'supplies@cargills.lk' }
+        ];
+        const supplierMap = {};
+        for (const s of suppliersData) {
+            const [supplier] = await Supplier.findOrCreate({
+                where: { name: s.name, organization_id },
+                defaults: { ...s, id: crypto.randomUUID(), organization_id, status: 'active' },
+                transaction: t
+            });
+            supplierMap[s.name] = supplier.id;
+        }
+
+        // 8. Accounts & Customers
+        console.log('🏦 Seeding Accounts & Customers...');
+        const accountsData = [
+            { name: 'Main Cash', code: 'ACC-CASH-001', type: 'asset', initial_balance: 50000 },
+            { name: 'HNB Bank Account', code: 'ACC-BANK-001', type: 'asset', initial_balance: 1500000 },
+            { name: 'Petty Cash', code: 'ACC-PC-001', type: 'asset', initial_balance: 5000 }
+        ];
+        const accountMap = {};
+        for (const acc of accountsData) {
+            const [account] = await Account.findOrCreate({
+                where: { code: acc.code, organization_id },
+                defaults: { ...acc, id: crypto.randomUUID(), organization_id, branch_id },
+                transaction: t
+            });
+            accountMap[acc.name] = account.id;
+        }
+
+        const customerData = [
+            { name: 'Walking Customer', phone: '0000000000' },
+            { name: 'Loyal Customer - Kamal', phone: '0771234567', email: 'kamal@example.com' },
+            { name: 'Credit Customer - Nimal', phone: '0719876543', credit_limit: 50000 }
+        ];
+        const customerMap = {};
+        for (const c of customerData) {
+            const [customer] = await Customer.findOrCreate({
+                where: { phone: c.phone, organization_id },
+                defaults: { ...c, id: crypto.randomUUID(), organization_id },
+                transaction: t
+            });
+            customerMap[c.name] = customer.id;
+        }
+
+        // 9. Expenses
+        console.log('💸 Seeding Expenses...');
+        const expCat = ['Utilities', 'Rent', 'Salary', 'Maintenance'];
+        const expCatMap = {};
+        for (const cat of expCat) {
+            const [ec] = await ExpenseCategory.findOrCreate({
+                where: { name: cat, organization_id },
+                defaults: { id: crypto.randomUUID(), name: cat, organization_id },
+                transaction: t
+            });
+            expCatMap[cat] = ec.id;
+        }
+        await Expense.create({
+            id: crypto.randomUUID(),
+            organization_id,
+            branch_id,
+            expense_category_id: expCatMap['Utilities'],
+            amount: 15500.00,
+            date: new Date(),
+            description: 'Electricity Bill - March 2024',
+            status: 'paid',
+            user_id
+        }, { transaction: t });
+
+        // 10. Purchase Orders & GRNs
+        console.log('📦 Seeding Purchase Orders & GRNs...');
+        const poRef = `PO-FC-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+        const po = await PurchaseOrder.create({
+            id: crypto.randomUUID(),
+            organization_id,
+            branch_id,
+            supplier_id: supplierMap['Unilever Sri Lanka'],
+            po_number: poRef,
+            po_date: new Date(),
+            expected_date: new Date(Date.now() + 86400000 * 2),
+            status: 'received',
+            total_amount: 12500.00,
+            user_id
+        }, { transaction: t });
+
+        // Add 2 items to PO
+        const poItems = allCreatedVariants.slice(0, 2);
+        for (const v of poItems) {
+            await PurchaseOrderItem.create({
+                id: crypto.randomUUID(),
+                purchase_order_id: po.id,
+                product_id: v.product_id,
+                product_variant_id: v.id,
+                quantity: 50,
+                unit_price: v.cost_price,
+                total_price: 50 * v.cost_price
+            }, { transaction: t });
+        }
+
+        // Connected GRN
+        const grnRef = `GRN-FC-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+        const grn = await GRN.create({
+            id: crypto.randomUUID(),
+            organization_id,
+            branch_id,
+            supplier_id: po.supplier_id,
+            purchase_order_id: po.id,
+            grn_number: grnRef,
+            received_date: new Date(),
+            status: 'completed',
+            total_amount: po.total_amount,
+            user_id
+        }, { transaction: t });
+
+        for (const v of poItems) {
+            const batchNum = `BAT-GRN-${v.sku}`;
+            const [batch] = await ProductBatch.findOrCreate({
+                where: { batch_number: batchNum, organization_id },
+                defaults: {
+                    id: crypto.randomUUID(),
+                    organization_id,
+                    branch_id,
+                    product_id: v.product_id,
+                    product_variant_id: v.id,
+                    batch_number: batchNum,
+                    quantity: 50,
+                    cost_price: v.cost_price,
+                    selling_price: v.price,
+                    purchase_date: new Date()
+                },
+                transaction: t
+            });
+
+            await GRNItem.create({
+                id: crypto.randomUUID(),
+                grn_id: grn.id,
+                product_id: v.product_id,
+                product_variant_id: v.id,
+                product_batch_id: batch.id,
+                received_quantity: 50,
+                unit_price: v.cost_price,
+                total_price: 50 * v.cost_price
+            }, { transaction: t });
+        }
+
+        // 11. Sales & Payments
+        console.log('💰 Seeding Sales & Payments...');
+        const saleItems = allCreatedVariants.slice(5, 8);
+        const invRef = `INV-FC-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+        const sale = await Sale.create({
+            id: crypto.randomUUID(),
+            organization_id,
+            branch_id,
+            customer_id: customerMap['Walking Customer'],
+            user_id,
+            invoice_number: invRef,
+            sale_date: new Date(),
+            total_amount: 1500.00,
+            payable_amount: 1500.00,
+            paid_amount: 1500.00,
+            payment_status: 'paid',
+            status: 'completed'
+        }, { transaction: t });
+
+        for (const v of saleItems) {
+            await SaleItem.create({
+                id: crypto.randomUUID(),
+                sale_id: sale.id,
+                product_id: v.product_id,
+                product_variant_id: v.id,
+                quantity: 2,
+                unit_price: v.price,
+                total_price: 2 * v.price
+            }, { transaction: t });
+        }
+
+        await SalePayment.create({
+            id: crypto.randomUUID(),
+            sale_id: sale.id,
+            payment_method: 'cash',
+            amount: 1500.00,
+            payment_date: new Date()
+        }, { transaction: t });
+
+        // Cheque Sale
+        const chequeInv = `INV-CHQ-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+        const saleChq = await Sale.create({
+            id: crypto.randomUUID(),
+            organization_id,
+            branch_id,
+            customer_id: customerMap['Loyal Customer - Kamal'],
+            user_id,
+            invoice_number: chequeInv,
+            sale_date: new Date(),
+            total_amount: 5000.00,
+            payable_amount: 5000.00,
+            paid_amount: 5000.00,
+            payment_status: 'paid',
+            payment_method: 'cheque',
+            status: 'completed'
+        }, { transaction: t });
+
+        await Cheque.create({
+            id: crypto.randomUUID(),
+            organization_id,
+            branch_id,
+            type: 'receivable',
+            reference_id: saleChq.id,
+            cheque_number: 'CHQ-123456',
+            bank_name: 'Sampath Bank',
+            amount: 5000.00,
+            due_date: new Date(Date.now() + 86400000 * 7),
+            status: 'pending'
+        }, { transaction: t });
+
+        // Credit Sale
+        const creditInv = `INV-CR-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+        const saleCredit = await Sale.create({
+            id: crypto.randomUUID(),
+            organization_id,
+            branch_id,
+            customer_id: customerMap['Credit Customer - Nimal'],
+            user_id,
+            invoice_number: creditInv,
+            sale_date: new Date(),
+            total_amount: 2500.00,
+            payable_amount: 2500.00,
+            paid_amount: 0.00,
+            payment_status: 'unpaid',
+            status: 'completed'
+        }, { transaction: t });
+
+        // 12. Returns
+        console.log('🔄 Seeding Returns...');
+        const sReturn = await SaleReturn.create({
+            id: crypto.randomUUID(),
+            organization_id,
+            branch_id,
+            sale_id: sale.id,
+            return_number: `SLR-${crypto.randomBytes(3).toString('hex').toUpperCase()}`,
+            return_date: new Date(),
+            total_amount: 500.00,
+            user_id
+        }, { transaction: t });
+
+        await SaleReturnItem.create({
+            id: crypto.randomUUID(),
+            sale_return_id: sReturn.id,
+            product_id: saleItems[0].product_id,
+            product_variant_id: saleItems[0].id,
+            quantity: 1,
+            unit_price: saleItems[0].price,
+            total_price: saleItems[0].price
+        }, { transaction: t });
+
+        // 13. Supplier Settlements
+        console.log('🤝 Seeding Supplier Settlements...');
+        await SupplierPayment.create({
+            id: crypto.randomUUID(),
+            organization_id,
+            branch_id,
+            supplier_id: supplierMap['Unilever Sri Lanka'],
+            payment_date: new Date(),
+            amount: 5000.00,
+            payment_method: 'cash',
+            reference: 'Partial payment for PO-001',
+            user_id
+        }, { transaction: t });
+
+        // 14. Manual Ledger Transactions
+        console.log('📒 Seeding Manual Ledger Transactions...');
+        await Transaction.create({
+            id: crypto.randomUUID(),
+            organization_id,
+            branch_id,
+            account_id: accountMap['Main Cash'],
+            date: new Date(),
+            type: 'credit',
+            amount: 1000.00,
+            description: 'Manual cash deposit for initial change',
+            reference_type: 'manual',
+            user_id
+        }, { transaction: t });
+
+        // 15. SPECIAL SCENARIO: The "Coca-Cola Pricing Headache" (Same Barcode, Different Prices)
+        console.log('🥤 Seeding "Coca-Cola Pricing Headache" Scenario...');
+        const cokeProduct = await Product.findOne({ where: { name: 'Coca Cola', organization_id }, transaction: t });
+        if (cokeProduct) {
+            const cokeVariant = await ProductVariant.findOne({ 
+                where: { product_id: cokeProduct.id, name: { [Op.like]: '%1L%' } },
+                transaction: t
+            });
+            
+            if (cokeVariant) {
+                // Batch 1: Old Price ($150)
+                await ProductBatch.create({
+                    id: crypto.randomUUID(),
+                    organization_id,
+                    branch_id,
+                    product_id: cokeProduct.id,
+                    product_variant_id: cokeVariant.id,
+                    batch_number: 'BATCH-OLD-150',
+                    quantity: 10,
+                    cost_price: 120.00,
+                    selling_price: 150.00,
+                    purchase_date: new Date(Date.now() - 86400000 * 30), // 1 month ago
+                    expiry_date: new Date(Date.now() + 86400000 * 180)
+                }, { transaction: t });
+
+                // Batch 2: New Price ($200) - Same barcode/variant!
+                await ProductBatch.create({
+                    id: crypto.randomUUID(),
+                    organization_id,
+                    branch_id,
+                    product_id: cokeProduct.id,
+                    product_variant_id: cokeVariant.id,
+                    batch_number: 'BATCH-NEW-200',
+                    quantity: 15,
+                    cost_price: 160.00,
+                    selling_price: 200.00,
+                    purchase_date: new Date(), // Today
+                    expiry_date: new Date(Date.now() + 86400000 * 365)
+                }, { transaction: t });
+
+                console.log('✅ Created 2 distinct batches for Coca-Cola 1L ($150 and $200) to test selection logic.');
             }
         }
 
