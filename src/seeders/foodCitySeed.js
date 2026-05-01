@@ -657,7 +657,8 @@ const seedFoodCity = async () => {
                 product_variant_id: v.id,
                 quantity: 2,
                 unit_price: v.price,
-                total_price: 2 * v.price
+                total_amount: 2 * v.price,
+                organization_id
             }, { transaction: t });
         }
 
@@ -737,7 +738,8 @@ const seedFoodCity = async () => {
             product_variant_id: saleItems[0].id,
             quantity: 1,
             unit_price: saleItems[0].price,
-            total_price: saleItems[0].price
+            total_amount: saleItems[0].price,
+            organization_id
         }, { transaction: t });
 
         // 13. Supplier Settlements
