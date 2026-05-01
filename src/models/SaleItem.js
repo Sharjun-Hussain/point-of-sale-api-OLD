@@ -37,6 +37,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.DECIMAL(15, 2),
             allowNull: false
         },
+        product_batch_id: {
+            type: DataTypes.UUID,
+            allowNull: true
+        },
         organization_id: {
             type: DataTypes.UUID,
             allowNull: true
@@ -50,6 +54,7 @@ module.exports = (sequelize, DataTypes) => {
         SaleItem.belongsTo(models.Sale, { as: 'sale', foreignKey: 'sale_id' });
         SaleItem.belongsTo(models.Product, { as: 'product', foreignKey: 'product_id' });
         SaleItem.belongsTo(models.ProductVariant, { as: 'variant', foreignKey: 'product_variant_id' });
+        SaleItem.belongsTo(models.ProductBatch, { as: 'batch', foreignKey: 'product_batch_id' });
         SaleItem.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
     };
 

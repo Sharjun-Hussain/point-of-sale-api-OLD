@@ -11,6 +11,7 @@ router.get('/', checkPermission('product:view'), productController.getAllProduct
 router.post('/', checkPermission('product:create'), upload.array('images[]', 10), productController.createProduct);
 router.get('/active/list', productController.getActiveProductsList);
 router.get('/variants/:variantId', checkPermission('product:view'), productController.getVariantById);
+router.get('/variants/:variantId/batches', checkPermission('product:view'), productController.getVariantBatches);
 router.get('/stock/check', productController.getProductStock);
 router.post('/opening-stock', checkPermission('product:create'), productController.createOpeningStock);
 router.get('/export', checkPermission('product:view'), productController.exportProducts);

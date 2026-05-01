@@ -114,6 +114,42 @@ class AccountingService {
 
         return results;
     }
+ 
+    /**
+     * Get current AR balance for a customer
+     */
+    async getCustomerBalance(organization_id, customer_id, transaction = null) {
+        const arAccount = await Account.findOne({
+            where: { organization_id, code: '1100' },
+            transaction
+        });
+        if (!arAccount) return 0;
+ 
+        const totals = await Transaction.findAll({
+            attributes: [
+                'type',
+                [db.Sequelize.fn('SUM', db.Sequelize.col('amount')), 'total']
+            ],
+            where: { organization_id, customer_id, account_id: arAccount.id },
+            group: ['type'],
+            transaction
+        });
+ 
+        let balance = 0;
+        totals.forEach(t => {
+            const amount = parseFloat(t.get('total') || 0);
+            if (t.type === 'debit') balance += amount;
+            else balance -= amount;
+        });
+ 
+        // Add opening balance from customer record
+        const customer = await db.Customer.findByPk(customer_id, { transaction });
+        if (customer) {
+            balance += parseFloat(customer.opening_balance || 0);
+        }
+ 
+        return balance;
+    }
 }
 
 module.exports = new AccountingService();

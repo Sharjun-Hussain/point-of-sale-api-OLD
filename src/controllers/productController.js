@@ -65,13 +65,21 @@ const getAllProducts = async (req, res, next) => {
 const createProduct = async (req, res, next) => {
     const t = await sequelize.transaction();
     try {
-        const {
+        let {
             name, code, description, sku, barcode,
             main_category_id, sub_category_id, brand_id,
             unit_id, measurement_id, container_id, supplier_id, is_variant, is_active,
 
             variants, product_attributes, suppliers // Added suppliers array
         } = req.body;
+
+        // Parse JSON strings if they come from multipart/form-data
+        if (typeof variants === 'string') { try { variants = JSON.parse(variants); } catch (e) { variants = []; } }
+        if (typeof product_attributes === 'string') { try { product_attributes = JSON.parse(product_attributes); } catch (e) { product_attributes = []; } }
+        if (typeof suppliers === 'string') { try { suppliers = JSON.parse(suppliers); } catch (e) { suppliers = []; } }
+        
+        is_variant = is_variant === 'true' || is_variant === true || is_variant === '1';
+        is_active = is_active === 'true' || is_active === true || is_active === '1' || is_active === undefined;
 
         // Handle Image Upload
         let imagePath = null;
@@ -123,7 +131,8 @@ const createProduct = async (req, res, next) => {
             for (const v of variants) {
                 const variant = await ProductVariant.create({
                     ...v,
-                    product_id: product.id
+                    product_id: product.id,
+                    organization_id
                 }, { transaction: t });
 
                 // Link Attributes if provided (e.g., v.attributes = [{ name: 'Color', value: 'Red' }])
@@ -339,6 +348,8 @@ const updateProduct = async (req, res, next) => {
             measurement_id,
             container_id,
             supplier_id,
+            sku,
+            barcode,
             is_variant
         };
 
@@ -395,7 +406,8 @@ const updateProduct = async (req, res, next) => {
                     // Create new variant
                     const variant = await ProductVariant.create({
                         ...variantData,
-                        product_id: id
+                        product_id: id,
+                        organization_id
                     }, { transaction: t });
 
                     // --- STOCK: Initialize Stock if provided ---
@@ -1114,17 +1126,26 @@ const createOpeningStock = async (req, res, next) => {
             });
             await stock.increment('quantity', { by: qty, transaction: t });
 
-            // Update master price if provided
+            // Update master price if provided - Always stored in ProductVariant
             if (item.product_variant_id) {
                 await ProductVariant.update(
                     { cost_price: cost, price: sell, wholesale_price: wholesale },
                     { where: { id: item.product_variant_id, organization_id }, transaction: t }
                 );
             } else {
-                await Product.update(
-                    { cost_price: cost, price: sell, wholesale_price: wholesale },
-                    { where: { id: item.product_id, organization_id }, transaction: t }
-                );
+                // Find the first/default variant for this product to update its price
+                const defaultVariant = await ProductVariant.findOne({
+                    where: { product_id: item.product_id, organization_id },
+                    order: [['is_default', 'DESC'], ['created_at', 'ASC']],
+                    transaction: t
+                });
+                
+                if (defaultVariant) {
+                    await defaultVariant.update(
+                        { cost_price: cost, price: sell, wholesale_price: wholesale },
+                        { transaction: t }
+                    );
+                }
             }
         }
 
@@ -1563,5 +1584,32 @@ module.exports = {
     getProductStock,
     importProducts,
     exportProducts,
-    deleteVariant
+    deleteVariant,
+    getVariantBatches
 };
+
+/**
+ * Get Batches for a Variant (Active only)
+ */
+async function getVariantBatches(req, res, next) {
+    try {
+        const { variantId } = req.params;
+        const branch_id = req.query.branch_id || req.user.branch_id;
+
+        const batches = await ProductBatch.findAll({
+            where: {
+                product_variant_id: variantId,
+                organization_id: req.user.organization_id,
+                branch_id: branch_id || null,
+                quantity: { [Op.gt]: 0 },
+                is_active: true
+            },
+            order: [
+                ['expiry_date', 'ASC'],
+                ['created_at', 'ASC']
+            ]
+        });
+
+        return successResponse(res, batches, 'Variant batches fetched successfully');
+    } catch (error) { next(error); }
+}

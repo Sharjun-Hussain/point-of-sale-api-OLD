@@ -236,7 +236,7 @@ const transferFunds = async (req, res, next) => {
 const createJournalEntry = async (req, res, next) => {
     const t = await db.sequelize.transaction();
     try {
-        const { date, description, entries } = req.body; // entries = [{ account_id, amount, type: 'debit'/'credit' }]
+        const { date, description, entries, customer_id, supplier_id } = req.body; // entries = [{ account_id, amount, type: 'debit'/'credit' }]
         const organization_id = req.user.organization_id;
         const branch_id = req.user.branch_id;
 
@@ -262,7 +262,9 @@ const createJournalEntry = async (req, res, next) => {
         await accountingService.createDoubleEntry(organization_id, branch_id, entries, {
             date,
             description: description || 'Manual Journal Entry',
-            reference_type: 'Journal Entry'
+            reference_type: 'Journal Entry',
+            customer_id,
+            supplier_id
         }, t);
 
         await t.commit();

@@ -30,6 +30,14 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.INTEGER,
             defaultValue: 0
         },
+        credit_limit: {
+            type: DataTypes.DECIMAL(15, 2),
+            defaultValue: 0.00
+        },
+        opening_balance: {
+            type: DataTypes.DECIMAL(15, 2),
+            defaultValue: 0.00
+        },
         is_active: {
             type: DataTypes.BOOLEAN,
             defaultValue: true

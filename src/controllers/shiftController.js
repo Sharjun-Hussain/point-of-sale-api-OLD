@@ -2,6 +2,7 @@ const db = require('../models');
 const { Shift, ShiftTransaction, User, Branch } = db;
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const auditService = require('../services/auditService');
+const accountingService = require('../services/accountingService');
 
 /**
  * Open a new shift
@@ -104,6 +105,26 @@ const addTransaction = async (req, res, next) => {
             type,
             amount,
             notes
+        });
+
+        // --- ACCOUNTING INTEGRATION ---
+        const [cashAccount] = await db.Account.findOrCreate({
+            where: { organization_id: req.user.organization_id, code: '1000' },
+            defaults: { name: 'Cash', type: 'asset' }
+        });
+
+        // pay_in = Cash increases, drop/payout = Cash decreases
+        const accountingType = type === 'pay_in' ? 'debit' : 'credit';
+        
+        await accountingService.recordTransaction({
+            organization_id: req.user.organization_id,
+            branch_id: shift.branch_id,
+            account_id: cashAccount.id,
+            amount,
+            type: accountingType,
+            reference_type: 'ShiftTransaction',
+            reference_id: transaction.id,
+            description: `Shift ${type}: ${notes || ''}`
         });
 
         // Audit Log: Shift Transaction

@@ -30,6 +30,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.UUID,
             allowNull: false
         },
+        opening_balance: {
+            type: DataTypes.DECIMAL(15, 2),
+            defaultValue: 0.00
+        },
         is_active: {
             type: DataTypes.BOOLEAN,
             defaultValue: true

@@ -101,11 +101,11 @@ const getCustomerLedger = async (req, res, next) => {
         const transactions = await Transaction.findAll({
             where,
             include: [{ model: Account, as: 'account' }],
-            order: [['transaction_date', 'ASC']]
+            order: [['transaction_date', 'ASC'], ['id', 'ASC']]
         });
 
         // Calculate running balance (what customer owes)
-        let balance = 0;
+        let balance = parseFloat(customer.opening_balance || 0);
         const ledger = transactions.map(t => {
             if (t.type === 'debit') { // Sale or charge - customer owes MORE
                 balance += parseFloat(t.amount);

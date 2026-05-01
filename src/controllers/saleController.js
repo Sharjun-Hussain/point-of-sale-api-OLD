@@ -128,14 +128,57 @@ const createSale = async (req, res, next) => {
             return errorResponse(res, 'No items provided', 400);
         }
 
-        // --- 1. PREPARE & RECALCULATE TOTALS (Security Fix) ---
-        // Fetch tax rate from settings
+        // Fetch settings (Prioritize branch-specific over organization default)
         const taxSetting = await db.Setting.findOne({
-            where: { organization_id, category: 'general' },
+            where: {
+                organization_id,
+                category: 'general',
+                [db.Sequelize.Op.or]: [
+                    { branch_id: branch_id },
+                    { branch_id: null }
+                ]
+            },
+            order: [
+                [db.Sequelize.literal('branch_id IS NOT NULL'), 'DESC'],
+                ['created_at', 'DESC']
+            ],
             transaction: t
         });
-        const rawTaxRate = taxSetting?.settings_data?.finance?.taxRate;
-        const taxRate = (rawTaxRate !== undefined && rawTaxRate !== null && rawTaxRate !== '') ? parseFloat(rawTaxRate) / 100 : 0;
+        let settings = taxSetting?.settings_data;
+        if (typeof settings === 'string') {
+            try { settings = JSON.parse(settings); } catch (e) { settings = {}; }
+        }
+
+        const finance = settings?.finance || {};
+        // Robust check for enableTax (handle string "false" and missing field)
+        const enableTax = finance.enableTax === true || (finance.enableTax !== false && finance.enableTax !== 'false' && finance.enableTax !== undefined);
+        const rawTaxRate = finance.taxRate;
+        const taxRate = (enableTax && rawTaxRate !== undefined && rawTaxRate !== null && rawTaxRate !== '') ? parseFloat(rawTaxRate) / 100 : 0;
+
+        const date = new Date();
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const dateString = `${year}${month}${day}`;
+
+        // Get the last invoice number for this branch/org today to generate sequential numbers
+        const lastSale = await db.Sale.findOne({
+            where: {
+                organization_id,
+                branch_id,
+                invoice_number: { [db.Sequelize.Op.like]: `INV-${dateString}-%` }
+            },
+            order: [['created_at', 'DESC']],
+            transaction: t
+        });
+
+        let nextNumber = 1;
+        if (lastSale) {
+            const parts = lastSale.invoice_number.split('-');
+            const lastNum = parseInt(parts[parts.length - 1]);
+            if (!isNaN(lastNum)) nextNumber = lastNum + 1;
+        }
+        const invoice_number = `INV-${dateString}-${String(nextNumber).padStart(4, '0')}`;
 
         let calculated_total_amount = 0;
         let calculated_total_discount = 0;
@@ -144,7 +187,7 @@ const createSale = async (req, res, next) => {
 
         // Fetch all products/variants involved
         for (const item of items) {
-            const { product_id, product_variant_id, quantity: raw_quantity, discount_amount: claimed_discount } = item;
+            const { product_id, product_variant_id, product_batch_id, quantity: raw_quantity, discount_amount: claimed_discount } = item;
             const quantity = parseFloat(raw_quantity || 0);
 
             if (!product_id || quantity <= 0) continue;
@@ -160,28 +203,55 @@ const createSale = async (req, res, next) => {
 
             let unit_price = 0;
             const is_wholesale = payload_is_wholesale === true || payload_is_wholesale === 1 || payload_is_wholesale === 'true';
+            let active_variant_id = product_variant_id;
+            let active_batch_id = product_batch_id;
 
-            if (product_variant_id) {
-                const variant = await ProductVariant.findOne({ 
-                    where: { id: product_variant_id, product_id, organization_id }, 
-                    transaction: t 
+            // If a specific batch is provided, try to get price from it
+            if (active_batch_id) {
+                const batch = await ProductBatch.findOne({
+                    where: { id: active_batch_id, organization_id, branch_id },
+                    transaction: t
                 });
-                if (!variant) {
-                    await t.rollback();
-                    return errorResponse(res, `Variant not found: ${product_variant_id}`, 400);
+                if (batch) {
+                    unit_price = parseFloat((is_wholesale ? batch.wholesale_price : batch.selling_price) || 0);
+                    if (!active_variant_id) active_variant_id = batch.product_variant_id;
                 }
-                unit_price = parseFloat((is_wholesale ? variant.wholesale_price : variant.price) || 0);
-            } else {
-                unit_price = parseFloat((is_wholesale ? product.wholesale_price : product.price) || 0);
+            }
+
+            // Fallback to variant price if batch price not found or not provided
+            if (unit_price === 0) {
+                if (active_variant_id) {
+                    const variant = await ProductVariant.findOne({ 
+                        where: { id: active_variant_id, product_id, organization_id }, 
+                        transaction: t 
+                    });
+                    if (!variant) {
+                        await t.rollback();
+                        return errorResponse(res, `Variant not found: ${active_variant_id}`, 400);
+                    }
+                    unit_price = parseFloat((is_wholesale ? variant.wholesale_price : variant.price) || 0);
+                } else {
+                    // Fallback to default variant if no variant specified
+                    const defaultVariant = await ProductVariant.findOne({
+                        where: { product_id, is_default: true, organization_id },
+                        transaction: t
+                    });
+                    if (defaultVariant) {
+                        unit_price = parseFloat((is_wholesale ? defaultVariant.wholesale_price : defaultVariant.price) || 0);
+                        active_variant_id = defaultVariant.id;
+                    } else {
+                        // Last resort: product level
+                        unit_price = parseFloat((is_wholesale ? product.wholesale_price : product.price) || 0);
+                    }
+                }
             }
 
             // Calculate Item Totals
             const gross_amount = unit_price * quantity;
             const item_discount = parseFloat(claimed_discount || 0);
-            // Note: In strict mode, we should validate discount limits here.
 
             const taxable_amount = gross_amount - item_discount;
-            const item_tax = taxable_amount * taxRate; // Dynamic tax rate from settings
+            const item_tax = taxable_amount * taxRate; 
 
             calculated_total_amount += gross_amount;
             calculated_total_discount += item_discount;
@@ -189,12 +259,13 @@ const createSale = async (req, res, next) => {
 
             processedItems.push({
                 product_id,
-                product_variant_id,
+                product_variant_id: active_variant_id,
+                product_batch_id: active_batch_id,
                 quantity,
                 unit_price,
                 discount_amount: item_discount,
                 tax_amount: item_tax,
-                total_amount: taxable_amount + item_tax // Net for this line
+                total_amount: taxable_amount + item_tax 
             });
         }
 
@@ -241,6 +312,19 @@ const createSale = async (req, res, next) => {
             }
         }
 
+        // Rule: Credit Limit Validation for Customers
+        if (payload_status !== 'draft' && customer_id && total_paid < final_payable_amount) {
+            const customer = await db.Customer.findByPk(customer_id, { transaction: t });
+            if (customer && customer.credit_limit > 0) {
+                const currentBalance = await accountingService.getCustomerBalance(organization_id, customer_id, t);
+                const newCreditAmount = final_payable_amount - total_paid;
+                if ((currentBalance + newCreditAmount) > parseFloat(customer.credit_limit)) {
+                    await t.rollback();
+                    return errorResponse(res, `Credit limit exceeded. Current Balance: ${currentBalance.toFixed(2)}, Limit: ${parseFloat(customer.credit_limit).toFixed(2)}`, 400);
+                }
+            }
+        }
+
         // Determine Status
         let payment_status = 'unpaid';
         if (total_paid >= final_payable_amount) {
@@ -249,13 +333,6 @@ const createSale = async (req, res, next) => {
             payment_status = 'partially_paid';
         }
 
-        // --- 3. GENERATE INVOICE NUMBER ---
-        const date = new Date();
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const random = Math.floor(1000 + Math.random() * 9000); // Consider sequence later
-        const invoice_number = `INV-${year}${month}${day}-${random}`;
 
         // --- 4. CREATE SALE RECORD ---
         const sale = await Sale.create({
@@ -332,9 +409,10 @@ const createSale = async (req, res, next) => {
 
         // --- 8. STOCK & BATCH UPDATE ---
         if (sale.status === 'completed') {
-            // Group items to handle duplicates and prevent race conditions within the same sale
+            // Group items to handle duplicates for stock deduction
             const stockUpdates = processedItems.reduce((acc, current) => {
-                const key = `${current.product_id}_${current.product_variant_id || 'null'}`;
+                // Key includes batch ID if present to ensure specific batch deduction
+                const key = `${current.product_id}_${current.product_variant_id || 'null'}_${current.product_batch_id || 'null'}`;
                 if (!acc[key]) {
                     acc[key] = { ...current };
                 } else {
@@ -365,33 +443,51 @@ const createSale = async (req, res, next) => {
 
                 await stock.decrement('quantity', { by: pItem.quantity, transaction: t });
 
-                // B. Update Batches (FIFO - First Expiring First Out)
-                // Fetch batches with quantity > 0, ordered by expiry (asc) or creation (asc)
-                const batches = await ProductBatch.findAll({
-                    where: {
-                        organization_id,
-                        branch_id,
-                        product_id: pItem.product_id,
-                        product_variant_id: pItem.product_variant_id || null,
-                        quantity: { [Op.gt]: 0 }
-                    },
-                    order: [
-                        ['expiry_date', 'ASC'], // Nulls might come last or first depending on DB, usually we want earliest expiry
-                        ['created_at', 'ASC']   // Fallback to FIFO
-                    ],
-                    transaction: t
-                });
-
+                // B. Update Batches
                 let qtyToDeduct = parseFloat(pItem.quantity);
 
-                for (const batch of batches) {
-                    if (qtyToDeduct <= 0) break;
+                // If a specific batch is provided, deduct from it first
+                if (pItem.product_batch_id) {
+                    const specificBatch = await ProductBatch.findOne({
+                        where: { id: pItem.product_batch_id, organization_id, branch_id },
+                        transaction: t
+                    });
+                    if (specificBatch) {
+                        const available = parseFloat(specificBatch.quantity);
+                        const deduction = Math.min(available, qtyToDeduct);
+                        await specificBatch.decrement('quantity', { by: deduction, transaction: t });
+                        qtyToDeduct -= deduction;
+                    }
+                }
 
-                    const available = parseFloat(batch.quantity);
-                    const deduction = Math.min(available, qtyToDeduct);
+                // If there's still quantity to deduct, use FIFO
+                if (qtyToDeduct > 0) {
+                    const batches = await ProductBatch.findAll({
+                        where: {
+                            organization_id,
+                            branch_id,
+                            product_id: pItem.product_id,
+                            product_variant_id: pItem.product_variant_id || null,
+                            quantity: { [Op.gt]: 0 },
+                            // Exclude the batch we already deducted from if it was specified
+                            ...(pItem.product_batch_id ? { id: { [Op.ne]: pItem.product_batch_id } } : {})
+                        },
+                        order: [
+                            ['expiry_date', 'ASC'], 
+                            ['created_at', 'ASC']   
+                        ],
+                        transaction: t
+                    });
 
-                    await batch.decrement('quantity', { by: deduction, transaction: t });
-                    qtyToDeduct -= deduction;
+                    for (const batch of batches) {
+                        if (qtyToDeduct <= 0) break;
+
+                        const available = parseFloat(batch.quantity);
+                        const deduction = Math.min(available, qtyToDeduct);
+
+                        await batch.decrement('quantity', { by: deduction, transaction: t });
+                        qtyToDeduct -= deduction;
+                    }
                 }
 
                 // Note: If qtyToDeduct > 0 here, it means we sold more than we have in batches.
@@ -442,8 +538,13 @@ const createSale = async (req, res, next) => {
             }, t);
 
             // B. Debit Payments (Multi-method support) -> Increase Asset
+            let remaining_payable = final_payable_amount;
             for (const pmt of processedPayments) {
-                if (pmt.amount <= 0) continue;
+                if (pmt.amount <= 0 || remaining_payable <= 0) continue;
+
+                // Cap the recorded payment at the remaining payable amount (handle change/overpayment)
+                const amount_to_ledger = Math.min(pmt.amount, remaining_payable);
+                remaining_payable -= amount_to_ledger;
 
                 // Map payment methods to accounts
                 let accountCode = '1000'; // Default Cash
@@ -468,7 +569,7 @@ const createSale = async (req, res, next) => {
                     branch_id,
                     account_id: pmtAccount.id,
                     customer_id: customer_id || null,
-                    amount: pmt.amount,
+                    amount: amount_to_ledger,
                     type: 'debit',
                     reference_type: 'Sale',
                     reference_id: sale.id,

@@ -78,11 +78,11 @@ const getSupplierLedger = async (req, res, next) => {
         const transactions = await Transaction.findAll({
             where,
             include: [{ model: Account, as: 'account' }],
-            order: [['transaction_date', 'ASC']]
+            order: [['transaction_date', 'ASC'], ['id', 'ASC']]
         });
 
         // Calculate running balance (what we owe supplier)
-        let balance = 0;
+        let balance = parseFloat(supplier.opening_balance || 0);
         const ledger = transactions.map(t => {
             if (t.type === 'credit') { // GRN or charge - we owe MORE
                 balance += parseFloat(t.amount);
