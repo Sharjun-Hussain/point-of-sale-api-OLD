@@ -12,13 +12,58 @@ const { Sequelize, Op } = require('sequelize');
  */
 const getAllSales = async (req, res, next) => {
     try {
-        const { page, size, status, customer_id, branch_id } = req.query;
+        const { 
+            page, size, status, customer_id, branch_id, 
+            start_date, end_date, search,
+            supplier_id, main_category_id, sub_category_id, brand_id, product_id 
+        } = req.query;
         const { limit, offset } = getPagination(page, size);
 
         const where = { organization_id: req.user.organization_id };
         if (status) where.status = status;
         if (customer_id) where.customer_id = customer_id;
         if (branch_id) where.branch_id = branch_id;
+
+        // Date Range Filter
+        if (start_date && end_date) {
+            where.created_at = {
+                [Op.between]: [
+                    new Date(start_date + 'T00:00:00.000Z'),
+                    new Date(end_date + 'T23:59:59.999Z')
+                ]
+            };
+        }
+
+        // Search Filter (Invoice #)
+        if (search) {
+            where.invoice_number = { [Op.like]: `%${search}%` };
+        }
+
+        // Item-level filters
+        const itemWhere = {};
+        const productWhere = {};
+        let productFilterActive = false;
+
+        if (supplier_id && supplier_id !== 'all') {
+            productWhere.supplier_id = supplier_id;
+            productFilterActive = true;
+        }
+        if (main_category_id && main_category_id !== 'all') {
+            productWhere.main_category_id = main_category_id;
+            productFilterActive = true;
+        }
+        if (sub_category_id && sub_category_id !== 'all') {
+            productWhere.sub_category_id = sub_category_id;
+            productFilterActive = true;
+        }
+        if (brand_id && brand_id !== 'all') {
+            productWhere.brand_id = brand_id;
+            productFilterActive = true;
+        }
+        if (product_id && product_id !== 'all') {
+            productWhere.id = product_id;
+            productFilterActive = true;
+        }
 
         const sales = await Sale.findAndCountAll({
             where,
@@ -32,14 +77,21 @@ const getAllSales = async (req, res, next) => {
                 {
                     model: SaleItem,
                     as: 'items',
+                    required: productFilterActive, // Filter sales by these items
                     include: [
-                        { model: Product, as: 'product', attributes: ['name', 'image'] },
+                        { 
+                            model: Product, 
+                            as: 'product', 
+                            attributes: ['name', 'image', 'main_category_id', 'sub_category_id', 'supplier_id', 'brand_id'],
+                            where: productFilterActive ? productWhere : undefined,
+                            required: productFilterActive
+                        },
                         { model: ProductVariant, as: 'variant', attributes: ['name', 'image'] }
                     ]
                 },
                 { model: SalePayment, as: 'payments' }
             ],
-            distinct: true, // Important for correct count with includes
+            distinct: true, 
             order: [['created_at', 'DESC']]
         });
 
