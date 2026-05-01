@@ -136,7 +136,7 @@ class MaintenanceService {
         };
 
         try {
-            // Get Swap from free -m
+            // Get Swap from free -b (silently fails if not available in Docker)
             const { stdout: freeOut } = await execPromise('free -b');
             const lines = freeOut.split('\n');
             const swapLine = lines.find(l => l.startsWith('Swap:'));
@@ -148,16 +148,19 @@ class MaintenanceService {
                     free: parseInt(parts[3])
                 };
             }
+        } catch (e) {
+            // Ignore error in minimal environments
+        }
 
+        try {
             // Get I/O from iostat
             const { stdout: ioOut } = await execPromise('iostat -dx 1 1');
             const ioLines = ioOut.trim().split('\n');
             const lastLine = ioLines[ioLines.length - 1];
             const ioParts = lastLine.trim().split(/\s+/);
-            // %util is usually the last column in iostat -dx
             systemMetrics.io = parseFloat(ioParts[ioParts.length - 1]) || 0;
         } catch (e) {
-            logger.error(`System Metric Exec Error: ${e.message}`);
+            // Ignore error in minimal environments
         }
 
         // Redis stats
