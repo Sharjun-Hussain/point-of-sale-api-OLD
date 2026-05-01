@@ -558,8 +558,9 @@ const seedFoodCity = async () => {
                 product_id: v.product_id,
                 product_variant_id: v.id,
                 quantity: 50,
-                unit_price: v.cost_price,
-                total_price: 50 * v.cost_price
+                unit_cost: v.cost_price,
+                total_amount: 50 * v.cost_price,
+                organization_id
             }, { transaction: t });
         }
 
@@ -602,10 +603,13 @@ const seedFoodCity = async () => {
                 grn_id: grn.id,
                 product_id: v.product_id,
                 product_variant_id: v.id,
+                quantity_ordered: 50,
+                quantity_received: 50,
+                unit_cost: v.cost_price,
+                total_amount: 50 * v.cost_price,
                 product_batch_id: batch.id,
-                received_quantity: 50,
-                unit_price: v.cost_price,
-                total_price: 50 * v.cost_price
+                batch_number: batchNum,
+                organization_id
             }, { transaction: t });
         }
 
