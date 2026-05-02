@@ -424,12 +424,16 @@ const createBranch = async (req, res, next) => {
 
         const branchData = { ...req.body };
 
+        // Convert empty strings to null (especially for foreign keys like manager_id)
+        Object.keys(branchData).forEach(key => {
+            if (branchData[key] === '') {
+                branchData[key] = null;
+            }
+        });
+
         if (!isSuperAdmin) {
             branchData.organization_id = req.user.organization_id;
         } else if (!branchData.organization_id) {
-            // If Super Admin forgets to send org id, maybe error or fallback?
-            // For now let's assume valid payload, or let DB validation fail if not null.
-            // Or allow creating branch for their own org if they have one.
             if (req.user.organization_id) {
                 branchData.organization_id = req.user.organization_id;
             }
@@ -452,7 +456,15 @@ const updateBranch = async (req, res, next) => {
         const branch = await Branch.findOne({ where: whereClause });
         if (!branch) return errorResponse(res, 'Branch not found', 404);
 
-        await branch.update(req.body);
+        const updateData = { ...req.body };
+        // Convert empty strings to null (especially for foreign keys like manager_id)
+        Object.keys(updateData).forEach(key => {
+            if (updateData[key] === '') {
+                updateData[key] = null;
+            }
+        });
+
+        await branch.update(updateData);
         return successResponse(res, branch, 'Branch updated successfully');
     } catch (error) { next(error); }
 };
