@@ -102,8 +102,8 @@ const createOrganization = async (req, res, next) => {
             is_active: true
         }, { transaction });
 
-        // 4. Assign Role (default to Admin)
-        const adminRole = await Role.findOne({ where: { name: 'Admin' } }); // Changed from Manager to Admin
+        // 4. Assign Role (default to Organization Admin)
+        const adminRole = await Role.findOne({ where: { name: 'Organization Admin' } });
         if (adminRole) {
             await user.addRole(adminRole, { transaction });
         }
