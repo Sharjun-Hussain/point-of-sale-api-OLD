@@ -39,8 +39,9 @@ async function bootstrap() {
         }
 
         // 1. Sync Base Models
-        // alter: true ensures ALL missing columns are added to existing tables.
-        await db.sequelize.sync({ alter: true });
+        // Note: alter: true is disabled here to avoid "Too many keys specified" errors on some systems.
+        // Schema changes should be handled via migrations for production stability.
+        await db.sequelize.sync({ alter: false });
 
         // 2. Explicitly sync Join Tables
         // BelongsToMany associations sometimes skip custom columns (like is_primary) 
@@ -53,7 +54,7 @@ async function bootstrap() {
         console.log('🛡️  Applying Industrial One-Pattern to join tables...');
         for (const modelName of joinModels) {
             if (db[modelName]) {
-                await db[modelName].sync({ alter: true });
+                await db[modelName].sync({ alter: false });
                 console.log(`   ✅ Validated: ${modelName}`);
             }
         }
@@ -74,126 +75,157 @@ async function bootstrap() {
             { name: 'branch:create', group_name: 'Branch', description: 'Create branches' },
             { name: 'branch:delete', group_name: 'Branch', description: 'Delete branches' },
             { name: 'branch:edit', group_name: 'Branch', description: 'Edit branches' },
-            { name: 'branch:view', group_name: 'Branch', description: 'View branches' },
-            // Brand
-            { name: 'brand:create', group_name: 'Brand', description: 'Create brands' },
-            { name: 'brand:delete', group_name: 'Brand', description: 'Delete brands' },
-            { name: 'brand:edit', group_name: 'Brand', description: 'Edit brands' },
-            { name: 'brand:manage', group_name: 'Product', description: 'Manage brands' },
+            // Attribute Management
+            { name: 'attr:view', group_name: 'Attribute', description: 'View product attributes' },
+            { name: 'attr:create', group_name: 'Attribute', description: 'Create product attributes' },
+            { name: 'attr:edit', group_name: 'Attribute', description: 'Edit product attributes' },
+            { name: 'attr:delete', group_name: 'Attribute', description: 'Delete product attributes' },
+            
+            // Brand Management
             { name: 'brand:view', group_name: 'Brand', description: 'View brands' },
-            // Category
-            { name: 'category:create', group_name: 'Category', description: 'Create categories' },
-            { name: 'category:delete', group_name: 'Category', description: 'Delete categories' },
-            { name: 'category:edit', group_name: 'Category', description: 'Edit categories' },
-            { name: 'category:manage', group_name: 'Category', description: 'Manage categories' },
-            { name: 'category:manage_main', group_name: 'Category', description: 'Manage main categories' },
-            { name: 'category:manage_sub', group_name: 'Category', description: 'Manage sub categories' },
+            { name: 'brand:create', group_name: 'Brand', description: 'Create brands' },
+            { name: 'brand:edit', group_name: 'Brand', description: 'Edit brands' },
+            { name: 'brand:delete', group_name: 'Brand', description: 'Delete brands' },
+            { name: 'brand:manage', group_name: 'Brand', description: 'Manage brand groups' },
+            
+            // Branch Management
+            { name: 'branch:view', group_name: 'Branch', description: 'View branch details' },
+            { name: 'branch:create', group_name: 'Branch', description: 'Create new branches' },
+            { name: 'branch:edit', group_name: 'Branch', description: 'Edit branch configuration' },
+            { name: 'branch:delete', group_name: 'Branch', description: 'Decommission branches' },
+            
+            // Category Management
             { name: 'category:view', group_name: 'Category', description: 'View categories' },
-            // Container
+            { name: 'category:create', group_name: 'Category', description: 'Create product categories' },
+            { name: 'category:edit', group_name: 'Category', description: 'Edit category structures' },
+            { name: 'category:delete', group_name: 'Category', description: 'Delete categories' },
+            { name: 'category:manage', group_name: 'Category', description: 'Full category administration' },
+            { name: 'category:manage_main', group_name: 'Category', description: 'Manage parent categories' },
+            { name: 'category:manage_sub', group_name: 'Category', description: 'Manage child categories' },
+            
+            // Container Management
+            { name: 'container:view', group_name: 'Container', description: 'View storage containers' },
             { name: 'container:create', group_name: 'Container', description: 'Create containers' },
-            { name: 'container:delete', group_name: 'Container', description: 'Delete containers' },
-            { name: 'container:edit', group_name: 'Container', description: 'Edit containers' },
-            { name: 'container:view', group_name: 'Container', description: 'View containers' },
-            // Customer
-            { name: 'customer:create', group_name: 'Customer', description: 'Create customers' },
-            { name: 'customer:delete', group_name: 'Customer', description: 'Delete customers' },
-            { name: 'customer:edit', group_name: 'Customer', description: 'Edit customers' },
-            { name: 'customer:view', group_name: 'Customer', description: 'View customers' },
-            // Dashboard
-            { name: 'dashboard:view', group_name: 'Dashboard', description: 'View dashboard' },
-            // Employee
-            { name: 'employee:create', group_name: 'Employee', description: 'Enroll employees' },
-            { name: 'employee:delete', group_name: 'Employee', description: 'Remove employees' },
-            { name: 'employee:edit', group_name: 'Employee', description: 'Update HR records' },
-            { name: 'employee:view', group_name: 'Employee', description: 'View HR records' },
-            // Finance
-            { name: 'account:manage', group_name: 'Finance', description: 'Manage chart of accounts' },
-            { name: 'cheque:manage', group_name: 'Finance', description: 'Manage cheque transactions' },
-            { name: 'expense:create', group_name: 'Finance', description: 'Record expenditure' },
-            { name: 'expense:delete', group_name: 'Finance', description: 'Delete expense records' },
-            { name: 'expense:edit', group_name: 'Finance', description: 'Modify expenditure' },
-            { name: 'expense:manage', group_name: 'Finance', description: 'Manage expenses' },
-            { name: 'expense:view', group_name: 'Finance', description: 'View expenses' },
-            { name: 'finance:manage', group_name: 'Finance', description: 'Perform ledger entries' },
-            { name: 'finance:view', group_name: 'Finance', description: 'Monitor accounts' },
-            // Inventory (Stock movements logged under Inventory)
-            { name: 'stock:adjust', group_name: 'Inventory', description: 'Adjust stock levels' },
-            { name: 'stock:transfer', group_name: 'Inventory', description: 'Transfer stock between branches' },
-            // Organization
-            { name: 'org:create', group_name: 'Organization', description: 'Create organizations' },
-            { name: 'org:delete', group_name: 'Organization', description: 'Delete organizations' },
-            { name: 'org:edit', group_name: 'Organization', description: 'Update organization profile' },
-            { name: 'org:view', group_name: 'Organization', description: 'View organization metadata' },
-            // POS
-            { name: 'pos:access', group_name: 'POS', description: 'Access POS workstation' },
-            { name: 'shift:create', group_name: 'POS', description: 'Open POS shifts' },
-            { name: 'shift:manage', group_name: 'POS', description: 'Close and manage POS shifts' },
-            { name: 'shift:view', group_name: 'POS', description: 'View shift history' },
-            // Procurement (Purchase Returns)
-            { name: 'purchase_return:create', group_name: 'Procurement', description: 'Create purchase returns' },
-            { name: 'purchase_return:view', group_name: 'Procurement', description: 'View purchase returns' },
-            // Product
-            { name: 'brand:manage', group_name: 'Product', description: 'Manage brands (product group)' },
-            { name: 'product:create', group_name: 'Product', description: 'Create products' },
-            { name: 'product:delete', group_name: 'Product', description: 'Delete products' },
-            { name: 'product:edit', group_name: 'Product', description: 'Edit product details' },
-            { name: 'product:variant_status', group_name: 'Product', description: 'Toggle product variant status' },
+            { name: 'container:edit', group_name: 'Container', description: 'Modify containers' },
+            { name: 'container:delete', group_name: 'Container', description: 'Remove containers' },
+            
+            // Customer Management
+            { name: 'customer:view', group_name: 'Customer', description: 'View customer database' },
+            { name: 'customer:create', group_name: 'Customer', description: 'Register new customers' },
+            { name: 'customer:edit', group_name: 'Customer', description: 'Edit customer profiles' },
+            { name: 'customer:delete', group_name: 'Customer', description: 'Remove customers' },
+            
+            // Employee Management
+            { name: 'employee:view', group_name: 'Employee', description: 'View employee records' },
+            { name: 'employee:create', group_name: 'Employee', description: 'Enroll new staff' },
+            { name: 'employee:edit', group_name: 'Employee', description: 'Update HR files' },
+            { name: 'employee:delete', group_name: 'Employee', description: 'Terminate employment records' },
+            
+            // Expense Management
+            { name: 'expense:view', group_name: 'Finance', description: 'View expenditure' },
+            { name: 'expense:create', group_name: 'Finance', description: 'Record expenses' },
+            { name: 'expense:edit', group_name: 'Finance', description: 'Modify expense logs' },
+            { name: 'expense:delete', group_name: 'Finance', description: 'Delete expenses' },
+            { name: 'expense:manage', group_name: 'Finance', description: 'Manage expense categories' },
+            
+            // Finance & Accounting
+            { name: 'finance:view', group_name: 'Finance', description: 'Access financial data' },
+            { name: 'finance:manage', group_name: 'Finance', description: 'Manage ledger and accounts' },
+            { name: 'account:manage', group_name: 'Finance', description: 'Configure chart of accounts' },
+            { name: 'cheque:manage', group_name: 'Finance', description: 'Process cheque payments' },
+            
+            // Organization Control
+            { name: 'org:view', group_name: 'Organization', description: 'Monitor organization health' },
+            { name: 'org:create', group_name: 'Organization', description: 'Onboard new organizations' },
+            { name: 'org:edit', group_name: 'Organization', description: 'Edit organizational identity' },
+            { name: 'org:delete', group_name: 'Organization', description: 'Purge organization data' },
+            
+            // Product Management
             { name: 'product:view', group_name: 'Product', description: 'View product catalog' },
+            { name: 'product:create', group_name: 'Product', description: 'Create new products' },
+            { name: 'product:edit', group_name: 'Product', description: 'Edit existing products' },
+            { name: 'product:delete', group_name: 'Product', description: 'Remove from catalog' },
+            { name: 'product:variant_status', group_name: 'Product', description: 'Toggle variant availability' },
+            { name: 'product_variant:view', group_name: 'Product', description: 'View specific variants' },
             { name: 'product_variant:create', group_name: 'Product', description: 'Create product variants' },
-            { name: 'product_variant:edit', group_name: 'Product', description: 'Edit product variants' },
-            { name: 'unit:manage', group_name: 'Product', description: 'Manage measurement units (product group)' },
-            // Purchase
-            { name: 'purchase:create', group_name: 'Purchase', description: 'Create purchase orders' },
-            { name: 'purchase:delete', group_name: 'Purchase', description: 'Delete purchase orders' },
-            { name: 'purchase:edit', group_name: 'Purchase', description: 'Edit purchase orders (GRN)' },
-            { name: 'purchase:view', group_name: 'Purchase', description: 'View procurement logs' },
-            // Reports
-            { name: 'report:financial', group_name: 'Reports', description: 'View financial reports' },
-            { name: 'report:inventory', group_name: 'Reports', description: 'View inventory reports' },
-            { name: 'report:sales', group_name: 'Reports', description: 'View sales reports' },
-            { name: 'report:view', group_name: 'Reports', description: 'Access reporting module' },
-            // Role
-            { name: 'role:create', group_name: 'Role', description: 'Create access roles' },
-            { name: 'role:delete', group_name: 'Role', description: 'Delete access roles' },
+            { name: 'product_variant:edit', group_name: 'Product', description: 'Modify variants' },
+            
+            // Purchase & Procurement
+            { name: 'purchase:view', group_name: 'Purchase', description: 'View purchase history' },
+            { name: 'purchase:create', group_name: 'Purchase', description: 'Initiate purchase orders' },
+            { name: 'purchase:edit', group_name: 'Purchase', description: 'Edit GRN and orders' },
+            { name: 'purchase:delete', group_name: 'Purchase', description: 'Cancel procurement' },
+            { name: 'purchase_return:view', group_name: 'Purchase', description: 'View purchase returns' },
+            { name: 'purchase_return:create', group_name: 'Purchase', description: 'Process returns to supplier' },
+            
+            // Role Management
+            { name: 'role:view', group_name: 'Role', description: 'View security roles' },
+            { name: 'role:create', group_name: 'Role', description: 'Define new roles' },
             { name: 'role:edit', group_name: 'Role', description: 'Edit role permissions' },
-            { name: 'role:view', group_name: 'Role', description: 'View access roles' },
-            // Sale
-            { name: 'sale:create', group_name: 'Sale', description: 'Process new sales' },
-            { name: 'sale:delete', group_name: 'Sale', description: 'Void processed sales' },
-            { name: 'sale:edit', group_name: 'Sale', description: 'Edit sale records' },
-            { name: 'sale:view', group_name: 'Sale', description: 'View sales history' },
-            // Sale Returns
-            { name: 'sale_return:create', group_name: 'Sales', description: 'Process sale returns' },
-            { name: 'sale_return:view', group_name: 'Sales', description: 'View sale returns' },
-            // Settings
-            { name: 'settings:edit', group_name: 'Settings', description: 'Edit system settings' },
-            { name: 'settings:view', group_name: 'Settings', description: 'View system settings' },
-            // Stock
-            { name: 'stock:create', group_name: 'Stock', description: 'Create stock records' },
-            { name: 'stock:delete', group_name: 'Stock', description: 'Delete stock records' },
-            { name: 'stock:edit', group_name: 'Stock', description: 'Edit stock records' },
-            { name: 'stock:view', group_name: 'Stock', description: 'View stock levels' },
-            // Supplier
-            { name: 'supplier:create', group_name: 'Supplier', description: 'Enroll new suppliers' },
-            { name: 'supplier:delete', group_name: 'Supplier', description: 'Remove suppliers' },
-            { name: 'supplier:edit', group_name: 'Supplier', description: 'Update supplier details' },
-            { name: 'supplier:view', group_name: 'Supplier', description: 'View supplier list' },
-            // System
-            { name: 'system:audit_log', group_name: 'System', description: 'View activity audit logs' },
-            { name: 'system:settings', group_name: 'System', description: 'Manage system configuration' },
-            // Unit
-            { name: 'unit:create', group_name: 'Unit', description: 'Create measurement units' },
-            { name: 'unit:delete', group_name: 'Unit', description: 'Delete measurement units' },
-            { name: 'unit:edit', group_name: 'Unit', description: 'Edit measurement units' },
-            { name: 'unit:view', group_name: 'Unit', description: 'View measurement units' },
-            // User
-            { name: 'user:create', group_name: 'User', description: 'Create system users' },
-            { name: 'user:delete', group_name: 'User', description: 'Delete system users' },
-            { name: 'user:edit', group_name: 'User', description: 'Edit user profiles' },
-            { name: 'user:view', group_name: 'User', description: 'View system users' },
+            { name: 'role:delete', group_name: 'Role', description: 'Delete access roles' },
+            
+            // Sale & POS
+            { name: 'sale:view', group_name: 'Sale', description: 'View sale transactions' },
+            { name: 'sale:create', group_name: 'Sale', description: 'Perform new sales' },
+            { name: 'sale:edit', group_name: 'Sale', description: 'Modify sale records' },
+            { name: 'sale:delete', group_name: 'Sale', description: 'Void sales' },
+            { name: 'pos:access', group_name: 'Sale', description: 'Authorize POS login' },
+            { name: 'shift:view', group_name: 'Sale', description: 'View POS shifts' },
+            { name: 'shift:create', group_name: 'Sale', description: 'Open new shifts' },
+            { name: 'shift:manage', group_name: 'Sale', description: 'Close and reconcile shifts' },
+            { name: 'sale_return:view', group_name: 'Sale', description: 'View sale returns' },
+            { name: 'sale_return:create', group_name: 'Sale', description: 'Process customer returns' },
+            
+            // Stock & Inventory
+            { name: 'stock:view', group_name: 'Inventory', description: 'View live inventory' },
+            { name: 'stock:create', group_name: 'Inventory', description: 'Initialize inventory' },
+            { name: 'stock:edit', group_name: 'Inventory', description: 'Modify stock counts' },
+            { name: 'stock:delete', group_name: 'Inventory', description: 'Purge stock records' },
+            { name: 'stock:adjust', group_name: 'Inventory', description: 'Perform stock adjustments' },
+            { name: 'stock:transfer', group_name: 'Inventory', description: 'Transfer between branches' },
+            
+            // Supplier Management
+            { name: 'supplier:view', group_name: 'Purchase', description: 'View suppliers' },
+            { name: 'supplier:create', group_name: 'Purchase', description: 'Add suppliers' },
+            { name: 'supplier:edit', group_name: 'Purchase', description: 'Edit supplier details' },
+            { name: 'supplier:delete', group_name: 'Purchase', description: 'Remove suppliers' },
+            
+            // Unit of Measurement
+            { name: 'unit:view', group_name: 'Unit', description: 'View units' },
+            { name: 'unit:create', group_name: 'Unit', description: 'Create units' },
+            { name: 'unit:edit', group_name: 'Unit', description: 'Edit units' },
+            { name: 'unit:delete', group_name: 'Unit', description: 'Delete units' },
+            { name: 'unit:manage', group_name: 'Unit', description: 'Global unit management' },
+            
+            // System Settings
+            { name: 'settings:general:update', group_name: 'Settings', description: 'Manage regional settings' },
+            { name: 'settings:business:update', group_name: 'Settings', description: 'Manage business identity' },
+            { name: 'settings:pos:update', group_name: 'Settings', description: 'Configure terminal settings' },
+            { name: 'settings:communication:update', group_name: 'Settings', description: 'Manage notifications' },
+            { name: 'settings:import:update', group_name: 'Settings', description: 'Manage data migrations' },
+            { name: 'settings:ai:update', group_name: 'Settings', description: 'Manage AI models' },
+            { name: 'settings:health:update', group_name: 'Settings', description: 'Monitor system health' },
+            { name: 'settings:report:update', group_name: 'Settings', description: 'Manage report templates' },
+            { name: 'system:settings', group_name: 'Settings', description: 'Full root configuration' },
+            { name: 'system:audit_log', group_name: 'Settings', description: 'Access forensic audit logs' },
+            
+            // Reports
+            { name: 'report:view', group_name: 'Reports', description: 'Access report center' },
+            { name: 'report:sales', group_name: 'Reports', description: 'View sales analytics' },
+            { name: 'report:inventory', group_name: 'Reports', description: 'View inventory analytics' },
+            { name: 'report:financial', group_name: 'Reports', description: 'View accounting reports' },
+            
+            // User Management
+            { name: 'user:view', group_name: 'User', description: 'View user accounts' },
+            { name: 'user:create', group_name: 'User', description: 'Create user logins' },
+            { name: 'user:edit', group_name: 'User', description: 'Update user profiles' },
+            { name: 'user:delete', group_name: 'User', description: 'Disable user access' },
+
+            // Dashboard
+            { name: 'dashboard:view', group_name: 'Dashboard', description: 'Access main dashboard' },
         ];
 
-        // Remove duplicates (brand:manage appears in both Brand and Product group in local DB)
+        // Remove duplicates
         const uniquePerms = permissionsSeed.filter(
             (p, idx, self) => idx === self.findIndex(q => q.name === p.name)
         );
@@ -224,7 +256,7 @@ async function bootstrap() {
         // Filter out restricted permissions for Org Admin
         const restrictedPerms = [
             'org:create', 'org:delete', 'org:edit', 'org:view',
-            'system:settings', 'system:audit_log'
+            'system:audit_log'
         ];
         const orgAdminPerms = allPerms.filter(p => !restrictedPerms.includes(p.name));
         await orgAdminRole.setPermissions(orgAdminPerms);

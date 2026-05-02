@@ -46,7 +46,7 @@ const checkPermission = (requiredPermission) => {
             if (!hasDirectPermission && !hasWildcardPermission) {
                 return res.status(403).json({
                     status: 'error',
-                    message: 'Insufficient permissions'
+                    message: 'Access Denied: You do not have the required authority to perform this action.'
                 });
             }
 
@@ -105,7 +105,7 @@ const checkAnyPermission = (permissions = []) => {
             if (!hasPermission) {
                 return res.status(403).json({
                     status: 'error',
-                    message: 'Insufficient permissions'
+                    message: 'Access Denied: You do not have the required authority to perform this action.'
                 });
             }
 

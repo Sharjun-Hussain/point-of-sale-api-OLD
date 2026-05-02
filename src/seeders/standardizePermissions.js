@@ -105,7 +105,15 @@ const permissionsSeed = [
     { name: 'finance:manage', group_name: 'Finance', description: 'Manage finances' },
 
     // System
-    { name: 'system:settings', group_name: 'System', description: 'Manage system settings' },
+    // Settings
+    { name: 'settings:general:update', group_name: 'System', description: 'Update general & regional settings' },
+    { name: 'settings:business:update', group_name: 'System', description: 'Update business profile settings' },
+    { name: 'settings:pos:update', group_name: 'System', description: 'Update POS terminal settings' },
+    { name: 'settings:communication:update', group_name: 'System', description: 'Update communication hub settings' },
+    { name: 'settings:import:update', group_name: 'System', description: 'Update data import settings' },
+    { name: 'settings:ai:update', group_name: 'System', description: 'Update AI intelligence settings' },
+    { name: 'settings:health:update', group_name: 'System', description: 'Update system health settings' },
+    { name: 'settings:report:update', group_name: 'System', description: 'Update report layout settings' },
     { name: 'system:audit_log', group_name: 'System', description: 'View system audit logs' },
 
     // Reports
@@ -144,8 +152,11 @@ const seed = async () => {
             'org:view',
             'org:create',
             'org:delete',
-            'system:settings',
-            'system:audit_log'
+            'system:audit_log',
+            'settings:ai:update',
+            'settings:communication:update',
+            'settings:health:update',
+            'settings:import:update'
         ];
         const orgAdminPermissions = allPermissionInstances.filter(p => !excludedPermNames.includes(p.name));
         await orgAdminRole.setPermissions(orgAdminPermissions);

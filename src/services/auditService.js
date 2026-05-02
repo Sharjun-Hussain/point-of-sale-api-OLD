@@ -23,7 +23,8 @@ class AuditService {
         userAgent = null,
         status = 'success',
         errorMessage = null,
-        metadata = null
+        metadata = null,
+        transaction = null
     }) {
         try {
             await AuditLog.create({
@@ -40,7 +41,7 @@ class AuditService {
                 status,
                 error_message: errorMessage,
                 metadata
-            });
+            }, { transaction });
         } catch (error) {
             // Don't throw errors from audit logging to avoid breaking main operations
             console.error('Audit logging failed:', error);
@@ -50,7 +51,7 @@ class AuditService {
     /**
      * Log user login
      */
-    async logLogin(organizationId, userId, ipAddress, userAgent, success = true, errorMessage = null) {
+    async logLogin(organizationId, userId, ipAddress, userAgent, success = true, errorMessage = null, transaction = null) {
         await this.log({
             organizationId,
             userId,
@@ -61,14 +62,15 @@ class AuditService {
             ipAddress,
             userAgent,
             status: success ? 'success' : 'failure',
-            errorMessage
+            errorMessage,
+            transaction
         });
     }
 
     /**
      * Log user logout
      */
-    async logLogout(organizationId, userId, ipAddress, userAgent) {
+    async logLogout(organizationId, userId, ipAddress, userAgent, transaction = null) {
         await this.log({
             organizationId,
             userId,
@@ -77,14 +79,15 @@ class AuditService {
             entityId: userId,
             description: 'User logged out',
             ipAddress,
-            userAgent
+            userAgent,
+            transaction
         });
     }
 
     /**
      * Log entity creation
      */
-    async logCreate(organizationId, userId, entityType, entityId, newValues, ipAddress, userAgent, metadata = null) {
+    async logCreate(organizationId, userId, entityType, entityId, newValues, ipAddress, userAgent, metadata = null, transaction = null) {
         await this.log({
             organizationId,
             userId,
@@ -95,14 +98,15 @@ class AuditService {
             newValues,
             ipAddress,
             userAgent,
-            metadata
+            metadata,
+            transaction
         });
     }
 
     /**
      * Log entity update
      */
-    async logUpdate(organizationId, userId, entityType, entityId, oldValues, newValues, ipAddress, userAgent, metadata = null) {
+    async logUpdate(organizationId, userId, entityType, entityId, oldValues, newValues, ipAddress, userAgent, metadata = null, transaction = null) {
         await this.log({
             organizationId,
             userId,
@@ -114,14 +118,15 @@ class AuditService {
             newValues,
             ipAddress,
             userAgent,
-            metadata
+            metadata,
+            transaction
         });
     }
 
     /**
      * Log entity deletion
      */
-    async logDelete(organizationId, userId, entityType, entityId, oldValues, ipAddress, userAgent, metadata = null) {
+    async logDelete(organizationId, userId, entityType, entityId, oldValues, ipAddress, userAgent, metadata = null, transaction = null) {
         await this.log({
             organizationId,
             userId,
@@ -132,14 +137,15 @@ class AuditService {
             oldValues,
             ipAddress,
             userAgent,
-            metadata
+            metadata,
+            transaction
         });
     }
 
     /**
      * Log failed operation
      */
-    async logFailure(organizationId, userId, action, entityType, error, ipAddress, userAgent, metadata = null) {
+    async logFailure(organizationId, userId, action, entityType, error, ipAddress, userAgent, metadata = null, transaction = null) {
         await this.log({
             organizationId,
             userId,
@@ -150,14 +156,15 @@ class AuditService {
             userAgent,
             status: 'failure',
             errorMessage: error.message || error.toString(),
-            metadata
+            metadata,
+            transaction
         });
     }
 
     /**
      * Log custom action
      */
-    async logCustom(organizationId, userId, action, description, ipAddress, userAgent, metadata = null) {
+    async logCustom(organizationId, userId, action, description, ipAddress, userAgent, metadata = null, transaction = null) {
         await this.log({
             organizationId,
             userId,
@@ -165,7 +172,8 @@ class AuditService {
             description,
             ipAddress,
             userAgent,
-            metadata
+            metadata,
+            transaction
         });
     }
 

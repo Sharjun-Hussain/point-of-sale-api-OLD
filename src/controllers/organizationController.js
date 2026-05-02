@@ -175,6 +175,16 @@ const getAllOrganizations = async (req, res, next) => {
 
 const updateOrganization = async (req, res, next) => {
     try {
+        // PERMISSION SCOPE CHECK
+        const isSuperAdmin = req.user.roles.some(role => role.name === 'Super Admin');
+        const userPermissions = [];
+        req.user.roles.forEach(role => role.permissions?.forEach(p => userPermissions.push(p.name)));
+        const hasUpdatePermission = userPermissions.includes('settings:business:update') || userPermissions.includes('system:settings');
+
+        if (!isSuperAdmin && !hasUpdatePermission) {
+             return errorResponse(res, 'Security Violation: You do not have permission to synchronize business identity.', 403);
+        }
+
         const organization = await Organization.findByPk(req.user.organization_id);
         if (!organization) return errorResponse(res, 'Organization not found', 404);
 
@@ -193,20 +203,30 @@ const updateOrganization = async (req, res, next) => {
                 return obj;
             }, {});
 
-        await organization.update(updateData);
+        const transaction = await sequelize.transaction();
+        try {
+            await organization.update(updateData, { transaction });
 
-        // Detailed Audit Logging
-        const { ipAddress, userAgent } = auditService.getRequestContext(req);
-        await auditService.logUpdate(
-            req.user.organization_id,
-            req.user.id,
-            'Organization',
-            organization.id,
-            oldValues,
-            updateData,
-            ipAddress,
-            userAgent
-        );
+            // Detailed Audit Logging
+            const { ipAddress, userAgent } = auditService.getRequestContext(req);
+            await auditService.logUpdate(
+                req.user.organization_id,
+                req.user.id,
+                'Organization',
+                organization.id,
+                oldValues,
+                updateData,
+                ipAddress,
+                userAgent,
+                null,
+                transaction
+            );
+
+            await transaction.commit();
+        } catch (err) {
+            await transaction.rollback();
+            throw err;
+        }
 
         return successResponse(res, organization, 'Organization identity synchronized successfully');
     } catch (error) { next(error); }
@@ -268,7 +288,8 @@ const updateOrganizationById = async (req, res, next) => {
             req.body,
             ipAddress,
             userAgent,
-            { is_admin_action: true }
+            { is_admin_action: true },
+            transaction
         );
 
         await transaction.commit();
