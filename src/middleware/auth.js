@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { User, Role, Permission, Branch, Employee } = require('../models');
+const { User, Role, Permission, Branch, Employee, Organization } = require('../models');
 
 /**
  * Authentication Middleware
