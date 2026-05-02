@@ -25,6 +25,7 @@ router.get('/:id', checkPermission('org:view'), orgController.getOrganizationByI
 router.patch('/:id', upload.single('logo'), checkPermission('org:edit'), orgController.updateOrganizationById);
 router.patch('/:id/status/:action', checkPermission('org:edit'), orgController.toggleOrganizationStatus);
 router.patch('/:id/status', checkPermission('org:edit'), orgController.toggleOrganizationStatus);
+router.patch('/:id/:action', checkPermission('org:edit'), orgController.toggleOrganizationStatus); // Alias for frontend compatibility
 router.get('/:id/subscription-history', checkPermission('org:view'), orgController.getSubscriptionHistory);
 
 module.exports = router;
