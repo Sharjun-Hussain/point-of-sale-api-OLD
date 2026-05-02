@@ -424,9 +424,9 @@ const createBranch = async (req, res, next) => {
 
         const branchData = { ...req.body };
 
-        // Convert empty strings to null (especially for foreign keys like manager_id)
+        // Convert empty strings or 'none' to null (especially for foreign keys like manager_id)
         Object.keys(branchData).forEach(key => {
-            if (branchData[key] === '') {
+            if (branchData[key] === '' || branchData[key] === 'none') {
                 branchData[key] = null;
             }
         });
@@ -457,9 +457,9 @@ const updateBranch = async (req, res, next) => {
         if (!branch) return errorResponse(res, 'Branch not found', 404);
 
         const updateData = { ...req.body };
-        // Convert empty strings to null (especially for foreign keys like manager_id)
+        // Convert empty strings or 'none' to null (especially for foreign keys like manager_id)
         Object.keys(updateData).forEach(key => {
-            if (updateData[key] === '') {
+            if (updateData[key] === '' || updateData[key] === 'none') {
                 updateData[key] = null;
             }
         });
