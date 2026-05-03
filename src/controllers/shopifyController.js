@@ -50,8 +50,32 @@ const testConnection = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const pushInventory = async (req, res, next) => {
+    try {
+        const results = await shopifyService.pushAllInventory(req.user.organization_id);
+        return successResponse(res, results, 'Inventory push completed');
+    } catch (error) { next(error); }
+};
+
+const pullProducts = async (req, res, next) => {
+    try {
+        const results = await shopifyService.pullAllProducts(req.user.organization_id);
+        return successResponse(res, results, 'Products fetched from Shopify');
+    } catch (error) { next(error); }
+};
+
+const getAnalytics = async (req, res, next) => {
+    try {
+        const stats = await shopifyService.getAnalytics(req.user.organization_id);
+        return successResponse(res, stats, 'Shopify analytics fetched');
+    } catch (error) { next(error); }
+};
+
 module.exports = {
     getConfig,
     saveConfig,
-    testConnection
+    testConnection,
+    pushInventory,
+    pullProducts,
+    getAnalytics
 };
