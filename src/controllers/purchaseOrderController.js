@@ -1,4 +1,4 @@
-const { PurchaseOrder, PurchaseOrderItem, Supplier, Branch, User, Product, ProductVariant, GRN, AuditLog, PurchaseReturn } = require('../models');
+const { PurchaseOrder, PurchaseOrderItem, Supplier, Branch, User, Product, ProductVariant, GRN, AuditLog, PurchaseReturn, Attachment } = require('../models');
 const { format } = require('date-fns');
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
@@ -51,7 +51,8 @@ const getPurchaseOrderById = async (req, res, next) => {
                         { model: Product, as: 'product' },
                         { model: ProductVariant, as: 'variant' }
                     ]
-                }
+                },
+                { model: Attachment, as: 'attachments' }
             ]
         });
 
@@ -93,8 +94,18 @@ const getPurchaseOrderById = async (req, res, next) => {
 };
 
 const createPurchaseOrder = async (req, res, next) => {
-    const { items, ...poData } = req.body;
     try {
+        let bodyContent = req.body;
+        // Parse data from multipart/form-data if necessary
+        if (req.body.data && typeof req.body.data === 'string') {
+            try {
+                bodyContent = JSON.parse(req.body.data);
+            } catch (pErr) {
+                console.error("JSON Parse Error:", pErr);
+            }
+        }
+
+        const { items, ...poData } = bodyContent;
         // Auto-generate PO number if not provided
         if (!poData.po_number) {
             const date = new Date();
@@ -181,6 +192,33 @@ const createPurchaseOrder = async (req, res, next) => {
                 // Final update for total amount
                 await po.update({ total_amount: totalAmount });
             }
+        }
+
+        // Handle File Attachments if provided in multipart
+        if (req.files && req.files.length > 0) {
+            const attachmentPromises = req.files.map(file => {
+                return Attachment.create({
+                    organization_id: po.organization_id,
+                    entity_type: 'PurchaseOrder',
+                    entity_id: po.id,
+                    file_path: file.path,
+                    file_name: file.originalname,
+                    file_size: file.size,
+                    file_type: file.mimetype
+                });
+            });
+            await Promise.all(attachmentPromises);
+        } else if (req.file) {
+            // Handle single file upload if only one was sent
+            await Attachment.create({
+                organization_id: po.organization_id,
+                entity_type: 'PurchaseOrder',
+                entity_id: po.id,
+                file_path: req.file.path,
+                file_name: req.file.originalname,
+                file_size: req.file.size,
+                file_type: req.file.mimetype
+            });
         }
 
         // Add Audit Log for creation
@@ -482,6 +520,67 @@ const emailPurchaseOrder = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const uploadPOAttachment = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const po = await PurchaseOrder.findOne({
+            where: { id, organization_id: req.user.organization_id }
+        });
+
+        if (!po) return errorResponse(res, 'Purchase Order not found', 404);
+
+        if (!req.file && (!req.files || req.files.length === 0)) {
+            return errorResponse(res, 'No files uploaded', 400);
+        }
+
+        const files = req.files || [req.file];
+        const attachments = [];
+
+        for (const file of files) {
+            const attachment = await Attachment.create({
+                organization_id: req.user.organization_id,
+                entity_type: 'PurchaseOrder',
+                entity_id: po.id,
+                file_path: file.path,
+                file_name: file.originalname,
+                file_size: file.size,
+                file_type: file.mimetype
+            });
+            attachments.push(attachment);
+        }
+
+        return successResponse(res, attachments, 'Attachments uploaded successfully', 201);
+    } catch (error) { next(error); }
+};
+
+const deletePOAttachment = async (req, res, next) => {
+    try {
+        const { id, attachmentId } = req.params;
+        const attachment = await Attachment.findOne({
+            where: { 
+                id: attachmentId, 
+                entity_id: id, 
+                entity_type: 'PurchaseOrder',
+                organization_id: req.user.organization_id 
+            }
+        });
+
+        if (!attachment) return errorResponse(res, 'Attachment not found', 404);
+
+        // Delete file from filesystem
+        const fs = require('fs');
+        const path = require('path');
+        const fullPath = path.join(process.cwd(), attachment.file_path);
+        
+        if (fs.existsSync(fullPath)) {
+            fs.unlinkSync(fullPath);
+        }
+
+        await attachment.destroy();
+        return successResponse(res, null, 'Attachment deleted successfully');
+    } catch (error) { next(error); }
+};
+
 module.exports = {
     getAllPurchaseOrders,
     getPurchaseOrderById,
@@ -491,5 +590,7 @@ module.exports = {
     approvePurchaseOrder,
     generatePOPDF,
     cancelPurchaseOrder,
-    emailPurchaseOrder
+    emailPurchaseOrder,
+    uploadPOAttachment,
+    deletePOAttachment
 };

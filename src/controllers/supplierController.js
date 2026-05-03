@@ -1,5 +1,5 @@
 const db = require('../models');
-const { Supplier, Transaction, Account, GRN, GRNItem, Product, ProductVariant, ProductBatch, Cheque } = db;
+const { Supplier, GRN, GRNItem, Stock, Account, Transaction, PurchaseOrder, Product, ProductVariant, Attachment, Cheque, SupplierPayment, SupplierPaymentMethod } = require('../models');
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
 const { Sequelize } = require('sequelize');
@@ -166,6 +166,33 @@ const createGRN = async (req, res, next) => {
             invoice_file: req.file ? req.file.path : null,
             received_date
         }, { transaction: t });
+
+        // Handle multi-file attachments if provided
+        if (req.files && req.files.length > 0) {
+            const attachmentPromises = req.files.map(file => {
+                return Attachment.create({
+                    organization_id,
+                    entity_type: 'GRN',
+                    entity_id: grn.id,
+                    file_path: file.path,
+                    file_name: file.originalname,
+                    file_size: file.size,
+                    file_type: file.mimetype
+                }, { transaction: t });
+            });
+            await Promise.all(attachmentPromises);
+        } else if (req.file) {
+            // Also add the single req.file to the attachments table for consistency
+            await Attachment.create({
+                organization_id,
+                entity_type: 'GRN',
+                entity_id: grn.id,
+                file_path: req.file.path,
+                file_name: req.file.originalname,
+                file_size: req.file.size,
+                file_type: req.file.mimetype
+            }, { transaction: t });
+        }
 
         for (const item of items) {
             const qtyReceived = parseFloat(item.quantity_received || item.received_qty || item.receivedQty || 0);
@@ -408,10 +435,11 @@ const getGRNDetail = async (req, res, next) => {
                     model: GRNItem,
                     as: 'items',
                     include: [
-                        { model: Product, as: 'product', attributes: ['name'] },
-                        { model: ProductVariant, as: 'variant', attributes: ['name'] }
+                        { model: Product, as: 'product' },
+                        { model: ProductVariant, as: 'variant' }
                     ]
-                }
+                },
+                { model: Attachment, as: 'attachments' }
             ]
         });
 
@@ -744,6 +772,67 @@ const createSupplierPayment = async (req, res, next) => {
     }
 };
 
+const uploadGRNAttachment = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const grn = await GRN.findOne({
+            where: { id, organization_id: req.user.organization_id }
+        });
+
+        if (!grn) return errorResponse(res, 'GRN not found', 404);
+
+        if (!req.file && (!req.files || req.files.length === 0)) {
+            return errorResponse(res, 'No files uploaded', 400);
+        }
+
+        const files = req.files || [req.file];
+        const attachments = [];
+
+        for (const file of files) {
+            const attachment = await Attachment.create({
+                organization_id: req.user.organization_id,
+                entity_type: 'GRN',
+                entity_id: grn.id,
+                file_path: file.path,
+                file_name: file.originalname,
+                file_size: file.size,
+                file_type: file.mimetype
+            });
+            attachments.push(attachment);
+        }
+
+        return successResponse(res, attachments, 'Attachments uploaded successfully', 201);
+    } catch (error) { next(error); }
+};
+
+const deleteGRNAttachment = async (req, res, next) => {
+    try {
+        const { id, attachmentId } = req.params;
+        const attachment = await Attachment.findOne({
+            where: { 
+                id: attachmentId, 
+                entity_id: id, 
+                entity_type: 'GRN',
+                organization_id: req.user.organization_id 
+            }
+        });
+
+        if (!attachment) return errorResponse(res, 'Attachment not found', 404);
+
+        // Delete file from filesystem
+        const fs = require('fs');
+        const path = require('path');
+        const fullPath = path.join(process.cwd(), attachment.file_path);
+        
+        if (fs.existsSync(fullPath)) {
+            fs.unlinkSync(fullPath);
+        }
+
+        await attachment.destroy();
+        return successResponse(res, null, 'Attachment deleted successfully');
+    } catch (error) { next(error); }
+};
+
 module.exports = {
     getAllSuppliers,
     getSupplierById,
@@ -756,5 +845,7 @@ module.exports = {
     getGRNList,
     getGRNDetail,
     createSupplierPayment,
-    generateGRNPDF
+    generateGRNPDF,
+    uploadGRNAttachment,
+    deleteGRNAttachment
 };

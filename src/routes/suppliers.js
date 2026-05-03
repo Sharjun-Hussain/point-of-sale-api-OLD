@@ -16,7 +16,9 @@ router.get('/:id', checkPermission('supplier:view'), supplierController.getSuppl
 router.get('/:id/ledger', checkPermission('finance:view'), supplierController.getSupplierLedger);
 
 router.post('/', checkPermission('supplier:create'), upload.none(), supplierController.createSupplier);
-router.post('/grn', checkPermission('purchase:create'), upload.single('invoiceFile'), supplierController.createGRN);
+router.post('/grn', checkPermission('purchase:create'), upload.array('attachmentFiles', 10), supplierController.createGRN);
+router.post('/grn/:id/attachments', checkPermission('purchase:edit'), upload.array('attachmentFiles', 10), supplierController.uploadGRNAttachment);
+router.delete('/grn/:id/attachments/:attachmentId', checkPermission('purchase:edit'), supplierController.deleteGRNAttachment);
 router.post('/:id/payments', checkPermission('finance:manage'), supplierController.createSupplierPayment);
 
 router.put('/:id', checkPermission('supplier:edit'), upload.none(), supplierController.updateSupplier);

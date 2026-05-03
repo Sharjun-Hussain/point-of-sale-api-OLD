@@ -67,6 +67,14 @@ module.exports = (sequelize, DataTypes) => {
         GRN.belongsTo(models.User, { as: 'received_by_user', foreignKey: 'user_id' });
         GRN.hasMany(models.GRNItem, { as: 'items', foreignKey: 'grn_id' });
         GRN.hasMany(models.Cheque, { as: 'cheques', foreignKey: 'reference_id', constraints: false });
+        GRN.hasMany(models.Attachment, {
+            as: 'attachments',
+            foreignKey: 'entity_id',
+            constraints: false,
+            scope: {
+                entity_type: 'GRN'
+            }
+        });
     };
 
     return GRN;

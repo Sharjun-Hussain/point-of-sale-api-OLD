@@ -55,6 +55,14 @@ module.exports = (sequelize, DataTypes) => {
         PurchaseOrder.hasMany(models.PurchaseOrderItem, { as: 'items', foreignKey: 'purchase_order_id' });
         PurchaseOrder.hasMany(models.GRN, { as: 'grns', foreignKey: 'purchase_order_id' });
         PurchaseOrder.hasMany(models.PurchaseReturn, { as: 'returns', foreignKey: 'purchase_order_id' });
+        PurchaseOrder.hasMany(models.Attachment, {
+            as: 'attachments',
+            foreignKey: 'entity_id',
+            constraints: false,
+            scope: {
+                entity_type: 'PurchaseOrder'
+            }
+        });
     };
 
     return PurchaseOrder;
