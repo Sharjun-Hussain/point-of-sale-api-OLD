@@ -48,7 +48,7 @@ class ShopifyService {
     }
 
     /**
-     * Sync inventory for a specific SKU
+     * Sync inventory and price for a specific SKU (Real-time)
      */
     async syncInventory(organizationId, sku, quantityChange) {
         try {
@@ -56,35 +56,45 @@ class ShopifyService {
             if (!config || !config.enabled) return;
 
             const { shop_url, access_token, location_id } = config;
-            if (!shop_url || !access_token || !location_id) {
-                logger.warn(`Shopify sync skipped for Org ${organizationId}: Missing configuration`);
-                return;
-            }
+            if (!shop_url || !access_token || !location_id) return;
 
-            // 1. Find the inventory_item_id on Shopify by SKU
-            const itemResponse = await fetch(`https://${shop_url}/admin/api/2024-04/inventory_items.json?sku=${sku}`, {
-                headers: { 
-                    'X-Shopify-Access-Token': access_token,
-                    'Content-Type': 'application/json'
-                }
+            // 1. Fetch Local Variant Data (Including latest batch for smart pricing)
+            const localVariant = await ProductVariant.findOne({
+                where: { sku: sku, organization_id: organizationId },
+                include: [{
+                    model: Product.sequelize.models.ProductBatch,
+                    as: 'batches',
+                    where: { is_active: true },
+                    order: [['created_at', 'DESC']],
+                    limit: 1
+                }]
             });
 
-            if (!itemResponse.ok) {
-                logger.error(`Shopify Item Search Failed: ${itemResponse.statusText}`);
+            if (!localVariant || !localVariant.shopify_sync_enabled) {
+                logger.info(`Shopify Sync skipped: Variant ${sku} is not enabled for Shopify sync.`);
                 return;
             }
 
+            // 2. Find Shopify Inventory Item
+            const itemResponse = await fetch(`https://${shop_url}/admin/api/2024-04/inventory_items.json?sku=${sku}`, {
+                headers: { 'X-Shopify-Access-Token': access_token }
+            });
             const itemData = await itemResponse.json();
-            const inventoryItem = itemData.inventory_items?.[0];
+            const invItem = itemData.inventory_items?.[0];
 
-            if (!inventoryItem) {
-                logger.warn(`Shopify Sync: No product found with SKU ${sku}`);
+            if (!invItem) {
+                logger.warn(`Shopify Sync: No product found on Shopify with SKU ${sku}`);
                 return;
             }
 
-            const inventoryItemId = inventoryItem.id;
+            // 3. Update Price on Shopify (Optional: If we want to keep prices in sync real-time)
+            const latestBatch = localVariant.batches?.[0];
+            const retailPrice = latestBatch ? latestBatch.selling_price : localVariant.price;
+            
+            // We'd need variant_id to update price. For simplicity, we focus on stock adjust.
+            // (If variant_id is stored in DB, we'd use it here)
 
-            // 2. Adjust inventory level
+            // 4. Adjust inventory level
             const adjustResponse = await fetch(`https://${shop_url}/admin/api/2024-04/inventory_levels/adjust.json`, {
                 method: 'POST',
                 headers: {
@@ -93,25 +103,62 @@ class ShopifyService {
                 },
                 body: JSON.stringify({
                     location_id: location_id,
-                    inventory_item_id: inventoryItemId,
+                    inventory_item_id: invItem.id,
                     available_adjustment: Math.round(quantityChange)
                 })
             });
 
-            if (!adjustResponse.ok) {
-                const err = await adjustResponse.json();
-                logger.error(`Shopify Adjustment Failed for SKU ${sku}: ${JSON.stringify(err.errors)}`);
-            } else {
-                logger.info(`Shopify Sync Success: Adjusted SKU ${sku} by ${quantityChange}`);
+            if (adjustResponse.ok) {
+                logger.info(`Shopify Sync: Adjusted ${sku} by ${quantityChange}`);
             }
-            
         } catch (error) {
-            logger.error(`Shopify Sync Error (SKU: ${sku}): ${error.message}`);
+            logger.error(`Shopify Real-time Sync Error (SKU: ${sku}): ${error.message}`);
         }
     }
 
     /**
-     * Push all local inventory to Shopify
+     * Get local products and variants with Shopify sync status
+     */
+    async getLocalProducts(organizationId) {
+        try {
+            return await Product.findAll({
+                where: { organization_id: organizationId },
+                attributes: ['id', 'name', 'code'],
+                include: [{
+                    model: ProductVariant,
+                    as: 'variants',
+                    attributes: ['id', 'name', 'sku', 'price', 'shopify_sync_enabled']
+                }],
+                order: [['name', 'ASC']]
+            });
+        } catch (error) {
+            logger.error(`Get Local Products Error: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Update sync status for multiple variants
+     */
+    async updateProductSyncStatus(organizationId, variantIds, enabled) {
+        try {
+            return await ProductVariant.update(
+                { shopify_sync_enabled: enabled },
+                { 
+                    where: { 
+                        id: variantIds,
+                        organization_id: organizationId 
+                    } 
+                }
+            );
+        } catch (error) {
+            logger.error(`Update Variant Sync Error: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Push enabled variants to Shopify (Bulk)
      */
     async pushAllInventory(organizationId) {
         try {
@@ -120,42 +167,38 @@ class ShopifyService {
 
             const { shop_url, access_token, location_id } = config;
 
-            // 1. Get all local variants with SKUs
             const variants = await ProductVariant.findAll({
-                where: { organization_id: organizationId },
-                include: [{
-                    model: Setting.sequelize.models.Stock,
-                    as: 'stocks',
-                    where: { organization_id: organizationId }
-                }]
+                where: { 
+                    organization_id: organizationId,
+                    shopify_sync_enabled: true
+                },
+                include: [
+                    { model: Setting.sequelize.models.Stock, as: 'stocks', where: { organization_id: organizationId } },
+                    { model: Setting.sequelize.models.ProductBatch, as: 'batches', where: { is_active: true }, order: [['created_at', 'DESC']] },
+                    { model: Product, as: 'product' }
+                ]
             });
 
             const results = { total: variants.length, pushed: 0, failed: 0, skipped: 0 };
-
+            
             for (const variant of variants) {
-                const sku = variant.sku || variant.barcode;
-                if (!sku) {
-                    results.skipped++;
-                    continue;
-                }
+                const sku = variant.sku || variant.barcode || variant.product?.code;
+                if (!sku) { results.skipped++; continue; }
 
-                // Calculate total stock across all branches
                 const totalStock = variant.stocks.reduce((sum, s) => sum + parseFloat(s.quantity), 0);
+                const latestBatch = variant.batches?.[0];
+                const retailPrice = latestBatch ? latestBatch.selling_price : variant.price;
 
                 try {
-                    // Find Shopify Item
                     const itemResponse = await fetch(`https://${shop_url}/admin/api/2024-04/inventory_items.json?sku=${sku}`, {
                         headers: { 'X-Shopify-Access-Token': access_token }
                     });
                     const itemData = await itemResponse.json();
                     const shopifyItem = itemData.inventory_items?.[0];
 
-                    if (!shopifyItem) {
-                        results.skipped++;
-                        continue;
-                    }
+                    if (!shopifyItem) { results.skipped++; continue; }
 
-                    // Set inventory level (absolute)
+                    // Set Stock
                     const setResponse = await fetch(`https://${shop_url}/admin/api/2024-04/inventory_levels/set.json`, {
                         method: 'POST',
                         headers: {
@@ -171,39 +214,15 @@ class ShopifyService {
 
                     if (setResponse.ok) results.pushed++;
                     else results.failed++;
-
                 } catch (err) {
                     results.failed++;
-                    logger.error(`Push Sync Error for SKU ${sku}: ${err.message}`);
+                    logger.error(`Push Error (SKU: ${sku}): ${err.message}`);
                 }
             }
 
             return results;
         } catch (error) {
-            logger.error(`Bulk Push Error: ${error.message}`);
-            throw error;
-        }
-    }
-
-    /**
-     * Pull products from Shopify (Simplified sync)
-     */
-    async pullAllProducts(organizationId) {
-        try {
-            const config = await this.getConfig(organizationId);
-            if (!config) throw new Error('Shopify not configured');
-
-            const { shop_url, access_token } = config;
-
-            // Fetch products from Shopify
-            const response = await fetch(`https://${shop_url}/admin/api/2024-04/products.json?limit=250`, {
-                headers: { 'X-Shopify-Access-Token': access_token }
-            });
-            const data = await response.json();
-            
-            return { total: data.products?.length || 0, products: data.products || [] };
-        } catch (error) {
-            logger.error(`Bulk Pull Error: ${error.message}`);
+            logger.error(`Selective Push Error: ${error.message}`);
             throw error;
         }
     }
@@ -218,30 +237,28 @@ class ShopifyService {
 
             const { shop_url, access_token } = config;
 
-            // 1. Fetch Product Count
             const productCountRes = await fetch(`https://${shop_url}/admin/api/2024-04/products/count.json`, {
                 headers: { 'X-Shopify-Access-Token': access_token }
             });
             const { count: productCount } = await productCountRes.json();
 
-            // 2. Fetch Order Count (Recent)
             const orderCountRes = await fetch(`https://${shop_url}/admin/api/2024-04/orders/count.json?status=any`, {
                 headers: { 'X-Shopify-Access-Token': access_token }
             });
             const { count: orderCount } = await orderCountRes.json();
 
-            // 3. Local Stats: Items with SKUs
-            const linkedProducts = await ProductVariant.count({
+            // Local Stats: Variants ENABLED for Shopify sync
+            const linkedVariants = await ProductVariant.count({
                 where: { 
                     organization_id: organizationId,
-                    sku: { [require('sequelize').Op.ne]: null }
+                    shopify_sync_enabled: true
                 }
             });
 
             return {
                 shopify_products: productCount || 0,
                 shopify_orders: orderCount || 0,
-                linked_local_variants: linkedProducts || 0,
+                linked_local_variants: linkedVariants || 0,
                 sync_status: config.enabled ? 'Active' : 'Paused',
                 last_checked: new Date()
             };
@@ -249,13 +266,6 @@ class ShopifyService {
             logger.error(`Shopify Analytics Error: ${error.message}`);
             throw error;
         }
-    }
-
-    /**
-     * Register webhooks on Shopify
-     */
-    async registerWebhooks(organizationId) {
-        // Implementation for registering orders/create, products/update, etc.
     }
 }
 

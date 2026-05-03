@@ -12,5 +12,7 @@ router.post('/verify', checkPermission('settings:manage'), shopifyController.tes
 router.post('/push', checkPermission('settings:manage'), shopifyController.pushInventory);
 router.post('/pull', checkPermission('settings:manage'), shopifyController.pullProducts);
 router.get('/analytics', checkPermission('settings:manage'), shopifyController.getAnalytics);
+router.get('/products', checkPermission('settings:manage'), shopifyController.getLocalProducts);
+router.post('/products/sync', checkPermission('settings:manage'), shopifyController.updateProductSync);
 
 module.exports = router;

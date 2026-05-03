@@ -39,6 +39,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.DECIMAL(15, 2),
             defaultValue: 0.00
         },
+        shopify_sync_enabled: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
+        },
         stock_quantity: {
             type: DataTypes.DECIMAL(15, 2),
             defaultValue: 0.00

@@ -57,10 +57,23 @@ const pushInventory = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+// Pulling is currently disabled by request
 const pullProducts = async (req, res, next) => {
+    return errorResponse(res, 'Pulling products from Shopify is currently disabled', 403);
+};
+
+const getLocalProducts = async (req, res, next) => {
     try {
-        const results = await shopifyService.pullAllProducts(req.user.organization_id);
-        return successResponse(res, results, 'Products fetched from Shopify');
+        const products = await shopifyService.getLocalProducts(req.user.organization_id);
+        return successResponse(res, products, 'Local products fetched');
+    } catch (error) { next(error); }
+};
+
+const updateProductSync = async (req, res, next) => {
+    try {
+        const { product_ids, enabled } = req.body;
+        await shopifyService.updateProductSyncStatus(req.user.organization_id, product_ids, enabled);
+        return successResponse(res, null, 'Product sync status updated');
     } catch (error) { next(error); }
 };
 
@@ -77,5 +90,7 @@ module.exports = {
     testConnection,
     pushInventory,
     pullProducts,
-    getAnalytics
+    getAnalytics,
+    getLocalProducts,
+    updateProductSync
 };

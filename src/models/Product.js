@@ -71,6 +71,10 @@ module.exports = (sequelize, DataTypes) => {
         organization_id: {
             type: DataTypes.UUID,
             allowNull: true
+        },
+        shopify_sync_enabled: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
         }
     }, {
         tableName: 'products',
