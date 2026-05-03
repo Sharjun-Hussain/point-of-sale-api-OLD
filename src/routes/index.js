@@ -38,6 +38,8 @@ const stockRoutes = require('./stocks');
 const maintenanceRoutes = require('./maintenance');
 const shiftRoutes = require('./shifts');
 const aiRoutes = require('./aiRoutes');
+const shopifyRoutes = require('./shopify');
+const webhookRoutes = require('./webhooks');
 
 // Activate global audit logger for all non-GET mutations
 router.use(auditMiddleware());
@@ -80,5 +82,7 @@ router.use('/common', commonRoutes);
 router.use('/maintenance', maintenanceRoutes);
 router.use('/shifts', shiftRoutes);
 router.use('/ai', aiRoutes);
+router.use('/shopify', shopifyRoutes);
+router.use('/webhooks', webhookRoutes);
 
 module.exports = router;

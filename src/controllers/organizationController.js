@@ -568,9 +568,40 @@ const getSuperAdminStats = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const toggleShopifyIntegration = async (req, res, next) => {
+    try {
+        // Strict Super Admin Check
+        const isSuperAdmin = req.user.roles.some(role => role.name === 'Super Admin');
+        if (!isSuperAdmin) return errorResponse(res, 'Unauthorized: Super Admin only', 403);
+
+        const organization = await Organization.findByPk(req.params.id);
+        if (!organization) return errorResponse(res, 'Organization not found', 404);
+
+        const currentStatus = organization.shopify_enabled;
+        organization.shopify_enabled = !currentStatus;
+        await organization.save();
+
+        // Audit Logging
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logUpdate(
+            organization.id,
+            req.user.id,
+            'Organization',
+            organization.id,
+            { shopify_enabled: currentStatus },
+            { shopify_enabled: organization.shopify_enabled },
+            ipAddress,
+            userAgent,
+            { is_admin_action: true }
+        );
+
+        return successResponse(res, organization, `Shopify integration ${organization.shopify_enabled ? 'enabled' : 'disabled'} successfully`);
+    } catch (error) { next(error); }
+};
+
 module.exports = {
     getOrganization, getAllOrganizations, updateOrganization, createOrganization,
     getOrganizationById, updateOrganizationById, toggleOrganizationStatus, getSubscriptionHistory,
     getAllBranches, getActiveBranchesList, getBranchById, createBranch, updateBranch, toggleBranchStatus,
-    getSuperAdminStats
+    getSuperAdminStats, toggleShopifyIntegration
 };

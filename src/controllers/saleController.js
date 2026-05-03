@@ -713,6 +713,32 @@ const createSale = async (req, res, next) => {
             }
         }
 
+        // --- 11. TRIGGER SHOPIFY SYNC ---
+        if (sale.status === 'completed') {
+            const shopifyService = require('../services/shopifyService');
+            // Run in background to avoid blocking response
+            (async () => {
+                try {
+                    for (const pItem of processedItems) {
+                        let sku = null;
+                        if (pItem.product_variant_id) {
+                            const variant = await ProductVariant.findByPk(pItem.product_variant_id);
+                            sku = variant?.sku || variant?.barcode;
+                        } else {
+                            const product = await Product.findByPk(pItem.product_id);
+                            sku = product?.code || product?.barcode;
+                        }
+
+                        if (sku) {
+                            await shopifyService.syncInventory(organization_id, sku, -pItem.quantity);
+                        }
+                    }
+                } catch (err) {
+                    console.error('[SHOPIFY] Background sync trigger failed:', err);
+                }
+            })();
+        }
+
         return successResponse(res, createdSale, 'Sale created successfully', 201);
 
     } catch (error) {

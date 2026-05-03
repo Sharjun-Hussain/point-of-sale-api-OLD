@@ -84,6 +84,10 @@ module.exports = (sequelize, DataTypes) => {
         is_multi_branch: {
             type: DataTypes.BOOLEAN,
             defaultValue: false
+        },
+        shopify_enabled: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
         }
     }, {
         tableName: 'organizations',
