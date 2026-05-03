@@ -34,6 +34,12 @@ const createOrganization = async (req, res, next) => {
             owner_phone
         } = req.body;
 
+        // Handle Logo Upload
+        let logoPath = logo;
+        if (req.file) {
+            logoPath = req.file.path.replace(/\\/g, '/');
+        }
+
         // 1. Create Organization with Smart Subscription Setup
         // If Trial: auto-set 30-day expiry
         // If Paid: use provided subscription details
@@ -194,7 +200,7 @@ const updateOrganization = async (req, res, next) => {
         // Filter req.body to only include valid Organization fields to avoid polluting the model
         const allowedFields = [
             'name', 'email', 'phone', 'address', 'tax_id', 'website', 
-            'business_type', 'city', 'state', 'zip_code'
+            'business_type', 'city', 'state', 'zip_code', 'logo'
         ];
         const updateData = Object.keys(req.body)
             .filter(key => allowedFields.includes(key))
@@ -202,6 +208,11 @@ const updateOrganization = async (req, res, next) => {
                 obj[key] = req.body[key];
                 return obj;
             }, {});
+
+        // Handle Logo Upload
+        if (req.file) {
+            updateData.logo = req.file.path.replace(/\\/g, '/');
+        }
 
         const transaction = await sequelize.transaction();
         try {
@@ -259,6 +270,11 @@ const updateOrganizationById = async (req, res, next) => {
         // Auto-suspend if subscription status is being set to Expired or Suspended
         if (req.body.subscription_status === 'Expired' || req.body.subscription_status === 'Suspended') {
             req.body.is_active = false;
+        }
+
+        // Handle Logo Upload
+        if (req.file) {
+            req.body.logo = req.file.path.replace(/\\/g, '/');
         }
 
         await organization.update(req.body, { transaction });

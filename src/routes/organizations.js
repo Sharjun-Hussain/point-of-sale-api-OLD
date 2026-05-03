@@ -17,8 +17,8 @@ router.get('/', checkPermission('org:view'), orgController.getAllOrganizations);
 router.get('/me', checkPermission('org:view'), orgController.getOrganization);
 
 // Synchronized Business Identity Updates
-router.put('/', updateOrganizationValidationRules, validate, checkPermission('org:edit'), orgController.updateOrganization);
-router.put('/me', updateOrganizationValidationRules, validate, checkPermission('org:edit'), orgController.updateOrganization);
+router.put('/', upload.single('logo'), updateOrganizationValidationRules, validate, checkPermission('org:edit'), orgController.updateOrganization);
+router.put('/me', upload.single('logo'), updateOrganizationValidationRules, validate, checkPermission('org:edit'), orgController.updateOrganization);
 
 // Admin Routes for specific Organization ID
 router.get('/:id', checkPermission('org:view'), orgController.getOrganizationById);
