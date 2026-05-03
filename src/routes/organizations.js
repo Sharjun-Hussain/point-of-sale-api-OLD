@@ -20,6 +20,11 @@ router.get('/me', checkPermission('org:view'), orgController.getOrganization);
 router.put('/', upload.single('logo'), updateOrganizationValidationRules, validate, checkPermission('org:edit'), orgController.updateOrganization);
 router.put('/me', upload.single('logo'), updateOrganizationValidationRules, validate, checkPermission('org:edit'), orgController.updateOrganization);
 
+// Onboarding Tour Management
+router.get('/onboarding', orgController.getOnboardingStatus);
+router.post('/onboarding/complete', orgController.updateOnboardingStatus);
+router.post('/onboarding/policy', orgController.updateOnboardingPolicy); // For current org
+
 // Admin Routes for specific Organization ID
 router.get('/:id', checkPermission('org:view'), orgController.getOrganizationById);
 router.patch('/:id', upload.single('logo'), checkPermission('org:edit'), orgController.updateOrganizationById);
@@ -28,5 +33,7 @@ router.patch('/:id/status', checkPermission('org:edit'), orgController.toggleOrg
 router.patch('/:id/shopify', checkPermission('org:edit'), orgController.toggleShopifyIntegration);
 router.patch('/:id/:action', checkPermission('org:edit'), orgController.toggleOrganizationStatus); // Alias for frontend compatibility
 router.get('/:id/subscription-history', checkPermission('org:view'), orgController.getSubscriptionHistory);
+router.post('/:id/onboarding/policy', checkPermission('org:edit'), orgController.updateOnboardingPolicy);
+
 
 module.exports = router;

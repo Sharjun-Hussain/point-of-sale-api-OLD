@@ -599,9 +599,67 @@ const toggleShopifyIntegration = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const getOnboardingStatus = async (req, res, next) => {
+    try {
+        const organization = await Organization.findByPk(req.user.organization_id, {
+            attributes: ['id', 'onboarding_completed', 'force_onboarding']
+        });
+        if (!organization) return errorResponse(res, 'Organization not found', 404);
+        return successResponse(res, organization, 'Onboarding status fetched');
+    } catch (error) { next(error); }
+};
+
+const updateOnboardingStatus = async (req, res, next) => {
+    try {
+        const { completed } = req.body;
+        const organization = await Organization.findByPk(req.user.organization_id);
+        if (!organization) return errorResponse(res, 'Organization not found', 404);
+
+        organization.onboarding_completed = !!completed;
+        await organization.save();
+
+        return successResponse(res, organization, 'Onboarding status updated');
+    } catch (error) { next(error); }
+};
+
+const updateOnboardingPolicy = async (req, res, next) => {
+    try {
+        // Strict Super Admin Check
+        const isSuperAdmin = req.user.roles.some(role => role.name === 'Super Admin');
+        if (!isSuperAdmin) return errorResponse(res, 'Unauthorized: Super Admin only', 403);
+
+        const { id } = req.params;
+        const { force_onboarding } = req.body;
+
+        const organization = await Organization.findByPk(id || req.user.organization_id);
+        if (!organization) return errorResponse(res, 'Organization not found', 404);
+
+        const oldValues = { force_onboarding: organization.force_onboarding };
+        organization.force_onboarding = !!force_onboarding;
+        await organization.save();
+
+        // Audit Logging
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logUpdate(
+            organization.id,
+            req.user.id,
+            'Organization',
+            organization.id,
+            oldValues,
+            { force_onboarding: organization.force_onboarding },
+            ipAddress,
+            userAgent,
+            { is_admin_action: true }
+        );
+
+        return successResponse(res, organization, `Onboarding policy updated: Force Mode is now ${organization.force_onboarding ? 'ON' : 'OFF'}`);
+    } catch (error) { next(error); }
+};
+
 module.exports = {
     getOrganization, getAllOrganizations, updateOrganization, createOrganization,
     getOrganizationById, updateOrganizationById, toggleOrganizationStatus, getSubscriptionHistory,
     getAllBranches, getActiveBranchesList, getBranchById, createBranch, updateBranch, toggleBranchStatus,
-    getSuperAdminStats, toggleShopifyIntegration
+    getSuperAdminStats, toggleShopifyIntegration,
+    getOnboardingStatus, updateOnboardingStatus, updateOnboardingPolicy
 };

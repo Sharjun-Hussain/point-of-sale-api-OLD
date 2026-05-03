@@ -88,6 +88,14 @@ module.exports = (sequelize, DataTypes) => {
         shopify_enabled: {
             type: DataTypes.BOOLEAN,
             defaultValue: false
+        },
+        onboarding_completed: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
+        },
+        force_onboarding: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
         }
     }, {
         tableName: 'organizations',
