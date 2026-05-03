@@ -345,72 +345,77 @@ const generatePOPDF = async (req, res, next) => {
         res.setHeader('Content-type', 'application/pdf');
 
         doc.pipe(res);
-
-        // Header
-        doc.fontSize(20).text('PURCHASE ORDER', { align: 'center' });
-        doc.moveDown();
-
-        // Info Grid
-        doc.fontSize(10);
-        const startY = doc.y;
-        doc.text(`PO Number: ${po.po_number}`, 50, startY);
-        doc.text(`Date: ${new Date(po.order_date).toLocaleDateString()}`, 50, startY + 15);
-        doc.text(`Status: ${po.status.toUpperCase()}`, 50, startY + 30);
-
-        doc.text('SHIP TO:', 350, startY, { underline: true });
-        doc.text(po.branch?.name || 'N/A', 350, startY + 15);
-        doc.text(po.branch?.address || '', 350, startY + 30);
-
-        doc.moveDown(4);
-
-        // Supplier Info
-        doc.text('SUPPLIER:', { underline: true });
-        doc.text(po.supplier?.name || 'N/A');
-        doc.text(po.supplier?.email || '');
-        doc.moveDown();
-
-        // Items Table
-        const tableTop = doc.y + 20;
-        doc.font('Helvetica-Bold');
-        doc.text('Item / Variant', 50, tableTop);
-        doc.text('Quantity', 300, tableTop, { width: 50, align: 'right' });
-        doc.text('Unit Cost', 370, tableTop, { width: 80, align: 'right' });
-        doc.text('Total', 470, tableTop, { width: 80, align: 'right' });
-
-        doc.moveTo(50, tableTop + 15).lineTo(550, tableTop + 15).stroke();
-
-        doc.font('Helvetica');
-        let currentY = tableTop + 25;
-
-        if (po.items) {
-            po.items.forEach(item => {
-                const productName = item.product?.name || 'Unknown';
-                const variantName = item.variant?.name ? ` (${item.variant.name})` : '';
-
-                doc.text(`${productName}${variantName}`, 50, currentY, { width: 230 });
-                doc.text(item.quantity.toString(), 300, currentY, { width: 50, align: 'right' });
-                doc.text(Number(item.unit_cost).toFixed(2), 370, currentY, { width: 80, align: 'right' });
-                doc.text(Number(item.total_amount).toFixed(2), 470, currentY, { width: 80, align: 'right' });
-
-                currentY += 25;
-
-                if (currentY > 700) {
-                    doc.addPage();
-                    currentY = 50;
-                }
-            });
-        }
-
-        doc.moveTo(50, currentY + 10).lineTo(550, currentY + 10).stroke();
-        doc.moveDown(2);
-
-        doc.font('Helvetica-Bold');
-        doc.fontSize(12);
-        doc.text(`GRAND TOTAL: LKR ${Number(po.total_amount).toFixed(2)}`, { align: 'right' });
-
+        buildPODoc(doc, po);
         doc.end();
 
     } catch (error) { next(error); }
+};
+
+/**
+ * Shared helper to build the PO PDF document structure
+ */
+const buildPODoc = (doc, po) => {
+    // Header
+    doc.fontSize(20).text('PURCHASE ORDER', { align: 'center' });
+    doc.moveDown();
+
+    // Info Grid
+    doc.fontSize(10);
+    const startY = doc.y;
+    doc.text(`PO Number: ${po.po_number}`, 50, startY);
+    doc.text(`Date: ${new Date(po.order_date).toLocaleDateString()}`, 50, startY + 15);
+    doc.text(`Status: ${po.status.toUpperCase()}`, 50, startY + 30);
+
+    doc.text('SHIP TO:', 350, startY, { underline: true });
+    doc.text(po.branch?.name || 'N/A', 350, startY + 15);
+    doc.text(po.branch?.address || '', 350, startY + 30);
+
+    doc.moveDown(4);
+
+    // Supplier Info
+    doc.text('SUPPLIER:', { underline: true });
+    doc.text(po.supplier?.name || 'N/A');
+    doc.text(po.supplier?.email || '');
+    doc.moveDown();
+
+    // Items Table
+    const tableTop = doc.y + 20;
+    doc.font('Helvetica-Bold');
+    doc.text('Item / Variant', 50, tableTop);
+    doc.text('Quantity', 300, tableTop, { width: 50, align: 'right' });
+    doc.text('Unit Cost', 370, tableTop, { width: 80, align: 'right' });
+    doc.text('Total', 470, tableTop, { width: 80, align: 'right' });
+
+    doc.moveTo(50, tableTop + 15).lineTo(550, tableTop + 15).stroke();
+
+    doc.font('Helvetica');
+    let currentY = tableTop + 25;
+
+    if (po.items) {
+        po.items.forEach(item => {
+            const productName = item.product?.name || 'Unknown';
+            const variantName = item.variant?.name ? ` (${item.variant.name})` : '';
+
+            doc.text(`${productName}${variantName}`, 50, currentY, { width: 230 });
+            doc.text(item.quantity.toString(), 300, currentY, { width: 50, align: 'right' });
+            doc.text(Number(item.unit_cost).toFixed(2), 370, currentY, { width: 80, align: 'right' });
+            doc.text(Number(item.total_amount).toFixed(2), 470, currentY, { width: 80, align: 'right' });
+
+            currentY += 25;
+
+            if (currentY > 700) {
+                doc.addPage();
+                currentY = 50;
+            }
+        });
+    }
+
+    doc.moveTo(50, currentY + 10).lineTo(550, currentY + 10).stroke();
+    doc.moveDown(2);
+
+    doc.font('Helvetica-Bold');
+    doc.fontSize(12);
+    doc.text(`GRAND TOTAL: LKR ${Number(po.total_amount).toFixed(2)}`, { align: 'right' });
 };
 
 const cancelPurchaseOrder = async (req, res, next) => {
@@ -500,10 +505,27 @@ const emailPurchaseOrder = async (req, res, next) => {
             <p>Please acknowledge the receipt of this order.</p>
         `;
 
+        // Generate PDF Buffer for attachment
+        const pdfBuffer = await new Promise((resolve, reject) => {
+            const doc = new PDFDocument({ margin: 50, size: 'A4' });
+            const chunks = [];
+            doc.on('data', chunk => chunks.push(chunk));
+            doc.on('end', () => resolve(Buffer.concat(chunks)));
+            doc.on('error', reject);
+            buildPODoc(doc, po);
+            doc.end();
+        });
+
         await sendEmailWithSettings({
             to: po.supplier.email,
             subject: `PURCHASE ORDER #${po.po_number || po.id} - ${process.env.APP_NAME || 'POS System'}`,
-            html: emailHtml
+            html: emailHtml,
+            attachments: [
+                {
+                    filename: `PO-${po.po_number || po.id}.pdf`,
+                    content: pdfBuffer
+                }
+            ]
         }, po.organization_id);
 
         // Add Audit Log
