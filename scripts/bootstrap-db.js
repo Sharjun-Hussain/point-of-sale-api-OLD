@@ -220,6 +220,10 @@ async function bootstrap() {
             { name: 'user:create', group_name: 'User', description: 'Create user logins' },
             { name: 'user:edit', group_name: 'User', description: 'Update user profiles' },
             { name: 'user:delete', group_name: 'User', description: 'Disable user access' },
+            
+            // CRM & WhatsApp
+            { name: 'crm:view', group_name: 'CRM', description: 'View CRM and WhatsApp templates' },
+            { name: 'crm:manage', group_name: 'CRM', description: 'Manage CRM settings and send messages' },
 
             // Dashboard
             { name: 'dashboard:view', group_name: 'Dashboard', description: 'Access main dashboard' },

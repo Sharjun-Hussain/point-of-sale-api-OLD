@@ -89,6 +89,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.BOOLEAN,
             defaultValue: false
         },
+        whatsapp_enabled: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
+        },
         onboarding_completed: {
             type: DataTypes.BOOLEAN,
             defaultValue: false

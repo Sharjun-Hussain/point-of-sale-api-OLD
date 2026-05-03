@@ -26,11 +26,13 @@ router.post('/onboarding/complete', orgController.updateOnboardingStatus);
 router.post('/onboarding/policy', orgController.updateOnboardingPolicy); // For current org
 
 // Admin Routes for specific Organization ID
+router.get('/:id/full-details', checkPermission('org:view'), orgController.getOrganizationFullDetails);
 router.get('/:id', checkPermission('org:view'), orgController.getOrganizationById);
 router.patch('/:id', upload.single('logo'), checkPermission('org:edit'), orgController.updateOrganizationById);
 router.patch('/:id/status/:action', checkPermission('org:edit'), orgController.toggleOrganizationStatus);
 router.patch('/:id/status', checkPermission('org:edit'), orgController.toggleOrganizationStatus);
 router.patch('/:id/shopify', checkPermission('org:edit'), orgController.toggleShopifyIntegration);
+router.patch('/:id/whatsapp', checkPermission('org:edit'), orgController.toggleWhatsAppIntegration);
 router.patch('/:id/:action', checkPermission('org:edit'), orgController.toggleOrganizationStatus); // Alias for frontend compatibility
 router.get('/:id/subscription-history', checkPermission('org:view'), orgController.getSubscriptionHistory);
 router.post('/:id/onboarding/policy', checkPermission('org:edit'), orgController.updateOnboardingPolicy);

@@ -1,4 +1,4 @@
-const { Organization, Branch, User, Role, SubscriptionHistory, Employee } = require('../models');
+const { Organization, Branch, User, Role, SubscriptionHistory, Employee, BusinessPlan } = require('../models');
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
 const { hashPassword } = require('../utils/passwordHelper');
@@ -200,7 +200,8 @@ const updateOrganization = async (req, res, next) => {
         // Filter req.body to only include valid Organization fields to avoid polluting the model
         const allowedFields = [
             'name', 'email', 'phone', 'address', 'tax_id', 'website', 
-            'business_type', 'city', 'state', 'zip_code', 'logo'
+            'business_type', 'city', 'state', 'zip_code', 'logo',
+            'shopify_enabled', 'whatsapp_enabled'
         ];
         const updateData = Object.keys(req.body)
             .filter(key => allowedFields.includes(key))
@@ -250,6 +251,40 @@ const getOrganizationById = async (req, res, next) => {
         });
         if (!organization) return errorResponse(res, 'Organization not found', 404);
         return successResponse(res, organization, 'Organization fetched');
+    } catch (error) { next(error); }
+};
+
+const getOrganizationFullDetails = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const [organization, totalBranches, totalUsers] = await Promise.all([
+            Organization.findByPk(id, {
+                include: [
+                    { model: Branch, as: 'branches', limit: 5 },
+                    { model: BusinessPlan, as: 'plan' },
+                    { 
+                        model: SubscriptionHistory, 
+                        as: 'subscription_histories',
+                        limit: 10,
+                        order: [['created_at', 'DESC']]
+                    }
+                ]
+            }),
+            Branch.count({ where: { organization_id: id } }),
+            User.count({ where: { organization_id: id } })
+        ]);
+
+        if (!organization) return errorResponse(res, 'Organization not found', 404);
+
+        const responseData = {
+            organization,
+            stats: {
+                totalBranches,
+                totalUsers
+            }
+        };
+
+        return successResponse(res, responseData, 'Full organization details fetched');
     } catch (error) { next(error); }
 };
 
@@ -599,6 +634,37 @@ const toggleShopifyIntegration = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const toggleWhatsAppIntegration = async (req, res, next) => {
+    try {
+        // Strict Super Admin Check
+        const isSuperAdmin = req.user.roles.some(role => role.name === 'Super Admin');
+        if (!isSuperAdmin) return errorResponse(res, 'Unauthorized: Super Admin only', 403);
+
+        const organization = await Organization.findByPk(req.params.id);
+        if (!organization) return errorResponse(res, 'Organization not found', 404);
+
+        const currentStatus = organization.whatsapp_enabled;
+        organization.whatsapp_enabled = !currentStatus;
+        await organization.save();
+
+        // Audit Logging
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logUpdate(
+            organization.id,
+            req.user.id,
+            'Organization',
+            organization.id,
+            { whatsapp_enabled: currentStatus },
+            { whatsapp_enabled: organization.whatsapp_enabled },
+            ipAddress,
+            userAgent,
+            { is_admin_action: true }
+        );
+
+        return successResponse(res, organization, `WhatsApp CRM integration ${organization.whatsapp_enabled ? 'enabled' : 'disabled'} successfully`);
+    } catch (error) { next(error); }
+};
+
 const getOnboardingStatus = async (req, res, next) => {
     try {
         const orgId = req.user.organization_id;
@@ -676,7 +742,8 @@ const updateOnboardingPolicy = async (req, res, next) => {
 module.exports = {
     getOrganization, getAllOrganizations, updateOrganization, createOrganization,
     getOrganizationById, updateOrganizationById, toggleOrganizationStatus, getSubscriptionHistory,
+    getOrganizationFullDetails,
     getAllBranches, getActiveBranchesList, getBranchById, createBranch, updateBranch, toggleBranchStatus,
-    getSuperAdminStats, toggleShopifyIntegration,
+    getSuperAdminStats, toggleShopifyIntegration, toggleWhatsAppIntegration,
     getOnboardingStatus, updateOnboardingStatus, updateOnboardingPolicy
 };
