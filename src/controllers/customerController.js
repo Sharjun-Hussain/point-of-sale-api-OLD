@@ -350,6 +350,47 @@ const createCustomerPayment = async (req, res, next) => {
     }
 };
 
+const getCustomerPurchasedItems = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const organization_id = req.user.organization_id;
+
+        const items = await db.SaleItem.findAll({
+            attributes: [
+                'product_id',
+                [Sequelize.fn('SUM', Sequelize.col('SaleItem.quantity')), 'purchase_count'],
+                [Sequelize.fn('MAX', Sequelize.col('sale.sale_date')), 'last_purchase_date'],
+            ],
+            include: [
+                {
+                    model: db.Sale,
+                    as: 'sale',
+                    attributes: [],
+                    where: { customer_id: id, organization_id, status: 'completed' }
+                },
+                {
+                    model: db.Product,
+                    as: 'product',
+                    attributes: ['name']
+                }
+            ],
+            group: ['product_id', 'product.id'],
+            order: [[Sequelize.literal('last_purchase_date'), 'DESC']]
+        });
+
+        const formatted = items.map(item => ({
+            product_id: item.product_id,
+            product_name: item.product ? item.product.name : 'Unknown Product',
+            purchase_count: parseFloat(item.get('purchase_count') || 0),
+            last_purchase_date: item.get('last_purchase_date')
+        }));
+
+        return successResponse(res, formatted, 'Purchased items fetched successfully');
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     getAllCustomers,
     getCustomerById,
@@ -358,5 +399,6 @@ module.exports = {
     deleteCustomer,
     getActiveCustomersList,
     getCustomerLedger,
-    createCustomerPayment
+    createCustomerPayment,
+    getCustomerPurchasedItems
 };

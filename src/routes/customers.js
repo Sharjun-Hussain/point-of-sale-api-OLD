@@ -10,6 +10,7 @@ router.get('/', checkPermission('customer:view'), customerController.getAllCusto
 router.get('/active/list', checkPermission('customer:view'), customerController.getActiveCustomersList);
 router.get('/:id', checkPermission('customer:view'), customerController.getCustomerById);
 router.get('/:id/ledger', checkPermission('finance:view'), customerController.getCustomerLedger);
+router.get('/:id/purchased-items', checkPermission('customer:view'), customerController.getCustomerPurchasedItems);
 
 router.post('/', checkPermission('customer:create'), customerController.createCustomer);
 router.post('/:id/payments', checkPermission('finance:manage'), customerController.createCustomerPayment);
