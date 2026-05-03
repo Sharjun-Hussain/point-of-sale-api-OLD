@@ -601,10 +601,27 @@ const toggleShopifyIntegration = async (req, res, next) => {
 
 const getOnboardingStatus = async (req, res, next) => {
     try {
-        const organization = await Organization.findByPk(req.user.organization_id, {
+        const orgId = req.user.organization_id;
+        
+        if (!orgId) {
+            // Default for Super Admins or users without an organization
+            return successResponse(res, {
+                onboarding_completed: false,
+                force_onboarding: false
+            }, 'Default onboarding status (No Organization)');
+        }
+
+        const organization = await Organization.findByPk(orgId, {
             attributes: ['id', 'onboarding_completed', 'force_onboarding']
         });
-        if (!organization) return errorResponse(res, 'Organization not found', 404);
+
+        if (!organization) {
+            return successResponse(res, {
+                onboarding_completed: false,
+                force_onboarding: false
+            }, 'Default onboarding status (Org not found)');
+        }
+
         return successResponse(res, organization, 'Onboarding status fetched');
     } catch (error) { next(error); }
 };
