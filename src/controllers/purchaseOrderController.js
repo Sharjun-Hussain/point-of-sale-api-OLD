@@ -4,7 +4,7 @@ const { successResponse, errorResponse, paginatedResponse } = require('../utils/
 const { getPagination } = require('../utils/pagination');
 const { Op } = require('sequelize');
 const PDFDocument = require('pdfkit');
-const { sendEmail } = require('../utils/mailer');
+const { sendEmail, sendEmailWithSettings } = require('../utils/mailer');
 
 const getAllPurchaseOrders = async (req, res, next) => {
     try {
@@ -500,11 +500,11 @@ const emailPurchaseOrder = async (req, res, next) => {
             <p>Please acknowledge the receipt of this order.</p>
         `;
 
-        await sendEmail({
+        await sendEmailWithSettings({
             to: po.supplier.email,
             subject: `PURCHASE ORDER #${po.po_number || po.id} - ${process.env.APP_NAME || 'POS System'}`,
             html: emailHtml
-        });
+        }, po.organization_id);
 
         // Add Audit Log
         await AuditLog.create({
