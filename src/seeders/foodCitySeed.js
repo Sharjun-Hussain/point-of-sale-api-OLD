@@ -166,7 +166,7 @@ const seedFoodCity = async () => {
                 { name: 'Cola Concentrate', brand: 'Inzeedo Industrial', unit: 'l', product_type: 'Raw Material', cost: 4500 },
                 { name: 'Carbon Dioxide Gas', brand: 'Generic', unit: 'kg', product_type: 'Raw Material', cost: 300 },
                 { name: 'Empty PET Bottles', brand: 'Generic', unit: 'pc', product_type: 'Raw Material', cost: 15 },
-                { name: 'Inzeedo Classic Cola 500ml', brand: 'Inzeedo Industrial', unit: 'pc', product_type: 'Standard', can_be_manufactured: true, price: 150 }
+                { name: 'Inzeedo Classic Cola 500ml', brand: 'Inzeedo Industrial', unit: 'pc', product_type: 'Finished Good', can_be_manufactured: true, price: 150 }
             ]},
             { category: 'Beverages', subs: ['Soft Drinks', 'Milk & Dairy Drinks', 'Fruit Juices'], items: [
                 { name: 'Coca Cola', brand: 'Coca-Cola', unit: 'btl' },
@@ -296,7 +296,7 @@ const seedFoodCity = async () => {
                         unit_id: unitMap[item.unit],
                         is_active: true,
                         is_variant: isMultiVariant,
-                        product_type: item.product_type || 'Standard',
+                        product_type: item.product_type || 'Finished Good',
                         can_be_manufactured: item.can_be_manufactured || false
                     },
                     transaction: t
