@@ -181,9 +181,17 @@ const sendEmailWithSettings = async (options, organizationId) => {
 
                     if (customFromName) fromName = customFromName;
                     usingCustom = true;
-                    logger.info(`[MAILER] Using custom ${provider} gateway for Org: ${organizationId}.`);
                 }
             }
+        }
+
+        // --- SMART ROUTING: If primary is empty but fallback exists, use fallback immediately ---
+        const isDefaultIncomplete = !usingCustom && (!process.env.SMTP_USER || !process.env.SMTP_PASSWORD);
+        if (isDefaultIncomplete && fallbackTransporter) {
+            logger.info('[MAILER] Default SMTP incomplete. Routing directly to Brevo Fallback.');
+            activeTransporter = fallbackTransporter;
+            fromEmail = process.env.FALLBACK_EMAIL_USER || fromEmail;
+            fromName = process.env.FALLBACK_EMAIL_NAME || fromName;
         }
 
         const mailOptions = {
@@ -200,11 +208,13 @@ const sendEmailWithSettings = async (options, organizationId) => {
             logger.info('[MAILER] Email dispatched: %s', info.messageId);
             return info;
         } catch (primaryError) {
+            // If we already used fallback, just throw the error
+            if (activeTransporter === fallbackTransporter) throw primaryError;
+
             logger.warn(`[MAILER] Primary dispatch failed: ${primaryError.message}.`);
             
-            // FALLBACK LOGIC
             if (fallbackTransporter) {
-                logger.info('[MAILER] Attempting Brevo system fallback...');
+                logger.info('[MAILER] Attempting Brevo system fallback after failure...');
                 const fallbackMailOptions = {
                     ...mailOptions,
                     from: `"${process.env.FALLBACK_EMAIL_NAME || process.env.APP_NAME || 'POS System'}" <${process.env.FALLBACK_EMAIL_USER}>`
@@ -214,17 +224,15 @@ const sendEmailWithSettings = async (options, organizationId) => {
                     logger.info('[MAILER] Fallback success: %s', fallbackInfo.messageId);
                     return fallbackInfo;
                 } catch (fallbackError) {
-                    logger.error('[MAILER] Fallback ALSO failed: %s', fallbackError.message);
-                    throw new Error(`Both primary and fallback failed. Primary: ${primaryError.message} | Fallback: ${fallbackError.message}`);
+                    throw new Error(`Primary Failed: ${primaryError.message} | Fallback Failed: ${fallbackError.message}`);
                 }
             } else {
-                logger.info('[MAILER] No fallback transporter configured (FALLBACK_EMAIL_API_KEY missing).');
                 throw primaryError;
             }
         }
     } catch (error) {
-        logger.error('[MAILER] Fatal execution failed: %s', error.message);
-        throw new Error(`Email dispatch failed: ${error.message}`);
+        logger.error('[MAILER] Fatal delivery failure: %s', error.message);
+        throw new Error(error.message); // Return clean error to frontend
     }
 };
 
