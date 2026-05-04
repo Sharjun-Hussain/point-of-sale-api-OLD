@@ -9,6 +9,16 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             allowNull: false
         },
+        product_type: {
+            type: DataTypes.ENUM('Finished Good', 'Raw Material', 'Semi-Finished', 'Service'),
+            defaultValue: 'Finished Good',
+            allowNull: false
+        },
+        can_be_manufactured: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false,
+            allowNull: false
+        },
         code: {
             type: DataTypes.STRING,
             allowNull: false,
@@ -105,6 +115,7 @@ module.exports = (sequelize, DataTypes) => {
         Product.hasMany(models.StockAdjustment, { as: 'stock_adjustments', foreignKey: 'product_id' });
         Product.hasMany(models.GRNItem, { as: 'grn_items', foreignKey: 'product_id' });
         Product.hasMany(models.ProductBatch, { as: 'batches', foreignKey: 'product_id' });
+        Product.hasMany(models.Recipe, { as: 'recipes', foreignKey: 'product_id' });
 
         // Many-to-Many
         Product.belongsToMany(models.Supplier, {

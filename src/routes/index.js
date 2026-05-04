@@ -42,6 +42,8 @@ const shopifyRoutes = require('./shopify');
 const webhookRoutes = require('./webhooks');
 const whatsappRoutes = require('./whatsapp');
 const backupRoutes = require('./backup');
+const recipeRoutes = require('./recipe');
+const productionRoutes = require('./production');
 
 // Activate global audit logger for all non-GET mutations
 router.use(auditMiddleware());
@@ -88,5 +90,7 @@ router.use('/shopify', shopifyRoutes);
 router.use('/webhooks', webhookRoutes);
 router.use('/whatsapp', whatsappRoutes);
 router.use('/backups', backupRoutes);
+router.use('/recipes', recipeRoutes);
+router.use('/production', productionRoutes);
 
 module.exports = router;
