@@ -20,22 +20,6 @@ const {
     Stock,
     StockOpening,
     ProductBatch,
-    PurchaseOrder,
-    PurchaseOrderItem,
-    GRN,
-    GRNItem,
-    Sale,
-    SaleItem,
-    SalePayment,
-    SaleReturn,
-    SaleReturnItem,
-    ExpenseCategory,
-    Expense,
-    Account,
-    Transaction,
-    SupplierPayment,
-    Cheque,
-    Customer,
     Recipe,
     RecipeItem
 } = require('../models');
@@ -86,7 +70,6 @@ const seedFoodCity = async () => {
              await Organization.update({ business_type: 'Manufacturing' }, { where: { id: organization_id } });
         }
 
-        // Get Main Branch for this Org
         const branch = await Branch.findOne({ where: { organization_id, is_main: true } });
         if (!branch) {
             console.error(`❌ No main branch found for organization: ${org.name}`);
@@ -94,22 +77,11 @@ const seedFoodCity = async () => {
         }
         const branch_id = branch.id;
 
-        // Get Admin User for this Org
         const adminUser = await User.findOne({ where: { organization_id } });
         const user_id = adminUser ? adminUser.id : (await User.findOne()).id;
 
-        console.log(`✅ Selected Org: ${org.name}`);
-        console.log(`🏢 Target Branch: ${branch.name} (${branch_id})`);
-        
-        const confirm = await askQuestion('\nProceed with seeding? (y/n): ');
-        if (confirm.toLowerCase() !== 'y') {
-            console.log('Seed cancelled.');
-            process.exit(0);
-        }
-
         rl.close();
 
-        // Start Transaction
         const t = await sequelize.transaction();
         try {
             // 2. Base Metadata
@@ -147,7 +119,7 @@ const seedFoodCity = async () => {
             unitMap[item.short_name] = unit.id;
         }
 
-        const brands = ['Coca-Cola', 'PepsiCo', 'Nestle', 'Unilever', 'Cargills', 'Keells', 'Maliban', 'Munchee', 'Anchor', 'Highland', 'Hemas', 'Inzeedo Industrial', 'Generic'];
+        const brands = ['Coca-Cola', 'PepsiCo', 'Nestle', 'Unilever', 'Cargills', 'Keells', 'Maliban', 'Munchee', 'Anchor', 'Highland', 'Inzeedo Industrial', 'Generic'];
         const brandMap = {};
         for (const b of brands) {
             const [brand] = await Brand.findOrCreate({
@@ -169,15 +141,13 @@ const seedFoodCity = async () => {
                 { name: 'Inzeedo Classic Cola 500ml', brand: 'Inzeedo Industrial', unit: 'pc', product_type: 'Finished Good', can_be_manufactured: true, price: 150 }
             ]},
             { category: 'Beverages', subs: ['Soft Drinks', 'Milk & Dairy Drinks', 'Fruit Juices'], items: [
-                { name: 'Coca Cola', brand: 'Coca-Cola', unit: 'btl' },
-                { name: 'Pepsi', brand: 'PepsiCo', unit: 'btl' },
-                { name: 'Milo RTD', brand: 'Nestle', unit: 'pk' },
-                { name: 'Elephant House EGB', brand: 'Generic', unit: 'btl' }
+                { name: 'Coca Cola', brand: 'Coca-Cola', unit: 'btl', product_type: 'Finished Good' },
+                { name: 'Pepsi', brand: 'PepsiCo', unit: 'btl', product_type: 'Finished Good' },
+                { name: 'Milo RTD', brand: 'Nestle', unit: 'pk', product_type: 'Finished Good' }
             ]},
             { category: 'Grocery', subs: ['Rice & Pulses', 'Sugar & Salt', 'Noodles'], items: [
-                { name: 'Red Raw Rice', brand: 'Generic', unit: 'kg' },
-                { name: 'Cargills White Sugar', brand: 'Cargills', unit: 'kg' },
-                { name: 'Maggi 2 Minute Noodles', brand: 'Nestle', unit: 'pk' }
+                { name: 'Red Raw Rice', brand: 'Generic', unit: 'kg', product_type: 'Finished Good' },
+                { name: 'Cargills White Sugar', brand: 'Cargills', unit: 'kg', product_type: 'Finished Good' }
             ]}
         ];
 
@@ -201,12 +171,10 @@ const seedFoodCity = async () => {
             }
         }
 
-        // 4. Attributes for Variants
+        // 4. Attributes
         const attributes = [
-            { name: 'Weight/Volume', values: ['500g', '1kg', '500ml', '1L', '1.5L'] },
-            { name: 'Flavor', values: ['Original', 'Chocolate', 'Vanilla'] }
+            { name: 'Weight/Volume', values: ['500g', '1kg', '500ml', '1L'] }
         ];
-        const attrMap = {};
         const attrValueMap = {};
         for (const attr of attributes) {
             const [a] = await Attribute.findOrCreate({
@@ -214,7 +182,6 @@ const seedFoodCity = async () => {
                 defaults: { id: crypto.randomUUID(), name: attr.name, organization_id },
                 transaction: t
             });
-            attrMap[attr.name] = a.id;
             for (const val of attr.values) {
                 const [av] = await AttributeValue.findOrCreate({
                     where: { value: val, attribute_id: a.id, organization_id },
@@ -225,8 +192,8 @@ const seedFoodCity = async () => {
             }
         }
 
-        // 5. Stock Opening Header
-        const refNumber = `OPN-FOODCITY-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+        // 5. Stock Opening
+        const refNumber = `OPN-FC-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
         const [opening] = await StockOpening.findOrCreate({
             where: { reference_number: refNumber, organization_id },
             defaults: {
@@ -236,53 +203,19 @@ const seedFoodCity = async () => {
                 user_id,
                 reference_number: refNumber,
                 opening_date: new Date(),
-                notes: 'Food City hybrid initial stock bootstrap',
-                total_value: 1500000.00
+                total_value: 0
             },
             transaction: t
         });
 
-        // 6. Loop and Create Products
-        let totalVariantsCount = 0;
-        let productCounter = 0;
-        const usedCodes = new Set();
-        const usedSkus = new Set();
-        const usedBarcodes = new Set();
-        const allCreatedVariants = [];
+        // 6. Products & Variants
+        const manufacturingProductMap = {};
         const manufacturingVariantMap = {};
-
-        const generateCode = (prefix) => {
-            let code;
-            do {
-                code = `${prefix}-${Math.floor(10000 + Math.random() * 90000)}`;
-            } while (usedCodes.has(code));
-            usedCodes.add(code);
-            return code;
-        };
-
-        const generateSku = (prefix) => {
-            let sku;
-            do {
-                sku = `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
-            } while (usedSkus.has(sku));
-            usedSkus.add(sku);
-            return sku;
-        };
-
-        const generateBarcode = () => {
-            let barcode;
-            do {
-                barcode = Math.floor(Math.random() * 900000000000 + 100000000000).toString();
-            } while (usedBarcodes.has(barcode));
-            usedBarcodes.add(barcode);
-            return barcode;
-        };
+        let productCounter = 0;
 
         for (const catGroup of foodCityData) {
             for (const item of catGroup.items) {
-                const isMultiVariant = !item.can_be_manufactured && item.product_type !== 'Raw Material' && Math.random() > 0.5;
-                const pCode = generateCode(item.name.substring(0, 3).toUpperCase());
-
+                const pCode = `PRD-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
                 const [product] = await Product.findOrCreate({
                     where: { name: item.name, organization_id },
                     defaults: {
@@ -294,99 +227,89 @@ const seedFoodCity = async () => {
                         main_category_id: mainCatMap[catGroup.category],
                         sub_category_id: subCatMap[`${catGroup.category}:${catGroup.subs[0]}`],
                         unit_id: unitMap[item.unit],
-                        is_active: true,
-                        is_variant: isMultiVariant,
                         product_type: item.product_type || 'Finished Good',
                         can_be_manufactured: item.can_be_manufactured || false
                     },
                     transaction: t
                 });
 
-                let variantsToCreate = [{ name: null, attr: null, val: null }];
-                if (isMultiVariant) {
-                    variantsToCreate = ['Small', 'Large'].map(v => ({ name: `${item.name} ${v}`, attr: 'Weight/Volume', val: v }));
+                manufacturingProductMap[item.name] = product.id;
+
+                const vSku = `SKU-${pCode}`;
+                const cost = item.cost || 100.00;
+                const price = item.price || 150.00;
+                const stockQty = (item.product_type === 'Raw Material') ? 1000 : 50;
+
+                const [variant] = await ProductVariant.findOrCreate({
+                    where: { product_id: product.id, organization_id },
+                    defaults: {
+                        id: crypto.randomUUID(),
+                        product_id: product.id,
+                        organization_id,
+                        name: 'Default',
+                        sku: vSku,
+                        code: vSku,
+                        barcode: `BAR-${vSku}`,
+                        price: price,
+                        cost_price: cost,
+                        stock_quantity: stockQty,
+                        is_default: true
+                    },
+                    transaction: t
+                });
+
+                manufacturingVariantMap[item.name] = variant.id;
+
+                // Opening Stock Record
+                await Stock.findOrCreate({
+                    where: { branch_id, product_variant_id: variant.id, organization_id },
+                    defaults: {
+                        id: crypto.randomUUID(),
+                        branch_id,
+                        product_id: product.id,
+                        product_variant_id: variant.id,
+                        quantity: stockQty,
+                        organization_id
+                    },
+                    transaction: t
+                });
+
+                if (stockQty > 0) {
+                    await ProductBatch.create({
+                        id: crypto.randomUUID(),
+                        branch_id,
+                        product_id: product.id,
+                        product_variant_id: variant.id,
+                        batch_number: `BAT-${vSku}`,
+                        cost_price: cost,
+                        selling_price: price,
+                        quantity: stockQty,
+                        opening_stock_id: opening.id,
+                        organization_id,
+                        purchase_date: new Date()
+                    }, { transaction: t });
                 }
 
-                for (const vData of variantsToCreate) {
-                    const vSku = generateSku(pCode);
-                    const vBarcode = generateBarcode();
-                    const cost = item.cost || parseFloat((50 + Math.random() * 500).toFixed(2));
-                    const price = item.price || parseFloat((cost * 1.25).toFixed(2));
-                    const stockQty = (item.product_type === 'Raw Material') ? 1000 : Math.floor(20 + Math.random() * 200);
-
-                    const [variant] = await ProductVariant.findOrCreate({
-                        where: { name: vData.name, product_id: product.id, organization_id },
-                        defaults: {
-                            id: crypto.randomUUID(),
-                            product_id: product.id,
-                            organization_id,
-                            name: vData.name,
-                            sku: vSku,
-                            code: vSku,
-                            barcode: vBarcode,
-                            price: price,
-                            cost_price: cost,
-                            stock_quantity: stockQty,
-                            is_active: true
-                        },
-                        transaction: t
-                    });
-
-                    if (item.product_type === 'Raw Material' || item.can_be_manufactured) {
-                        manufacturingVariantMap[item.name] = variant.id;
-                    }
-
-                    // Create Stock & Batch
-                    const [stock, created] = await Stock.findOrCreate({
-                        where: { branch_id, product_variant_id: variant.id, organization_id },
-                        defaults: {
-                            id: crypto.randomUUID(),
-                            branch_id,
-                            product_id: product.id,
-                            product_variant_id: variant.id,
-                            quantity: stockQty,
-                            organization_id
-                        },
-                        transaction: t
-                    });
-
-                    if (created && stockQty > 0) {
-                        await ProductBatch.create({
-                            id: crypto.randomUUID(),
-                            branch_id,
-                            product_id: product.id,
-                            product_variant_id: variant.id,
-                            batch_number: `BAT-${vSku}`,
-                            cost_price: cost,
-                            selling_price: price,
-                            quantity: stockQty,
-                            opening_stock_id: opening.id,
-                            organization_id,
-                            purchase_date: new Date()
-                        }, { transaction: t });
-                    }
-
-                    totalVariantsCount++;
-                    if (allCreatedVariants.length < 50) allCreatedVariants.push(variant);
-                }
                 productCounter++;
             }
         }
 
-        // 7. Manufacturing Recipes (BOM)
-        console.log('📜 Seeding Manufacturing Recipes...');
-        const colaProduct = await Product.findOne({ where: { name: 'Inzeedo Classic Cola 500ml', organization_id }, transaction: t });
-        if (colaProduct) {
+        // 7. Recipes
+        console.log('📜 Seeding Recipes...');
+        const colaProdId = manufacturingProductMap['Inzeedo Classic Cola 500ml'];
+        const colaVarId = manufacturingVariantMap['Inzeedo Classic Cola 500ml'];
+
+        if (colaProdId && colaVarId) {
             const [recipe] = await Recipe.findOrCreate({
-                where: { product_id: colaProduct.id, organization_id },
+                where: { product_id: colaProdId, organization_id },
                 defaults: {
                     id: crypto.randomUUID(),
-                    product_id: colaProduct.id,
+                    product_id: colaProdId,
+                    product_variant_id: colaVarId,
                     organization_id,
-                    name: 'Industrial Cola Recipe',
-                    version: '1.0',
-                    standard_batch_size: 100,
-                    instructions: 'Mix concentrate with water and syrup. Carbonate and bottle.',
+                    name: 'Classic Cola Formula',
+                    batch_size: 100.000,
+                    instructions: 'Industrial mixing protocol.',
                     is_active: true
                 },
                 transaction: t
@@ -400,44 +323,28 @@ const seedFoodCity = async () => {
             ];
 
             for (const comp of components) {
-                const variantId = manufacturingVariantMap[comp.name];
-                if (variantId) {
-                    await RecipeItem.findOrCreate({
-                        where: { recipe_id: recipe.id, product_variant_id: variantId },
-                        defaults: {
-                            id: crypto.randomUUID(),
-                            recipe_id: recipe.id,
-                            product_variant_id: variantId,
-                            quantity: comp.qty,
-                            organization_id
-                        },
-                        transaction: t
-                    });
+                const rmProdId = manufacturingProductMap[comp.name];
+                const rmVarId = manufacturingVariantMap[comp.name];
+                if (rmProdId && rmVarId) {
+                    await RecipeItem.create({
+                        id: crypto.randomUUID(),
+                        recipe_id: recipe.id,
+                        raw_material_id: rmProdId,
+                        raw_material_variant_id: rmVarId,
+                        quantity: comp.qty,
+                        unit_id: null // Will use default
+                    }, { transaction: t });
                 }
             }
-            console.log('✅ Created BOM for Inzeedo Classic Cola.');
         }
 
-        // 8. Suppliers & Accounts (Minimal for this demo)
-        const [supplier] = await Supplier.findOrCreate({
-            where: { name: 'Industrial Supplies Ltd', organization_id },
-            defaults: { id: crypto.randomUUID(), name: 'Industrial Supplies Ltd', phone: '0112233445', organization_id },
-            transaction: t
-        });
-
         await t.commit();
-        console.log(`✅ Seeded ${productCounter} products Correctly.`);
-        console.log(`✅ Seeded ${totalVariantsCount} variants with opening stocks.`);
-        console.log('✨ Food City Seeding Completed Successfully!');
+        console.log(`✅ Seeded ${productCounter} products correctly with hybrid retail/manufacturing data.`);
         process.exit(0);
 
     } catch (error) {
         if (t) await t.rollback();
         console.error('❌ Seeding failed:', error);
-        process.exit(1);
-    }
-    } catch (outerError) {
-        console.error('❌ Script failed:', outerError);
         process.exit(1);
     }
 };
