@@ -20,6 +20,8 @@ const createOrganization = async (req, res, next) => {
             website,
             logo,
             tax_id,
+            business_type,
+            business_mode,
 
             // Main Branch Details
             branch_name,
@@ -66,6 +68,8 @@ const createOrganization = async (req, res, next) => {
             website,
             logo,
             tax_id,
+            business_type,
+            business_mode,
             subscription_tier: subscriptionTier,
             billing_cycle: billingCycle,
             subscription_expiry_date: subscriptionExpiryDate,
@@ -200,7 +204,7 @@ const updateOrganization = async (req, res, next) => {
         // Filter req.body to only include valid Organization fields to avoid polluting the model
         const allowedFields = [
             'name', 'email', 'phone', 'address', 'tax_id', 'website', 
-            'business_type', 'city', 'state', 'zip_code', 'logo',
+            'business_type', 'business_mode', 'city', 'state', 'zip_code', 'logo',
             'shopify_enabled', 'whatsapp_enabled'
         ];
         const updateData = Object.keys(req.body)
