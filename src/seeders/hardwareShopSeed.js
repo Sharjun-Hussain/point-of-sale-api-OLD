@@ -299,7 +299,9 @@ const seedHardwareShop = async () => {
                     sub_category_id: subCategoryMap[`${pData.mainCategory}:${pData.subCategory}`],
                     unit_id: unitMap[pData.unit],
                     supplier_id: supplierMap[pData.supplier],
-                    is_variant: pData.is_variant
+                    is_variant: pData.is_variant,
+                    product_type: pData.product_type || 'Standard',
+                    can_be_manufactured: pData.can_be_manufactured || false
                 }
             });
 

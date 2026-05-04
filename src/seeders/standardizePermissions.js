@@ -88,6 +88,13 @@ const permissionsSeed = [
     { name: 'sale:edit', group_name: 'Sale', description: 'Edit sale' },
     { name: 'sale:delete', group_name: 'Sale', description: 'Delete sale' },
 
+    // Production
+    { name: "production:view", group_name: "Production", description: "View manufacturing recipes and orders" },
+    { name: "production:create", group_name: "Production", description: "Create new recipes and orders" },
+    { name: "production:edit", group_name: "Production", description: "Edit existing recipes and orders" },
+    { name: "production:delete", group_name: "Production", description: "Delete recipes and orders" },
+    { name: "production:manage", group_name: "Production", description: "Finalize and complete production batches" },
+
     // Stock
     { name: 'stock:view', group_name: 'Stock', description: 'View stock' },
     { name: 'stock:create', group_name: 'Stock', description: 'Create new stock' },

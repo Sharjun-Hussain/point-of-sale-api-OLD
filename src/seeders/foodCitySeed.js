@@ -152,6 +152,12 @@ const seedFoodCity = async () => {
 
         // 3. Categories
         const foodCityData = [
+                        { category: 'Manufacturing Inputs', subs: ['Raw Materials', 'Packaging'], items: [
+                { name: 'Sugar (Industrial)', brand: 'Generic', unit: 'kg', product_type: 'Raw Material' },
+                { name: 'Carbon Dioxide Gas', brand: 'Generic', unit: 'btl', product_type: 'Raw Material' },
+                { name: 'Flavor Concentrate', brand: 'Generic', unit: 'btl', product_type: 'Raw Material' },
+                { name: 'Empty PET Bottles', brand: 'Generic', unit: 'box', product_type: 'Raw Material' }
+            ]},
             { category: 'Beverages', subs: ['Soft Drinks', 'Milk & Dairy Drinks', 'Fruit Juices', 'Tea & Coffee'], items: [
                 { name: 'Coca Cola', brand: 'Coca-Cola', unit: 'btl' },
                 { name: 'Pepsi', brand: 'PepsiCo', unit: 'btl' },
@@ -338,7 +344,9 @@ const seedFoodCity = async () => {
                         sub_category_id: subCatMap[`${catGroup.category}:${catGroup.subs[0]}`],
                         unit_id: unitMap[item.unit],
                         is_active: true,
-                        is_variant: isMultiVariant
+                        is_variant: isMultiVariant,
+                        product_type: item.product_type || 'Standard',
+                        can_be_manufactured: item.can_be_manufactured || false
                     },
                     transaction: t
                 });

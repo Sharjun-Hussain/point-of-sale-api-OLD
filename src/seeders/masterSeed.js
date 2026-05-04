@@ -77,6 +77,13 @@ const seed = async () => {
             { name: 'Container Create', group_name: 'Container' },
             { name: 'Container Edit', group_name: 'Container' },
             { name: 'Container Delete', group_name: 'Container' },
+            // Production
+            { name: "Production View", group_name: "Production" },
+            { name: "Production Create", group_name: "Production" },
+            { name: "Production Edit", group_name: "Production" },
+            { name: "Production Delete", group_name: "Production" },
+            { name: "Production Manage", group_name: "Production" },
+
             // Sales & Customers
             { name: 'Sale View', group_name: 'Sale' },
             { name: 'Sale Create', group_name: 'Sale' },
