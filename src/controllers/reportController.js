@@ -1479,6 +1479,74 @@ const reportController = {
         } catch (error) { next(error); }
     },
 
+    getDashboardCharts: async (req, res, next) => {
+        try {
+            const organization_id = req.user.organization_id;
+            const branch_id = req.user.branch_id;
+
+            const weekAgo = new Date();
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            weekAgo.setHours(0, 0, 0, 0);
+
+            const filter = { organization_id, status: 'completed' };
+            if (branch_id) {
+                filter.branch_id = branch_id;
+            }
+
+            // 1. Daily Revenue (Last 7 Days)
+            const dailyRevenue = await Sale.findAll({
+                where: {
+                    ...filter,
+                    created_at: { [Op.gte]: weekAgo }
+                },
+                attributes: [
+                    [Sequelize.fn('DATE', Sequelize.col('created_at')), 'date'],
+                    [Sequelize.fn('SUM', Sequelize.col('payable_amount')), 'revenue']
+                ],
+                group: [Sequelize.fn('DATE', Sequelize.col('created_at'))],
+                order: [[Sequelize.fn('DATE', Sequelize.col('created_at')), 'ASC']],
+                raw: true
+            });
+
+            // 2. Category Distribution (Top 5)
+            const categoryRevenue = await SaleItem.findAll({
+                include: [
+                    {
+                        model: Sale,
+                        as: 'sale',
+                        where: filter,
+                        attributes: []
+                    },
+                    {
+                        model: Product,
+                        as: 'product',
+                        attributes: [],
+                        include: [{ model: db.MainCategory, as: 'main_category', attributes: ['name'] }]
+                    }
+                ],
+                attributes: [
+                    [Sequelize.col('product->main_category.name'), 'name'],
+                    [Sequelize.fn('SUM', Sequelize.col('SaleItem.total_amount')), 'value']
+                ],
+                group: [Sequelize.col('product->main_category.id'), Sequelize.col('product->main_category.name')],
+                order: [[Sequelize.literal('value'), 'DESC']],
+                limit: 5,
+                raw: true
+            });
+
+            return successResponse(res, {
+                revenueHistory: dailyRevenue.map(r => ({
+                    date: new Date(r.date).toLocaleDateString('en-US', { weekday: 'short' }),
+                    revenue: Number(r.revenue)
+                })),
+                categoryMix: categoryRevenue.map(c => ({
+                    name: c.name || 'Uncategorized',
+                    value: Number(c.value)
+                }))
+            }, 'Dashboard charts data fetched successfully');
+        } catch (error) { next(error); }
+    },
+
     // 19. Shift History
     getShiftHistory: async (req, res, next) => {
         try {

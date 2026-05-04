@@ -43,6 +43,7 @@ router.get('/purchase/supplier-performance', checkPermission('report:view'), rep
 
 // Dashboard
 router.get('/dashboard/summary', reportController.getDashboardSummary);
+router.get('/dashboard/charts', reportController.getDashboardCharts);
 
 // Shift Reports
 router.get('/shifts/history', checkPermission('report:view'), reportController.getShiftHistory);
