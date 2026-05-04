@@ -6,7 +6,7 @@ module.exports = (sequelize, DataTypes) => {
             primaryKey: true
         },
         token: {
-            type: DataTypes.TEXT,
+            type: DataTypes.STRING(512),
             allowNull: false
         },
         user_id: {
@@ -22,7 +22,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: true
         },
         replaced_by_token: {
-            type: DataTypes.TEXT,
+            type: DataTypes.STRING(512),
             allowNull: true
         },
         is_active: {
