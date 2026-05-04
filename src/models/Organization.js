@@ -100,6 +100,10 @@ module.exports = (sequelize, DataTypes) => {
         force_onboarding: {
             type: DataTypes.BOOLEAN,
             defaultValue: false
+        },
+        loyalty_enabled: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
         }
     }, {
         tableName: 'organizations',

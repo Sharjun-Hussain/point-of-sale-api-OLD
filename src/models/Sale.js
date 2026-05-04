@@ -77,6 +77,14 @@ module.exports = (sequelize, DataTypes) => {
         return_status: {
             type: DataTypes.ENUM('none', 'partial', 'full'),
             defaultValue: 'none'
+        },
+        earned_points: {
+            type: DataTypes.INTEGER,
+            defaultValue: 0
+        },
+        redeemed_points: {
+            type: DataTypes.INTEGER,
+            defaultValue: 0
         }
     }, {
         tableName: 'sales',

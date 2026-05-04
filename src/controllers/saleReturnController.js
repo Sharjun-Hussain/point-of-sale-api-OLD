@@ -142,6 +142,23 @@ const createSaleReturn = async (req, res, next) => {
             notes
         }, { transaction: t });
 
+        // --- LOYALTY POINTS DEDUCTION ---
+        if (sale.customer_id && sale.earned_points > 0) {
+            const org = await db.Organization.findByPk(organization_id, { transaction: t });
+            if (org && org.loyalty_enabled) {
+                // Deduct points proportionally to the return amount
+                const pointsToDeduct = Math.floor((total_return_amount / parseFloat(sale.payable_amount)) * sale.earned_points);
+                if (pointsToDeduct > 0) {
+                    const customer = await Customer.findByPk(sale.customer_id, { transaction: t });
+                    if (customer) {
+                        await customer.update({
+                            loyalty_points: Math.max(0, customer.loyalty_points - pointsToDeduct)
+                        }, { transaction: t });
+                    }
+                }
+            }
+        }
+
         // 2. Process Items (Update Stock & Batches)
         for (const item of items) {
             // ... (existing code for SaleReturnItem creation) ...

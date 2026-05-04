@@ -36,6 +36,7 @@ router.get('/finance/payments', checkPermission('report:view'), reportController
 
 // Customer Reports
 router.get('/customers/history', checkPermission('report:view'), reportController.getCustomerHistory);
+router.get('/customers/loyalty', checkPermission('report:view'), reportController.getLoyaltyReport);
 
 // Purchase Reports
 router.get('/purchase/supplier-performance', checkPermission('report:view'), reportController.getSupplierPerformance);

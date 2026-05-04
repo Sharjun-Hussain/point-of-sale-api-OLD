@@ -157,7 +157,8 @@ const createSale = async (req, res, next) => {
             seller_ids,
             cheque_details,
             is_wholesale: payload_is_wholesale,
-            shift_id
+            shift_id,
+            redeemed_points: payload_redeemed_points
         } = req.body;
 
         const organization_id = req.user.organization_id;
@@ -206,6 +207,25 @@ const createSale = async (req, res, next) => {
         const enableTax = finance.enableTax === true || (finance.enableTax !== false && finance.enableTax !== 'false' && finance.enableTax !== undefined);
         const rawTaxRate = finance.taxRate;
         const taxRate = (enableTax && rawTaxRate !== undefined && rawTaxRate !== null && rawTaxRate !== '') ? parseFloat(rawTaxRate) / 100 : 0;
+
+        // Fetch Organization and Loyalty Settings
+        const [organization, loyaltySetting] = await Promise.all([
+            Organization.findByPk(organization_id, { transaction: t }),
+            db.Setting.findOne({
+                where: { organization_id, category: 'loyalty' },
+                transaction: t
+            })
+        ]);
+
+        let loyaltySettings = loyaltySetting?.settings_data || {};
+        if (typeof loyaltySettings === 'string') {
+            try { loyaltySettings = JSON.parse(loyaltySettings); } catch (e) { loyaltySettings = {}; }
+        }
+
+        const isLoyaltyEnabled = organization?.loyalty_enabled === true;
+        const pointsPerCurrency = parseFloat(loyaltySettings.points_per_currency || 1);
+        const redemptionRate = parseFloat(loyaltySettings.redemption_rate || 0.01); // 1 point = 0.01 currency
+        const minRedemptionPoints = parseInt(loyaltySettings.min_redemption_points || 0);
 
         const date = new Date();
         const year = date.getFullYear();
@@ -332,6 +352,24 @@ const createSale = async (req, res, next) => {
         const safe_adjustment = parseFloat(adjustment || 0);
         final_payable_amount += safe_adjustment;
 
+        // --- LOYALTY REDEMPTION ---
+        let redeemedPoints = 0;
+        let redemptionDiscount = 0;
+
+        if (isLoyaltyEnabled && customer_id && payload_redeemed_points > 0) {
+            const customer = await Customer.findByPk(customer_id, { transaction: t });
+            if (customer) {
+                redeemedPoints = Math.min(parseInt(payload_redeemed_points), customer.loyalty_points);
+                if (redeemedPoints >= minRedemptionPoints) {
+                    redemptionDiscount = redeemedPoints * redemptionRate;
+                    final_payable_amount -= redemptionDiscount;
+                } else {
+                    redeemedPoints = 0;
+                    redemptionDiscount = 0;
+                }
+            }
+        }
+
         // --- 2. VALIDATE PAYMENTS (Split Payments Integration) ---
         let processedPayments = [];
         let total_paid = 0;
@@ -403,8 +441,27 @@ const createSale = async (req, res, next) => {
             status: payload_status || 'completed',
             notes,
             is_wholesale: !!payload_is_wholesale,
-            shift_id: shift_id || null
+            shift_id: shift_id || null,
+            earned_points: 0, // Will update below
+            redeemed_points: redeemedPoints
         }, { transaction: t });
+
+        // Calculate Earned Points (based on final payable amount BEFORE adjustment/redemption? No, usually on amount paid or total payable)
+        // Let's use final_payable_amount + redemptionDiscount (pre-redemption)
+        let earnedPoints = 0;
+        if (isLoyaltyEnabled && customer_id && sale.status === 'completed') {
+            const baseAmountForPoints = final_payable_amount + redemptionDiscount;
+            earnedPoints = Math.floor(baseAmountForPoints * pointsPerCurrency);
+            await sale.update({ earned_points: earnedPoints }, { transaction: t });
+            
+            // Update Customer Points
+            const customer = await Customer.findByPk(customer_id, { transaction: t });
+            if (customer) {
+                await customer.update({
+                    loyalty_points: customer.loyalty_points + earnedPoints - redeemedPoints
+                }, { transaction: t });
+            }
+        }
 
         // --- 5. CREATE ITEMS & PAYMENTS ---
         for (const pItem of processedItems) {

@@ -730,7 +730,64 @@ const reportController = {
         } catch (error) { next(error); }
     },
 
-    // 12. Sold Item Count
+    // 12. Loyalty Report
+    getLoyaltyReport: async (req, res, next) => {
+        try {
+            const { start_date, end_date, branch_id } = req.query;
+            const organization_id = req.user.organization_id;
+
+            const whereClause = { 
+                organization_id,
+                status: 'completed'
+            };
+
+            if (branch_id && branch_id !== 'all') {
+                whereClause.branch_id = branch_id;
+            }
+
+            if (start_date && end_date) {
+                whereClause.created_at = {
+                    [Op.between]: [
+                        new Date(start_date + 'T00:00:00'),
+                        new Date(end_date + 'T23:59:59')
+                    ]
+                };
+            }
+
+            // 1. Transactional Data (Earned vs Redeemed)
+            const sales = await Sale.findAll({
+                where: whereClause,
+                attributes: ['invoice_number', 'earned_points', 'redeemed_points', 'payable_amount', 'created_at'],
+                include: [{ model: Customer, as: 'customer', attributes: ['name', 'phone'] }],
+                order: [['created_at', 'DESC']]
+            });
+
+            // 2. Customer Balances
+            const topCustomers = await Customer.findAll({
+                where: { organization_id, loyalty_points: { [Op.gt]: 0 } },
+                attributes: ['name', 'phone', 'loyalty_points'],
+                order: [['loyalty_points', 'DESC']],
+                limit: 20
+            });
+
+            // 3. Summary Stats
+            const summary = {
+                totalEarned: sales.reduce((sum, s) => sum + (s.earned_points || 0), 0),
+                totalRedeemed: sales.reduce((sum, s) => sum + (s.redeemed_points || 0), 0),
+                activeCustomers: await Customer.count({ where: { organization_id, loyalty_points: { [Op.gt]: 0 } } }),
+                totalOutstanding: await Customer.sum('loyalty_points', { where: { organization_id } }) || 0
+            };
+
+            return successResponse(res, {
+                transactions: sales.filter(s => s.earned_points > 0 || s.redeemed_points > 0),
+                topCustomers,
+                summary
+            }, 'Loyalty report fetched successfully');
+
+        } catch (error) { next(error); }
+    },
+
+    // 13. Sold Item Count
     getSoldItemCount: async (req, res, next) => {
         try {
             const { start_date, end_date, branch_id, page, size } = req.query;
