@@ -137,6 +137,12 @@ const fallbackTransporter = (process.env.FALLBACK_EMAIL_API_KEY)
     })
     : null;
 
+if (fallbackTransporter) {
+    logger.info('📩 [MAILER] Brevo Fallback Transporter initialized and ready.');
+} else {
+    logger.warn('⚠️ [MAILER] Brevo Fallback NOT initialized. Check FALLBACK_EMAIL_API_KEY in .env');
+}
+
 /**
  * Send an email using dynamic SMTP settings from the database (if available).
  */
@@ -203,11 +209,18 @@ const sendEmailWithSettings = async (options, organizationId) => {
                     ...mailOptions,
                     from: `"${process.env.FALLBACK_EMAIL_NAME || process.env.APP_NAME || 'POS System'}" <${process.env.FALLBACK_EMAIL_USER}>`
                 };
-                const fallbackInfo = await fallbackTransporter.sendMail(fallbackMailOptions);
-                logger.info('[MAILER] Fallback success: %s', fallbackInfo.messageId);
-                return fallbackInfo;
+                try {
+                    const fallbackInfo = await fallbackTransporter.sendMail(fallbackMailOptions);
+                    logger.info('[MAILER] Fallback success: %s', fallbackInfo.messageId);
+                    return fallbackInfo;
+                } catch (fallbackError) {
+                    logger.error('[MAILER] Fallback ALSO failed: %s', fallbackError.message);
+                    throw new Error(`Both primary and fallback failed. Primary: ${primaryError.message} | Fallback: ${fallbackError.message}`);
+                }
+            } else {
+                logger.info('[MAILER] No fallback transporter configured (FALLBACK_EMAIL_API_KEY missing).');
+                throw primaryError;
             }
-            throw primaryError;
         }
     } catch (error) {
         logger.error('[MAILER] Fatal execution failed: %s', error.message);
