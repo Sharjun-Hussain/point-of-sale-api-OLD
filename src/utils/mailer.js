@@ -123,26 +123,40 @@ const getTransportConfig = (provider, config) => {
 };
 
 /**
+ * System Fallback Transporter (Brevo)
+ * Used if organization settings are missing or failing.
+ */
+const fallbackTransporter = (process.env.FALLBACK_EMAIL_API_KEY) 
+    ? nodemailer.createTransport({
+        host: 'smtp-relay.brevo.com',
+        port: 587,
+        auth: { 
+            user: process.env.FALLBACK_EMAIL_USER, 
+            pass: process.env.FALLBACK_EMAIL_API_KEY 
+        }
+    })
+    : null;
+
+/**
  * Send an email using dynamic SMTP settings from the database (if available).
  */
 const sendEmailWithSettings = async (options, organizationId) => {
-    try {
-        let activeTransporter = transporter;
-        let fromEmail = process.env.EMAIL_FROM || process.env.SMTP_USER;
-        let fromName = process.env.APP_NAME || 'POS System';
+    let activeTransporter = transporter;
+    let fromEmail = process.env.EMAIL_FROM || process.env.SMTP_USER;
+    let fromName = process.env.APP_NAME || 'POS System';
+    let usingCustom = false;
 
+    try {
         if (organizationId) {
             const { Setting } = require('../models');
             const setting = await Setting.findOne({
                 where: { organization_id: organizationId, category: 'communication' }
             });
 
-            // Parse settings_data if it comes as a string (industrial serialization handling)
             let settingsData = setting?.settings_data;
             if (settingsData && typeof settingsData === 'string') {
                 try {
                     settingsData = JSON.parse(settingsData);
-                    // Handle double-escaped strings if they exist
                     if (typeof settingsData === 'string') settingsData = JSON.parse(settingsData);
                 } catch (e) {
                     console.error('[MAILER] Failed to parse settings_data string:', e);
@@ -155,22 +169,15 @@ const sendEmailWithSettings = async (options, organizationId) => {
 
                 if (transportConfig) {
                     activeTransporter = nodemailer.createTransport(transportConfig);
-                    
-                    // Logic: Priority for From Email in the HEADER, but use Auth User as fallback
                     const displayEmail = getNormalizedVal(config, ['From Email', 'fromEmail', 'from_email']);
                     if (displayEmail) fromEmail = displayEmail;
                     else fromEmail = transportConfig.auth.user || fromEmail;
 
                     if (customFromName) fromName = customFromName;
-                    logger.info(`[MAILER] Initializing custom ${provider} gateway for Org: ${organizationId}. Mode: Authenticated Sender.`);
-                } else {
-                    logger.warn(`[MAILER] Custom ${provider} config was found for Org: ${organizationId} but was INCOMPLETE. Falling back to default.`);
+                    usingCustom = true;
+                    logger.info(`[MAILER] Using custom ${provider} gateway for Org: ${organizationId}.`);
                 }
-            } else {
-                logger.info(`[MAILER] No active custom email setting found for Org: ${organizationId}. Using system default.`);
             }
-        } else {
-            logger.info(`[MAILER] No organizationId provided. Using system default.`);
         }
 
         const mailOptions = {
@@ -182,12 +189,29 @@ const sendEmailWithSettings = async (options, organizationId) => {
             attachments: options.attachments || []
         };
 
-        const info = await activeTransporter.sendMail(mailOptions);
-        logger.info('[MAILER] Email dispatched successfully: id=%s, from=%s, to=%s', info.messageId, mailOptions.from, mailOptions.to);
-        return info;
+        try {
+            const info = await activeTransporter.sendMail(mailOptions);
+            logger.info('[MAILER] Email dispatched: %s', info.messageId);
+            return info;
+        } catch (primaryError) {
+            logger.warn(`[MAILER] Primary dispatch failed: ${primaryError.message}.`);
+            
+            // FALLBACK LOGIC
+            if (fallbackTransporter) {
+                logger.info('[MAILER] Attempting Brevo system fallback...');
+                const fallbackMailOptions = {
+                    ...mailOptions,
+                    from: `"${process.env.FALLBACK_EMAIL_NAME || process.env.APP_NAME || 'POS System'}" <${process.env.FALLBACK_EMAIL_USER}>`
+                };
+                const fallbackInfo = await fallbackTransporter.sendMail(fallbackMailOptions);
+                logger.info('[MAILER] Fallback success: %s', fallbackInfo.messageId);
+                return fallbackInfo;
+            }
+            throw primaryError;
+        }
     } catch (error) {
-        logger.error('[MAILER] Execution failed: %s', error.message);
-        throw new Error(`Could not dispatch email: ${error.message}`);
+        logger.error('[MAILER] Fatal execution failed: %s', error.message);
+        throw new Error(`Email dispatch failed: ${error.message}`);
     }
 };
 
