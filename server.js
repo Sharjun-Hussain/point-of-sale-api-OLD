@@ -30,6 +30,10 @@ const maintenanceService = require('./src/services/maintenanceService');
 // Initialize Express app
 const app = express();
 
+// TRUST PROXY: Required for production when behind a reverse proxy (Nginx)
+// This ensures req.ip reflects the real client IP, not 127.0.0.1
+app.set('trust proxy', 1);
+
 // CORS configuration - MUST BE FIRST
 // Production origins from env (comma-separated)
 const envOrigins = process.env.FRONTEND_URL
