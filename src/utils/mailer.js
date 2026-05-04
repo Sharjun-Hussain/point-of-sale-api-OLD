@@ -217,8 +217,9 @@ const sendEmailWithSettings = async (options, organizationId) => {
                 logger.info('[MAILER] Attempting Brevo system fallback after failure...');
                 const fallbackMailOptions = {
                     ...mailOptions,
-                    from: `"${process.env.FALLBACK_EMAIL_NAME || process.env.APP_NAME || 'POS System'}" <${process.env.FALLBACK_EMAIL_USER}>`
+                    from: `"${process.env.FALLBACK_EMAIL_NAME || process.env.APP_NAME || 'POS System'}" <${process.env.FALLBACK_EMAIL_FROM || process.env.FALLBACK_EMAIL_USER}>`
                 };
+                logger.info(`[MAILER] Fallback details: From="${fallbackMailOptions.from}"`);
                 try {
                     const fallbackInfo = await fallbackTransporter.sendMail(fallbackMailOptions);
                     logger.info('[MAILER] Fallback success: %s', fallbackInfo.messageId);
