@@ -35,6 +35,7 @@ const rl = readline.createInterface({
 const askQuestion = (query) => new Promise((resolve) => rl.question(query, resolve));
 
 const seedFoodCity = async () => {
+    let t;
     try {
         console.log('🌱 Starting Food City Enterprise Seed (Hybrid Retail + Manufacturing)...');
 
@@ -64,7 +65,6 @@ const seedFoodCity = async () => {
         const org = organizations[selectedIndex];
         const organization_id = org.id;
 
-        // Ensure business_type supports manufacturing to show UI
         if (org.business_type !== 'Manufacturing') {
              console.log(`⚠️  Updating organization business_type to 'Manufacturing' to enable production features...`);
              await Organization.update({ business_type: 'Manufacturing' }, { where: { id: organization_id } });
@@ -82,9 +82,9 @@ const seedFoodCity = async () => {
 
         rl.close();
 
-        const t = await sequelize.transaction();
-        try {
-            // 2. Base Metadata
+        t = await sequelize.transaction();
+        
+        // 2. Base Metadata
         const mUnits = [
             { name: 'Kilogram', short_name: 'kg' },
             { name: 'Gram', short_name: 'g' },
@@ -175,7 +175,6 @@ const seedFoodCity = async () => {
         const attributes = [
             { name: 'Weight/Volume', values: ['500g', '1kg', '500ml', '1L'] }
         ];
-        const attrValueMap = {};
         for (const attr of attributes) {
             const [a] = await Attribute.findOrCreate({
                 where: { name: attr.name, organization_id },
@@ -183,12 +182,11 @@ const seedFoodCity = async () => {
                 transaction: t
             });
             for (const val of attr.values) {
-                const [av] = await AttributeValue.findOrCreate({
+                await AttributeValue.findOrCreate({
                     where: { value: val, attribute_id: a.id, organization_id },
                     defaults: { id: crypto.randomUUID(), value: val, attribute_id: a.id, organization_id },
                     transaction: t
                 });
-                attrValueMap[`${attr.name}:${val}`] = av.id;
             }
         }
 
@@ -260,7 +258,6 @@ const seedFoodCity = async () => {
 
                 manufacturingVariantMap[item.name] = variant.id;
 
-                // Opening Stock Record
                 await Stock.findOrCreate({
                     where: { branch_id, product_variant_id: variant.id, organization_id },
                     defaults: {
