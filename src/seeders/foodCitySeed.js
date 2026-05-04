@@ -326,14 +326,18 @@ const seedFoodCity = async () => {
                 const rmProdId = manufacturingProductMap[comp.name];
                 const rmVarId = manufacturingVariantMap[comp.name];
                 if (rmProdId && rmVarId) {
-                    await RecipeItem.create({
-                        id: crypto.randomUUID(),
-                        recipe_id: recipe.id,
-                        raw_material_id: rmProdId,
-                        raw_material_variant_id: rmVarId,
-                        quantity: comp.qty,
-                        unit_id: null // Will use default
-                    }, { transaction: t });
+                    await RecipeItem.findOrCreate({
+                        where: { recipe_id: recipe.id, raw_material_variant_id: rmVarId },
+                        defaults: {
+                            id: crypto.randomUUID(),
+                            recipe_id: recipe.id,
+                            raw_material_id: rmProdId,
+                            raw_material_variant_id: rmVarId,
+                            quantity: comp.qty,
+                            unit_id: null
+                        },
+                        transaction: t
+                    });
                 }
             }
         }
