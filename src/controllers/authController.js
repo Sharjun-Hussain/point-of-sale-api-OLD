@@ -154,18 +154,34 @@ const refresh = async (req, res, next) => {
         }
 
         // Find token in DB
+        // INDUSTRIAL FIX: Allow a 60-second grace period for "revoked" tokens 
+        // to handle race conditions when multiple tabs refresh at once.
         const savedToken = await RefreshToken.findOne({
-            where: { token: refresh_token },
+            where: { 
+                token: refresh_token,
+                [Op.or]: [
+                    { is_active: true },
+                    { 
+                        revoked_at: { [Op.gt]: new Date(Date.now() - 60000) } // 60s grace
+                    }
+                ]
+            },
             include: [{ model: User, as: 'user' }]
         });
 
-        // 1. Detect Token Reuse (Attacker might be using an old token)
         if (!savedToken) {
-            // Check if this token was previously revoked (meaning it was replaced)
-            // Note: In this simple implementation, we delete used tokens. 
-            // If it's missing, it could be reuse or just expired.
-            // For extra security, we could keep revoked tokens with a revoked_at date.
-            return errorResponse(res, 'Invalid refresh token', 401);
+            return errorResponse(res, 'Invalid or expired refresh token session', 401);
+        }
+
+        // If the token was already revoked, it means it's a race condition.
+        // We return the replacement token instead of generating a new one.
+        if (!savedToken.is_active && savedToken.replaced_by_token) {
+            logger.info(`[AUTH] Race condition detected for user ${savedToken.user_id}. Returning replacement token.`);
+            const decoded = decodeToken(savedToken.replaced_by_token);
+            return successResponse(res, {
+                auth_token: generateAccessToken(savedToken.user_id),
+                refresh_token: savedToken.replaced_by_token
+            }, 'Token refreshed (Race Recovery)');
         }
 
         // 2. Verify JWT signature and expiry
@@ -173,15 +189,14 @@ const refresh = async (req, res, next) => {
         try {
             payload = verifyToken(refresh_token, true);
         } catch (err) {
-            // If JWT is invalid or expired, delete it from DB
-            await savedToken.destroy();
-            return errorResponse(res, 'Invalid or expired refresh token', 401);
+            await savedToken.update({ is_active: false, revoked_at: new Date() });
+            return errorResponse(res, 'Invalid or expired refresh token signature', 401);
         }
 
         // 3. Check DB expiry (extra safety)
         if (savedToken.expires_at < new Date()) {
-            await savedToken.destroy();
-            return errorResponse(res, 'Refresh token expired', 401);
+            await savedToken.update({ is_active: false, revoked_at: new Date() });
+            return errorResponse(res, 'Refresh token session expired', 401);
         }
 
         // 4. Generate new tokens (Rotation)
@@ -189,16 +204,21 @@ const refresh = async (req, res, next) => {
         const newAccessToken = generateAccessToken(user.id);
         const newRefreshTokenStr = generateRefreshToken(user.id);
 
-        // 5. Replace old token in DB (Atomic rotation)
+        // 5. Replace old token in DB (Atomic rotation with Grace Period)
         const decoded = decodeToken(newRefreshTokenStr);
         await RefreshToken.create({
             token: newRefreshTokenStr,
             user_id: user.id,
-            organization_id: user.organization_id, // Added organization_id
+            organization_id: user.organization_id,
             expires_at: new Date(decoded.exp * 1000)
         });
 
-        await savedToken.destroy();
+        // Mark old token as revoked but keep it for 60s grace
+        await savedToken.update({
+            is_active: false,
+            revoked_at: new Date(),
+            replaced_by_token: newRefreshTokenStr
+        });
 
         return successResponse(res, {
             auth_token: newAccessToken,
