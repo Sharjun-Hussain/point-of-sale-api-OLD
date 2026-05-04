@@ -35,7 +35,9 @@ const {
     Transaction,
     SupplierPayment,
     Cheque,
-    Customer
+    Customer,
+    Recipe,
+    RecipeItem
 } = require('../models');
 const { Op } = Sequelize;
 const crypto = require('crypto');
@@ -50,11 +52,11 @@ const askQuestion = (query) => new Promise((resolve) => rl.question(query, resol
 
 const seedFoodCity = async () => {
     try {
-        console.log('🌱 Starting Food City Enterprise Seed...');
+        console.log('🌱 Starting Food City Enterprise Seed (Hybrid Retail + Manufacturing)...');
 
         // 1. Interactive Organization Selection
         const organizations = await Organization.findAll({
-            attributes: ['id', 'name', 'email']
+            attributes: ['id', 'name', 'email', 'business_type']
         });
 
         if (organizations.length === 0) {
@@ -64,7 +66,7 @@ const seedFoodCity = async () => {
 
         console.log('\nAvailable Organizations:');
         organizations.forEach((org, index) => {
-            console.log(`${index + 1}. ${org.name} (${org.email})`);
+            console.log(`${index + 1}. ${org.name} (${org.email}) - Type: ${org.business_type}`);
         });
 
         const choice = await askQuestion('\nSelect organization number to seed: ');
@@ -77,6 +79,12 @@ const seedFoodCity = async () => {
 
         const org = organizations[selectedIndex];
         const organization_id = org.id;
+
+        // Ensure business_type supports manufacturing to show UI
+        if (org.business_type !== 'Manufacturing') {
+             console.log(`⚠️  Updating organization business_type to 'Manufacturing' to enable production features...`);
+             await Organization.update({ business_type: 'Manufacturing' }, { where: { id: organization_id } });
+        }
 
         // Get Main Branch for this Org
         const branch = await Branch.findOne({ where: { organization_id, is_main: true } });
@@ -139,7 +147,7 @@ const seedFoodCity = async () => {
             unitMap[item.short_name] = unit.id;
         }
 
-        const brands = ['Coca-Cola', 'PepsiCo', 'Nestle', 'Unilever', 'Cargills', 'Keells', 'Maliban', 'Munchee', 'Anchor', 'Highland', 'Hemas', 'Generic'];
+        const brands = ['Coca-Cola', 'PepsiCo', 'Nestle', 'Unilever', 'Cargills', 'Keells', 'Maliban', 'Munchee', 'Anchor', 'Highland', 'Hemas', 'Inzeedo Industrial', 'Generic'];
         const brandMap = {};
         for (const b of brands) {
             const [brand] = await Brand.findOrCreate({
@@ -152,79 +160,24 @@ const seedFoodCity = async () => {
 
         // 3. Categories
         const foodCityData = [
-                        { category: 'Manufacturing Inputs', subs: ['Raw Materials', 'Packaging'], items: [
+            { category: 'Industrial Production', subs: ['Raw Materials', 'Packaging', 'Semi-Finished'], items: [
                 { name: 'Sugar (Industrial)', brand: 'Generic', unit: 'kg', product_type: 'Raw Material' },
-                { name: 'Carbon Dioxide Gas', brand: 'Generic', unit: 'btl', product_type: 'Raw Material' },
-                { name: 'Flavor Concentrate', brand: 'Generic', unit: 'btl', product_type: 'Raw Material' },
-                { name: 'Empty PET Bottles', brand: 'Generic', unit: 'box', product_type: 'Raw Material' }
+                { name: 'Liquid Sugar Syrup', brand: 'Inzeedo Industrial', unit: 'l', product_type: 'Raw Material', cost: 120 },
+                { name: 'Cola Concentrate', brand: 'Inzeedo Industrial', unit: 'l', product_type: 'Raw Material', cost: 4500 },
+                { name: 'Carbon Dioxide Gas', brand: 'Generic', unit: 'kg', product_type: 'Raw Material', cost: 300 },
+                { name: 'Empty PET Bottles', brand: 'Generic', unit: 'pc', product_type: 'Raw Material', cost: 15 },
+                { name: 'Inzeedo Classic Cola 500ml', brand: 'Inzeedo Industrial', unit: 'pc', product_type: 'Standard', can_be_manufactured: true, price: 150 }
             ]},
-            { category: 'Beverages', subs: ['Soft Drinks', 'Milk & Dairy Drinks', 'Fruit Juices', 'Tea & Coffee'], items: [
+            { category: 'Beverages', subs: ['Soft Drinks', 'Milk & Dairy Drinks', 'Fruit Juices'], items: [
                 { name: 'Coca Cola', brand: 'Coca-Cola', unit: 'btl' },
                 { name: 'Pepsi', brand: 'PepsiCo', unit: 'btl' },
-                { name: 'Sprite', brand: 'Coca-Cola', unit: 'btl' },
-                { name: '7Up', brand: 'PepsiCo', unit: 'btl' },
                 { name: 'Milo RTD', brand: 'Nestle', unit: 'pk' },
-                { name: 'Elephant House EGB', brand: 'Generic', unit: 'btl' },
-                { name: 'Highland Fresh Milk', brand: 'Highland', unit: 'pk' },
-                { name: 'Nescafé Classic', brand: 'Nestle', unit: 'box' },
-                { name: 'Dilmah Ceylon Tea', brand: 'Generic', unit: 'box' },
-                { name: 'Red Bull Energy', brand: 'Generic', unit: 'pk' },
-                { name: 'Smirnoff Ice', brand: 'Generic', unit: 'btl' }
+                { name: 'Elephant House EGB', brand: 'Generic', unit: 'btl' }
             ]},
-            { category: 'Snacks & Confectionery', subs: ['Biscuits', 'Chocolates', 'Chips', 'Cakes'], items: [
-                { name: 'Munchee Super Cream Cracker', brand: 'Munchee', unit: 'pk' },
-                { name: 'Maliban Lemon Puff', brand: 'Maliban', unit: 'pk' },
-                { name: 'Cadbury Dairy Milk', brand: 'Generic', unit: 'pc' },
-                { name: 'KitKat 4 Finger', brand: 'Nestle', unit: 'pc' },
-                { name: 'Kist Potato Chips', brand: 'Cargills', unit: 'pk' },
-                { name: 'Tiara Layer Cake', brand: 'Generic', unit: 'pk' },
-                { name: 'Pringles Original', brand: 'Generic', unit: 'pc' },
-                { name: 'Ritzbury Revello', brand: 'Generic', unit: 'pc' },
-                { name: 'Toblerone Milk', brand: 'Generic', unit: 'pc' },
-                { name: 'Lays Magic Masala', brand: 'PepsiCo', unit: 'pk' }
-            ]},
-            { category: 'Dairy & Chilled', subs: ['Cheese & Butter', 'Yogurt', 'Ice Cream'], items: [
-                { name: 'Anchor New Zealand Butter', brand: 'Anchor', unit: 'pc' },
-                { name: 'Happy Cow Cheese', brand: 'Generic', unit: 'box' },
-                { name: 'Highland Yogurt Cup', brand: 'Highland', unit: 'pc' },
-                { name: 'Newdale Fruit Yogurt', brand: 'Generic', unit: 'pc' },
-                { name: 'Cargills Magic Vanilla', brand: 'Cargills', unit: 'box' },
-                { name: 'Kotmale Cheddar Cheese', brand: 'Generic', unit: 'pc' },
-                { name: 'Elephant House Pani Ice Cream', brand: 'Generic', unit: 'box' }
-            ]},
-            { category: 'Grocery', subs: ['Rice & Pulses', 'Sugar & Salt', 'Flour', 'Oils', 'Noodles & Pasta'], items: [
-                { name: 'Keerthi Red Raw Rice', brand: 'Generic', unit: 'kg' },
-                { name: 'Araliya White Nadu Rice', brand: 'Generic', unit: 'kg' },
+            { category: 'Grocery', subs: ['Rice & Pulses', 'Sugar & Salt', 'Noodles'], items: [
+                { name: 'Red Raw Rice', brand: 'Generic', unit: 'kg' },
                 { name: 'Cargills White Sugar', brand: 'Cargills', unit: 'kg' },
-                { name: 'Sanstha Table Salt', brand: 'Generic', unit: 'pk' },
-                { name: 'Prima All Purpose Flour', brand: 'Generic', unit: 'kg' },
-                { name: 'Fortune Vegetable Oil', brand: 'Generic', unit: 'btl' },
-                { name: 'Maggi 2 Minute Noodles', brand: 'Nestle', unit: 'pk' },
-                { name: 'Knorr Chicken Soup', brand: 'Unilever', unit: 'pk' },
-                { name: 'Marina Coconut Oil', brand: 'Generic', unit: 'btl' },
-                { name: 'Dahl Masoor', brand: 'Generic', unit: 'kg' },
-                { name: 'Basmati Rice Premium', brand: 'Generic', unit: 'kg' }
-            ]},
-            { category: 'Meat & Frozen', subs: ['Chicken', 'Sausages', 'Frozen Vegetables'], items: [
-                { name: 'Maxies Whole Chicken', brand: 'Generic', unit: 'kg' },
-                { name: 'Keells Chicken Sausages', brand: 'Keells', unit: 'pk' },
-                { name: 'Cargills Beef Meatballs', brand: 'Cargills', unit: 'pk' },
-                { name: 'Frozen Mixed Veggies', brand: 'Generic', unit: 'pk' },
-                { name: 'Elephant House Chicken Bockwurst', brand: 'Generic', unit: 'pk' },
-                { name: 'Pork Bacon Slices', brand: 'Generic', unit: 'pk' }
-            ]},
-            { category: 'Household & Personal Care', subs: ['Soaps', 'Detergents', 'Oral Care', 'Paper Products'], items: [
-                { name: 'Sunlight Lemon Soap', brand: 'Unilever', unit: 'pc' },
-                { name: 'Lux Soft Touch', brand: 'Unilever', unit: 'pc' },
-                { name: 'Surf Excel Matic', brand: 'Unilever', unit: 'pk' },
-                { name: 'Vim Dishwash Liquid', brand: 'Unilever', unit: 'btl' },
-                { name: 'Signal Strong Teeth', brand: 'Unilever', unit: 'pk' },
-                { name: 'Flora Facial Tissues', brand: 'Generic', unit: 'pk' },
-                { name: 'Lifebuoy Total 10', brand: 'Unilever', unit: 'pc' },
-                { name: 'Dettol Antiseptic', brand: 'Generic', unit: 'btl' },
-                { name: 'Harpic Power Plus', brand: 'Generic', unit: 'btl' },
-                { name: 'Colgate Total', brand: 'Generic', unit: 'pk' },
-                { name: 'Pears Baby Soap', brand: 'Unilever', unit: 'pc' }
+                { name: 'Maggi 2 Minute Noodles', brand: 'Nestle', unit: 'pk' }
             ]}
         ];
 
@@ -250,9 +203,8 @@ const seedFoodCity = async () => {
 
         // 4. Attributes for Variants
         const attributes = [
-            { name: 'Size', values: ['Small', 'Medium', 'Large', 'Family Pack', 'Value Pack'] },
-            { name: 'Weight/Volume', values: ['100g', '250g', '500g', '1kg', '2kg', '5kg', '10kg', '180ml', '250ml', '500ml', '1L', '1.5L', '2L'] },
-            { name: 'Flavor', values: ['Original', 'Chocolate', 'Vanilla', 'Strawberry', 'Lemon', 'Spicy'] }
+            { name: 'Weight/Volume', values: ['500g', '1kg', '500ml', '1L', '1.5L'] },
+            { name: 'Flavor', values: ['Original', 'Chocolate', 'Vanilla'] }
         ];
         const attrMap = {};
         const attrValueMap = {};
@@ -284,7 +236,7 @@ const seedFoodCity = async () => {
                 user_id,
                 reference_number: refNumber,
                 opening_date: new Date(),
-                notes: 'Food City initial stock bootstrap',
+                notes: 'Food City hybrid initial stock bootstrap',
                 total_value: 1500000.00
             },
             transaction: t
@@ -297,6 +249,7 @@ const seedFoodCity = async () => {
         const usedSkus = new Set();
         const usedBarcodes = new Set();
         const allCreatedVariants = [];
+        const manufacturingVariantMap = {};
 
         const generateCode = (prefix) => {
             let code;
@@ -327,9 +280,7 @@ const seedFoodCity = async () => {
 
         for (const catGroup of foodCityData) {
             for (const item of catGroup.items) {
-                if (productCounter >= 55) break; 
-
-                const isMultiVariant = Math.random() > 0.3; // 70% chance of being multi-variant
+                const isMultiVariant = !item.can_be_manufactured && item.product_type !== 'Raw Material' && Math.random() > 0.5;
                 const pCode = generateCode(item.name.substring(0, 3).toUpperCase());
 
                 const [product] = await Product.findOrCreate({
@@ -351,49 +302,27 @@ const seedFoodCity = async () => {
                     transaction: t
                 });
 
-                // Determine variant options based on category
-                let variantsToCreate = [];
-                if (!isMultiVariant) {
-                    // Single variant (Master Default)
-                    variantsToCreate = [{ name: null, attr: null, val: null }];
-                } else {
-                    if (catGroup.category === 'Beverages') {
-                        variantsToCreate = ['180ml', '250ml', '500ml', '1L', '1.5L', '2L'].map(v => ({ name: `${item.name} ${v}`, attr: 'Weight/Volume', val: v }));
-                    } else if (catGroup.category === 'Grocery') {
-                        variantsToCreate = ['500g', '1kg', '2kg', '5kg', '10kg'].map(v => ({ name: `${item.name} ${v}`, attr: 'Weight/Volume', val: v }));
-                    } else if (catGroup.category === 'Snacks & Confectionery') {
-                        variantsToCreate = ['Small', 'Medium', 'Large', 'Family Pack', 'Value Pack'].map(v => ({ name: `${item.name} ${v}`, attr: 'Size', val: v }));
-                    } else if (catGroup.category === 'Dairy & Chilled') {
-                        variantsToCreate = ['Original', 'Strawberry', 'Vanilla', 'Chocolate', 'Lemon'].map(v => ({ name: `${item.name} ${v}`, attr: 'Flavor', val: v }));
-                    } else if (catGroup.category === 'Household & Personal Care') {
-                        variantsToCreate = ['100g', '250g', '500g', '1kg', '1L', '2L'].map(v => ({ name: `${item.name} ${v}`, attr: 'Weight/Volume', val: v }));
-                    } else {
-                        variantsToCreate = ['Value Pack', 'Family Pack'].map(v => ({ name: `${item.name} ${v}`, attr: 'Size', val: v }));
-                    }
+                let variantsToCreate = [{ name: null, attr: null, val: null }];
+                if (isMultiVariant) {
+                    variantsToCreate = ['Small', 'Large'].map(v => ({ name: `${item.name} ${v}`, attr: 'Weight/Volume', val: v }));
                 }
 
                 for (const vData of variantsToCreate) {
-                    if (totalVariantsCount >= 250) break; 
-
                     const vSku = generateSku(pCode);
                     const vBarcode = generateBarcode();
-                    const cost = parseFloat((50 + Math.random() * 500).toFixed(2));
-                    const price = parseFloat((cost * 1.25).toFixed(2));
-                    const stockQty = Math.floor(20 + Math.random() * 200);
+                    const cost = item.cost || parseFloat((50 + Math.random() * 500).toFixed(2));
+                    const price = item.price || parseFloat((cost * 1.25).toFixed(2));
+                    const stockQty = (item.product_type === 'Raw Material') ? 1000 : Math.floor(20 + Math.random() * 200);
 
                     const [variant] = await ProductVariant.findOrCreate({
-                        where: { 
-                            name: vData.name, 
-                            product_id: product.id, 
-                            organization_id 
-                        },
+                        where: { name: vData.name, product_id: product.id, organization_id },
                         defaults: {
                             id: crypto.randomUUID(),
                             product_id: product.id,
                             organization_id,
                             name: vData.name,
                             sku: vSku,
-                            code: vSku, // Use SKU as the variant code for uniqueness
+                            code: vSku,
                             barcode: vBarcode,
                             price: price,
                             cost_price: cost,
@@ -403,34 +332,11 @@ const seedFoodCity = async () => {
                         transaction: t
                     });
 
-                    // Update existing ones if they missing SKU/Barcode/Code or Prices from previous run
-                    if (!variant.sku || !variant.barcode || !variant.code || !variant.cost_price || !variant.price) {
-                        variant.sku = variant.sku || vSku;
-                        variant.barcode = variant.barcode || vBarcode;
-                        variant.code = variant.code || variant.sku || vSku;
-                        variant.cost_price = variant.cost_price || cost;
-                        variant.price = variant.price || price;
-                        await variant.save({ transaction: t });
+                    if (item.product_type === 'Raw Material' || item.can_be_manufactured) {
+                        manufacturingVariantMap[item.name] = variant.id;
                     }
 
-                    // Link Attributes
-                    if (vData.attr && vData.val) {
-                        const attrValId = attrValueMap[`${vData.attr}:${vData.val}`];
-                        if (attrValId) {
-                            await VariantAttributeValue.findOrCreate({
-                                where: { product_variant_id: variant.id, attribute_value_id: attrValId, organization_id },
-                                defaults: {
-                                    id: crypto.randomUUID(),
-                                    product_variant_id: variant.id,
-                                    attribute_value_id: attrValId,
-                                    organization_id
-                                },
-                                transaction: t
-                            });
-                        }
-                    }
-
-                    // Create Stock Record
+                    // Create Stock & Batch
                     const [stock, created] = await Stock.findOrCreate({
                         where: { branch_id, product_variant_id: variant.id, organization_id },
                         defaults: {
@@ -444,8 +350,7 @@ const seedFoodCity = async () => {
                         transaction: t
                     });
 
-                    // Create Product Batch (Opening Stock)
-                    if (created) {
+                    if (created && stockQty > 0) {
                         await ProductBatch.create({
                             id: crypto.randomUUID(),
                             branch_id,
@@ -462,382 +367,79 @@ const seedFoodCity = async () => {
                     }
 
                     totalVariantsCount++;
-                    // Collect some variants for later seeding (PO, Sales, etc)
                     if (allCreatedVariants.length < 50) allCreatedVariants.push(variant);
                 }
                 productCounter++;
             }
         }
 
-        // 7. Suppliers
-        console.log('🚚 Seeding Suppliers...');
-        const suppliersData = [
-            { name: 'Unilever Sri Lanka', contact: '0112345678', email: 'orders@unilever.lk' },
-            { name: 'Coca-Cola Beverages', contact: '0119876543', email: 'sales@coca-cola.lk' },
-            { name: 'Ceylon Cold Stores', contact: '0115554433', email: 'info@ccs.lk' },
-            { name: 'Cargills Quality Foods', contact: '0112221100', email: 'supplies@cargills.lk' }
-        ];
-        const supplierMap = {};
-        for (const s of suppliersData) {
-            const [supplier] = await Supplier.findOrCreate({
-                where: { name: s.name, organization_id },
-                defaults: { 
-                    id: crypto.randomUUID(), 
-                    name: s.name,
-                    phone: s.contact,
-                    email: s.email,
-                    organization_id 
-                },
-                transaction: t
-            });
-            supplierMap[s.name] = supplier.id;
-        }
-
-        // 8. Accounts & Customers
-        console.log('🏦 Seeding Accounts & Customers...');
-        const accountsData = [
-            { name: 'Main Cash', code: 'ACC-CASH-001', type: 'asset', initial_balance: 50000 },
-            { name: 'HNB Bank Account', code: 'ACC-BANK-001', type: 'asset', initial_balance: 1500000 },
-            { name: 'Petty Cash', code: 'ACC-PC-001', type: 'asset', initial_balance: 5000 }
-        ];
-        const accountMap = {};
-        for (const acc of accountsData) {
-            const [account] = await Account.findOrCreate({
-                where: { code: acc.code, organization_id },
-                defaults: { 
-                    id: crypto.randomUUID(), 
-                    name: acc.name,
-                    code: acc.code,
-                    type: acc.type,
-                    balance: acc.initial_balance || 0,
-                    organization_id 
-                },
-                transaction: t
-            });
-            accountMap[acc.name] = account.id;
-        }
-
-        const customerData = [
-            { name: 'Walking Customer', phone: '0000000000' },
-            { name: 'Loyal Customer - Kamal', phone: '0771234567', email: 'kamal@example.com' },
-            { name: 'Credit Customer - Nimal', phone: '0719876543', credit_limit: 50000 }
-        ];
-        const customerMap = {};
-        for (const c of customerData) {
-            const [customer] = await Customer.findOrCreate({
-                where: { phone: c.phone, organization_id },
-                defaults: { ...c, id: crypto.randomUUID(), organization_id },
-                transaction: t
-            });
-            customerMap[c.name] = customer.id;
-        }
-
-        // 9. Expenses
-        console.log('💸 Seeding Expenses...');
-        const expCat = ['Utilities', 'Rent', 'Salary', 'Maintenance'];
-        const expCatMap = {};
-        for (const cat of expCat) {
-            const [ec] = await ExpenseCategory.findOrCreate({
-                where: { name: cat, organization_id },
-                defaults: { id: crypto.randomUUID(), name: cat, organization_id },
-                transaction: t
-            });
-            expCatMap[cat] = ec.id;
-        }
-        await Expense.create({
-            id: crypto.randomUUID(),
-            organization_id,
-            branch_id,
-            expense_category_id: expCatMap['Utilities'],
-            amount: 15500.00,
-            date: new Date(),
-            description: 'Electricity Bill - March 2024',
-            status: 'paid',
-            user_id
-        }, { transaction: t });
-
-        // 10. Purchase Orders & GRNs
-        console.log('📦 Seeding Purchase Orders & GRNs...');
-        const poRef = `PO-FC-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
-        const po = await PurchaseOrder.create({
-            id: crypto.randomUUID(),
-            organization_id,
-            branch_id,
-            supplier_id: supplierMap['Unilever Sri Lanka'],
-            po_number: poRef,
-            po_date: new Date(),
-            expected_date: new Date(Date.now() + 86400000 * 2),
-            status: 'received',
-            total_amount: 12500.00,
-            user_id
-        }, { transaction: t });
-
-        // Add 2 items to PO
-        const poItems = allCreatedVariants.slice(0, 2);
-        for (const v of poItems) {
-            const cost = v.cost_price || 0;
-            await PurchaseOrderItem.create({
-                id: crypto.randomUUID(),
-                purchase_order_id: po.id,
-                product_id: v.product_id,
-                product_variant_id: v.id,
-                quantity: 50,
-                unit_cost: cost,
-                total_amount: 50 * cost,
-                organization_id
-            }, { transaction: t });
-        }
-
-        // Connected GRN
-        const grnRef = `GRN-FC-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
-        const grn = await GRN.create({
-            id: crypto.randomUUID(),
-            organization_id,
-            branch_id,
-            supplier_id: po.supplier_id,
-            purchase_order_id: po.id,
-            grn_number: grnRef,
-            received_date: new Date(),
-            status: 'completed',
-            total_amount: po.total_amount,
-            user_id
-        }, { transaction: t });
-
-        for (const v of poItems) {
-            const batchNum = `BAT-GRN-${v.sku}`;
-            const [batch] = await ProductBatch.findOrCreate({
-                where: { batch_number: batchNum, organization_id },
+        // 7. Manufacturing Recipes (BOM)
+        console.log('📜 Seeding Manufacturing Recipes...');
+        const colaProduct = await Product.findOne({ where: { name: 'Inzeedo Classic Cola 500ml', organization_id }, transaction: t });
+        if (colaProduct) {
+            const [recipe] = await Recipe.findOrCreate({
+                where: { product_id: colaProduct.id, organization_id },
                 defaults: {
                     id: crypto.randomUUID(),
+                    product_id: colaProduct.id,
                     organization_id,
-                    branch_id,
-                    product_id: v.product_id,
-                    product_variant_id: v.id,
-                    batch_number: batchNum,
-                    quantity: 50,
-                    cost_price: v.cost_price,
-                    selling_price: v.price,
-                    purchase_date: new Date()
+                    name: 'Industrial Cola Recipe',
+                    version: '1.0',
+                    standard_batch_size: 100,
+                    instructions: 'Mix concentrate with water and syrup. Carbonate and bottle.',
+                    is_active: true
                 },
                 transaction: t
             });
 
-            const cost = v.cost_price || 0;
-            await GRNItem.create({
-                id: crypto.randomUUID(),
-                grn_id: grn.id,
-                product_id: v.product_id,
-                product_variant_id: v.id,
-                quantity_ordered: 50,
-                quantity_received: 50,
-                unit_cost: cost,
-                total_amount: 50 * cost,
-                product_batch_id: batch.id,
-                batch_number: batchNum,
-                organization_id
-            }, { transaction: t });
-        }
+            const components = [
+                { name: 'Liquid Sugar Syrup', qty: 10 },
+                { name: 'Cola Concentrate', qty: 1 },
+                { name: 'Carbon Dioxide Gas', qty: 2 },
+                { name: 'Empty PET Bottles', qty: 102 }
+            ];
 
-        // 11. Sales & Payments
-        console.log('💰 Seeding Sales & Payments...');
-        const saleItems = allCreatedVariants.slice(5, 8);
-        const invRef = `INV-FC-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
-        const sale = await Sale.create({
-            id: crypto.randomUUID(),
-            organization_id,
-            branch_id,
-            customer_id: customerMap['Walking Customer'],
-            user_id,
-            invoice_number: invRef,
-            sale_date: new Date(),
-            total_amount: 1500.00,
-            payable_amount: 1500.00,
-            paid_amount: 1500.00,
-            payment_status: 'paid',
-            status: 'completed'
-        }, { transaction: t });
-
-        for (const v of saleItems) {
-            await SaleItem.create({
-                id: crypto.randomUUID(),
-                sale_id: sale.id,
-                product_id: v.product_id,
-                product_variant_id: v.id,
-                quantity: 2,
-                unit_price: v.price,
-                total_amount: 2 * v.price,
-                organization_id
-            }, { transaction: t });
-        }
-
-        await SalePayment.create({
-            id: crypto.randomUUID(),
-            organization_id,
-            sale_id: sale.id,
-            payment_method: 'cash',
-            amount: 1500.00
-
-        }, { transaction: t });
-
-        // Cheque Sale
-        const chequeInv = `INV-CHQ-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
-        const saleChq = await Sale.create({
-            id: crypto.randomUUID(),
-            organization_id,
-            branch_id,
-            customer_id: customerMap['Loyal Customer - Kamal'],
-            user_id,
-            invoice_number: chequeInv,
-            sale_date: new Date(),
-            total_amount: 5000.00,
-            payable_amount: 5000.00,
-            paid_amount: 5000.00,
-            payment_status: 'paid',
-            payment_method: 'cheque',
-            status: 'completed'
-        }, { transaction: t });
-
-        await Cheque.create({
-            id: crypto.randomUUID(),
-            organization_id,
-            branch_id,
-            type: 'receivable',
-            reference_id: saleChq.id,
-            cheque_number: 'CHQ-123456',
-            bank_name: 'Sampath Bank',
-            amount: 5000.00,
-            cheque_date: new Date(Date.now() + 86400000 * 7),
-            reference_type: 'sale',
-            status: 'pending'
-        }, { transaction: t });
-
-        // Credit Sale
-        const creditInv = `INV-CR-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
-        const saleCredit = await Sale.create({
-            id: crypto.randomUUID(),
-            organization_id,
-            branch_id,
-            customer_id: customerMap['Credit Customer - Nimal'],
-            user_id,
-            invoice_number: creditInv,
-            sale_date: new Date(),
-            total_amount: 2500.00,
-            payable_amount: 2500.00,
-            paid_amount: 0.00,
-            payment_status: 'unpaid',
-            status: 'completed'
-        }, { transaction: t });
-
-        // 12. Returns
-        console.log('🔄 Seeding Returns...');
-        const sReturn = await SaleReturn.create({
-            id: crypto.randomUUID(),
-            organization_id,
-            branch_id,
-            sale_id: sale.id,
-            return_number: `SLR-${crypto.randomBytes(3).toString('hex').toUpperCase()}`,
-            return_date: new Date(),
-            total_amount: 500.00,
-            user_id
-        }, { transaction: t });
-
-        await SaleReturnItem.create({
-            id: crypto.randomUUID(),
-            sale_return_id: sReturn.id,
-            product_id: saleItems[0].product_id,
-            product_variant_id: saleItems[0].id,
-            quantity: 1,
-            unit_price: saleItems[0].price,
-            total_amount: saleItems[0].price,
-            organization_id
-        }, { transaction: t });
-
-        // 13. Supplier Settlements
-        console.log('🤝 Seeding Supplier Settlements...');
-        await SupplierPayment.create({
-            id: crypto.randomUUID(),
-            organization_id,
-            branch_id,
-            supplier_id: supplierMap['Unilever Sri Lanka'],
-            voucher_number: `VOUCH-${crypto.randomBytes(3).toString('hex').toUpperCase()}`,
-            payment_date: new Date(),
-            total_amount: 5000.00,
-            notes: 'Partial payment for PO-001',
-            created_by: user_id
-        }, { transaction: t });
-
-        // 14. Manual Ledger Transactions
-        console.log('📒 Seeding Manual Ledger Transactions...');
-        await Transaction.create({
-            id: crypto.randomUUID(),
-            organization_id,
-            branch_id,
-            account_id: accountMap['Main Cash'],
-            transaction_date: new Date(),
-            type: 'credit',
-            amount: 1000.00,
-            description: 'Manual cash deposit for initial change',
-            reference_type: 'manual'
-        }, { transaction: t });
-
-        // 15. SPECIAL SCENARIO: The "Coca-Cola Pricing Headache" (Same Barcode, Different Prices)
-        console.log('🥤 Seeding "Coca-Cola Pricing Headache" Scenario...');
-        const cokeProduct = await Product.findOne({ where: { name: 'Coca Cola', organization_id }, transaction: t });
-        if (cokeProduct) {
-            const cokeVariant = await ProductVariant.findOne({ 
-                where: { product_id: cokeProduct.id, name: { [Op.like]: '%1L%' } },
-                transaction: t
-            });
-            
-            if (cokeVariant) {
-                // Batch 1: Old Price ($150)
-                await ProductBatch.create({
-                    id: crypto.randomUUID(),
-                    organization_id,
-                    branch_id,
-                    product_id: cokeProduct.id,
-                    product_variant_id: cokeVariant.id,
-                    batch_number: 'BATCH-OLD-150',
-                    quantity: 10,
-                    cost_price: 120.00,
-                    selling_price: 150.00,
-                    purchase_date: new Date(Date.now() - 86400000 * 30), // 1 month ago
-                    expiry_date: new Date(Date.now() + 86400000 * 180)
-                }, { transaction: t });
-
-                // Batch 2: New Price ($200) - Same barcode/variant!
-                await ProductBatch.create({
-                    id: crypto.randomUUID(),
-                    organization_id,
-                    branch_id,
-                    product_id: cokeProduct.id,
-                    product_variant_id: cokeVariant.id,
-                    batch_number: 'BATCH-NEW-200',
-                    quantity: 15,
-                    cost_price: 160.00,
-                    selling_price: 200.00,
-                    purchase_date: new Date(), // Today
-                    expiry_date: new Date(Date.now() + 86400000 * 365)
-                }, { transaction: t });
-
-                console.log('✅ Created 2 distinct batches for Coca-Cola 1L ($150 and $200) to test selection logic.');
+            for (const comp of components) {
+                const variantId = manufacturingVariantMap[comp.name];
+                if (variantId) {
+                    await RecipeItem.findOrCreate({
+                        where: { recipe_id: recipe.id, product_variant_id: variantId },
+                        defaults: {
+                            id: crypto.randomUUID(),
+                            recipe_id: recipe.id,
+                            product_variant_id: variantId,
+                            quantity: comp.qty,
+                            organization_id
+                        },
+                        transaction: t
+                    });
+                }
             }
+            console.log('✅ Created BOM for Inzeedo Classic Cola.');
         }
+
+        // 8. Suppliers & Accounts (Minimal for this demo)
+        const [supplier] = await Supplier.findOrCreate({
+            where: { name: 'Industrial Supplies Ltd', organization_id },
+            defaults: { id: crypto.randomUUID(), name: 'Industrial Supplies Ltd', phone: '0112233445', organization_id },
+            transaction: t
+        });
 
         await t.commit();
-        console.log(`✅ Seeded ${productCounter} products correctly.`);
-        console.log(`✅ Seeded ${totalVariantsCount} variants with SKUs, barcodes, and opening stocks.`);
+        console.log(`✅ Seeded ${productCounter} products Correctly.`);
+        console.log(`✅ Seeded ${totalVariantsCount} variants with opening stocks.`);
         console.log('✨ Food City Seeding Completed Successfully!');
         process.exit(0);
+
     } catch (error) {
         if (t) await t.rollback();
         console.error('❌ Seeding failed:', error);
         process.exit(1);
     }
-} catch (outerError) {
-    console.error('❌ Script failed:', outerError);
-    process.exit(1);
-}
+    } catch (outerError) {
+        console.error('❌ Script failed:', outerError);
+        process.exit(1);
+    }
 };
 
 seedFoodCity();
