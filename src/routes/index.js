@@ -44,6 +44,7 @@ const whatsappRoutes = require('./whatsapp');
 const backupRoutes = require('./backup');
 const recipeRoutes = require('./recipe');
 const productionRoutes = require('./production');
+const wastageRoutes = require('./wastage');
 
 // Activate global audit logger for all non-GET mutations
 router.use(auditMiddleware());
@@ -92,5 +93,6 @@ router.use('/whatsapp', whatsappRoutes);
 router.use('/backups', backupRoutes);
 router.use('/recipes', recipeRoutes);
 router.use('/production', productionRoutes);
+router.use('/wastages', wastageRoutes);
 
 module.exports = router;
