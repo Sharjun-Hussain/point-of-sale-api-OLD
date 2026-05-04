@@ -23,6 +23,7 @@ const rateLimiter = require('./src/middleware/rateLimiter');
 const { scheduleSubscriptionCheck } = require('./src/jobs/subscriptionScheduler');
 const { scheduleExpiryWatcher } = require('./src/jobs/expiryWatcher');
 const { scheduleInventoryWatcher } = require('./src/jobs/inventoryWatcher');
+const { scheduleBackupJob } = require('./src/jobs/backupScheduler');
 const cron = require('node-cron');
 const maintenanceService = require('./src/services/maintenanceService');
 
@@ -178,6 +179,7 @@ const startServer = async () => {
             await scheduleSubscriptionCheck();
             await scheduleExpiryWatcher();
             await scheduleInventoryWatcher();
+            await scheduleBackupJob();
 
             // Telemetry: Record system metrics every 30 seconds
             await maintenanceService.recordSystemMetrics(); // Initial point on boot

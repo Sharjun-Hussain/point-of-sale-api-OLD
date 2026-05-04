@@ -34,6 +34,7 @@ router.patch('/:id/status', checkPermission('org:edit'), orgController.toggleOrg
 router.patch('/:id/shopify', checkPermission('org:edit'), orgController.toggleShopifyIntegration);
 router.patch('/:id/whatsapp', checkPermission('org:edit'), orgController.toggleWhatsAppIntegration);
 router.patch('/:id/loyalty', checkPermission('org:edit'), orgController.toggleLoyaltyIntegration);
+router.patch('/:id/backup', checkPermission('backup:admin'), orgController.toggleBackupFeature);
 router.patch('/:id/:action', checkPermission('org:edit'), orgController.toggleOrganizationStatus); // Alias for frontend compatibility
 router.get('/:id/subscription-history', checkPermission('org:view'), orgController.getSubscriptionHistory);
 router.post('/:id/onboarding/policy', checkPermission('org:edit'), orgController.updateOnboardingPolicy);

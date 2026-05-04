@@ -104,6 +104,30 @@ module.exports = (sequelize, DataTypes) => {
         loyalty_enabled: {
             type: DataTypes.BOOLEAN,
             defaultValue: false
+        },
+        backup_enabled: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
+        },
+        manual_download_enabled: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
+        },
+        auto_backup_enabled: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
+        },
+        backup_frequency: {
+            type: DataTypes.ENUM('Daily', 'Weekly', 'Monthly'),
+            defaultValue: 'Weekly'
+        },
+        backup_email: {
+            type: DataTypes.STRING,
+            allowNull: true
+        },
+        last_backup_date: {
+            type: DataTypes.DATE,
+            allowNull: true
         }
     }, {
         tableName: 'organizations',

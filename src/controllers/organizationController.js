@@ -696,6 +696,43 @@ const toggleLoyaltyIntegration = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const toggleBackupFeature = async (req, res, next) => {
+    try {
+        // Strict Super Admin Check
+        const isSuperAdmin = req.user.roles.some(role => role.name === 'Super Admin');
+        if (!isSuperAdmin) return errorResponse(res, 'Unauthorized: Super Admin only', 403);
+
+        const organization = await Organization.findByPk(req.params.id);
+        if (!organization) return errorResponse(res, 'Organization not found', 404);
+
+        const currentStatus = organization.backup_enabled;
+        organization.backup_enabled = !currentStatus;
+        
+        // If enabling for the first time, set some defaults
+        if (organization.backup_enabled && !organization.backup_email) {
+            organization.backup_email = organization.email;
+        }
+
+        await organization.save();
+
+        // Audit Logging
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logUpdate(
+            organization.id,
+            req.user.id,
+            'Organization',
+            organization.id,
+            { backup_enabled: currentStatus },
+            { backup_enabled: organization.backup_enabled },
+            ipAddress,
+            userAgent,
+            { is_admin_action: true }
+        );
+
+        return successResponse(res, organization, `Backup feature ${organization.backup_enabled ? 'enabled' : 'disabled'} successfully`);
+    } catch (error) { next(error); }
+};
+
 const getOnboardingStatus = async (req, res, next) => {
     try {
         const orgId = req.user.organization_id;
@@ -775,6 +812,6 @@ module.exports = {
     getOrganizationById, updateOrganizationById, toggleOrganizationStatus, getSubscriptionHistory,
     getOrganizationFullDetails,
     getAllBranches, getActiveBranchesList, getBranchById, createBranch, updateBranch, toggleBranchStatus,
-    getSuperAdminStats, toggleShopifyIntegration, toggleWhatsAppIntegration, toggleLoyaltyIntegration,
+    getSuperAdminStats, toggleShopifyIntegration, toggleWhatsAppIntegration, toggleLoyaltyIntegration, toggleBackupFeature,
     getOnboardingStatus, updateOnboardingStatus, updateOnboardingPolicy
 };

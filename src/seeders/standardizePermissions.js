@@ -118,6 +118,11 @@ const permissionsSeed = [
 
     // Reports
     { name: 'report:view', group_name: 'Reports', description: 'View reports' },
+
+    // Backup
+    { name: 'backup:manual', group_name: 'System', description: 'Trigger and download manual backups' },
+    { name: 'backup:config', group_name: 'System', description: 'Configure automated backup settings' },
+    { name: 'backup:admin', group_name: 'Organization', description: 'Super Admin: Toggle backup feature for organizations' },
 ];
 
 const seed = async () => {
@@ -156,7 +161,8 @@ const seed = async () => {
             'settings:ai:update',
             'settings:communication:update',
             'settings:health:update',
-            'settings:import:update'
+            'settings:import:update',
+            'backup:admin'
         ];
         const orgAdminPermissions = allPermissionInstances.filter(p => !excludedPermNames.includes(p.name));
         await orgAdminRole.setPermissions(orgAdminPermissions);
