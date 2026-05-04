@@ -10,7 +10,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
         product_type: {
-            type: DataTypes.ENUM('Finished Good', 'Raw Material', 'Semi-Finished', 'Service'),
+            type: DataTypes.ENUM('Standard', 'Finished Good', 'Raw Material', 'Semi-Finished', 'Service'),
             defaultValue: 'Finished Good',
             allowNull: false
         },
