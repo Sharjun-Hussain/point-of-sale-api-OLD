@@ -206,11 +206,20 @@ const getProductionOrders = async (req, res, next) => {
 const getProductionOrderDetail = async (req, res, next) => {
     try {
         const { id } = req.params;
+        const { User } = require('../models');
+        console.log(`[DEBUG] Fetching Production Order Detail: ID/Ref=${id}, OrgID=${req.user.organization_id}`);
+        
         const order = await ProductionOrder.findOne({
-            where: { id, organization_id: req.user.organization_id },
+            where: { 
+                [Op.and]: [
+                    { organization_id: req.user.organization_id },
+                    { [Op.or]: [{ id: id }, { order_number: id }] }
+                ]
+            },
             include: [
                 { model: Product, as: 'product', attributes: ['id', 'name', 'code'] },
                 { model: Recipe, as: 'recipe', attributes: ['id', 'name', 'batch_size'] },
+                { model: User, as: 'user', attributes: ['id', 'full_name'] },
                 { 
                     model: ProductionOrderItem, 
                     as: 'items',
@@ -219,9 +228,15 @@ const getProductionOrderDetail = async (req, res, next) => {
             ]
         });
 
-        if (!order) return errorResponse(res, 'Production order not found', 404);
+        if (!order) {
+            console.log(`[DEBUG] Production Order NOT FOUND: ID/Ref=${id}`);
+            return errorResponse(res, 'Production order not found', 404);
+        }
         return successResponse(res, order, 'Production order detail fetched');
-    } catch (error) { next(error); }
+    } catch (error) { 
+        console.error(`[DEBUG] Error fetching Production Order:`, error);
+        next(error); 
+    }
 };
 
 module.exports = {
