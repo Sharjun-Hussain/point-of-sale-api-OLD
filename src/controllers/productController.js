@@ -1,4 +1,4 @@
-const { Product, ProductVariant, MainCategory, SubCategory, Brand, Unit, MeasurementUnit, Container, Stock, Branch, ProductBatch, StockOpening, Attribute, AttributeValue, VariantAttributeValue, Supplier, Account, Transaction, sequelize } = require('../models');
+const { Product, ProductVariant, MainCategory, SubCategory, Brand, Unit, MeasurementUnit, Container, Stock, Branch, ProductBatch, StockOpening, Attribute, AttributeValue, VariantAttributeValue, Supplier, Account, Transaction, Organization, sequelize } = require('../models');
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
 const { Op } = require('sequelize');
@@ -1376,7 +1376,7 @@ const getProductStock = async (req, res, next) => {
 };
 
 /**
- * Import Products from CSV Data
+ * Import Products from CSV/Excel Data
  */
 const importProducts = async (req, res, next) => {
     const t = await sequelize.transaction();
@@ -1384,6 +1384,10 @@ const importProducts = async (req, res, next) => {
         const { products } = req.body;
         const organization_id = req.user.organization_id;
         const results = { success: 0, failed: 0, logs: [] };
+
+        // Fetch organization business type for auto-fill logic
+        const organization = await Organization.findByPk(organization_id);
+        const isRetail = organization?.business_type === 'Retail';
 
         if (!products || !Array.isArray(products)) {
             return errorResponse(res, 'No product data provided', 400);
@@ -1400,7 +1404,21 @@ const importProducts = async (req, res, next) => {
                     transaction: t
                 });
 
-                // 2. Resolve Brand
+                // 2. Resolve Sub Category (if provided)
+                let sub_category_id = null;
+                if (p.sub_category) {
+                    const [subCategory] = await SubCategory.findOrCreate({
+                        where: {
+                            organization_id,
+                            main_category_id: category.id,
+                            name: p.sub_category
+                        },
+                        transaction: t
+                    });
+                    sub_category_id = subCategory.id;
+                }
+
+                // 3. Resolve Brand
                 let brand_id = null;
                 if (p.brand) {
                     const [brand] = await Brand.findOrCreate({
@@ -1410,7 +1428,7 @@ const importProducts = async (req, res, next) => {
                     brand_id = brand.id;
                 }
 
-                // 3. Resolve Unit
+                // 4. Resolve Unit
                 let unit_id = null;
                 if (p.unit) {
                     const [unit] = await Unit.findOrCreate({
@@ -1420,7 +1438,7 @@ const importProducts = async (req, res, next) => {
                     unit_id = unit.id;
                 }
 
-                // 4. Find or Create Product (Deduplicate by Name or Code)
+                // 5. Find or Create Product (Deduplicate by Name or Code)
                 const [product, productCreated] = await Product.findOrCreate({
                     where: {
                         organization_id,
@@ -1433,17 +1451,20 @@ const importProducts = async (req, res, next) => {
                         name: p.name,
                         code: p.code || `PRD-${Date.now()}-${index}`,
                         main_category_id: category.id,
+                        sub_category_id,
                         brand_id,
                         unit_id,
                         description: p.description || '',
                         sku: p.sku || p.code,
+                        barcode: p.barcode || p.code,
                         is_active: true,
-                        is_variant: true // Enable variants support
+                        is_variant: true, // Enable variants support
+                        product_type: p.product_type || (isRetail ? 'Finished Good' : 'Standard')
                     },
                     transaction: t
                 });
 
-                // 5. Find or Create Variant
+                // 6. Find or Create Variant
                 const variantSku = p.sku || p.code || `${product.code}-DEF`;
                 const [variant, variantCreated] = await ProductVariant.findOrCreate({
                     where: {
@@ -1455,9 +1476,11 @@ const importProducts = async (req, res, next) => {
                         name: p.variant_name || (productCreated ? 'Default' : `Variant ${variantSku}`),
                         sku: variantSku,
                         code: p.code || product.code,
-                        barcode: p.barcode || p.code,
+                        barcode: p.barcode || p.code || product.barcode,
                         price: parseFloat(p.selling_price || 0),
                         cost_price: parseFloat(p.cost_price || 0),
+                        wholesale_price: parseFloat(p.wholesale_price || 0),
+                        low_stock_threshold: parseFloat(p.low_stock_threshold || 10),
                         stock_quantity: 0,
                         is_active: true,
                         is_default: productCreated
@@ -1466,28 +1489,32 @@ const importProducts = async (req, res, next) => {
                 });
 
                 if (!variantCreated) {
-                    // Update existing variant price/cost if it already exists
+                    // Update existing variant fields if it already exists
                     await variant.update({
-                        price: parseFloat(p.selling_price || variant.price),
-                        cost_price: parseFloat(p.cost_price || variant.cost_price)
+                        price: p.selling_price !== undefined ? parseFloat(p.selling_price) : variant.price,
+                        cost_price: p.cost_price !== undefined ? parseFloat(p.cost_price) : variant.cost_price,
+                        wholesale_price: p.wholesale_price !== undefined ? parseFloat(p.wholesale_price) : variant.wholesale_price,
+                        low_stock_threshold: p.low_stock_threshold !== undefined ? parseFloat(p.low_stock_threshold) : variant.low_stock_threshold,
+                        barcode: p.barcode || variant.barcode
                     }, { transaction: t });
                 }
 
-                // 6. Handle Initial Stock if provided
-                if (parseFloat(p.stock_qty) > 0) {
+                // 7. Handle Initial Stock if provided
+                const stockQty = parseFloat(p.stock_qty || 0);
+                if (stockQty > 0) {
                     // Resolve Branch (Default to user's branch or first available)
                     let branch_id = req.user.branch_id;
                     if (!branch_id && req.user.branches && req.user.branches.length > 0) {
                         branch_id = req.user.branches[0].id;
                     }
                     if (!branch_id) {
-                        const firstBranch = await Branch.findOne({ where: { organization_id } });
+                        const firstBranch = await Branch.findOne({ where: { organization_id }, transaction: t });
                         if (firstBranch) branch_id = firstBranch.id;
                     }
 
                     if (branch_id) {
                         // Create Opening Stock Header if not exists for this import
-                        const reference_number = `IMP-OS-${product.code}-${Date.now()}`;
+                        const reference_number = `IMP-OS-${product.code}-${Date.now()}-${index}`;
                         const opening = await StockOpening.create({
                             organization_id,
                             branch_id,
@@ -1495,7 +1522,7 @@ const importProducts = async (req, res, next) => {
                             reference_number,
                             opening_date: new Date(),
                             notes: 'Automatic opening stock from bulk import',
-                            total_value: parseFloat(p.stock_qty) * parseFloat(p.cost_price || 0)
+                            total_value: stockQty * parseFloat(p.cost_price || 0)
                         }, { transaction: t });
 
                         // Create Batch
@@ -1504,9 +1531,10 @@ const importProducts = async (req, res, next) => {
                             branch_id,
                             product_id: product.id,
                             product_variant_id: variant.id,
-                            quantity: parseFloat(p.stock_qty),
+                            quantity: stockQty,
                             cost_price: parseFloat(p.cost_price || 0),
                             selling_price: parseFloat(p.selling_price || 0),
+                            wholesale_price: parseFloat(p.wholesale_price || 0),
                             purchase_date: new Date(),
                             is_active: true,
                             opening_stock_id: opening.id
@@ -1523,7 +1551,7 @@ const importProducts = async (req, res, next) => {
                             defaults: { quantity: 0 },
                             transaction: t
                         });
-                        await stockRecord.increment('quantity', { by: parseFloat(p.stock_qty), transaction: t });
+                        await stockRecord.increment('quantity', { by: stockQty, transaction: t });
                     }
                 }
 
