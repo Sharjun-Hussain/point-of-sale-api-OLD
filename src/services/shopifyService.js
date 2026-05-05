@@ -27,16 +27,40 @@ class ShopifyService {
                 throw new Error('Shop URL and Access Token are required');
             }
 
-            const response = await fetch(`https://${shop_url}/admin/api/2024-04/shop.json`, {
-                headers: {
-                    'X-Shopify-Access-Token': access_token,
-                    'Content-Type': 'application/json'
-                }
-            });
+            // Validate token prefix — shpss_ is a Client Secret, NOT an access token
+            if (access_token.startsWith('shpss_')) {
+                throw new Error(
+                    'Invalid token type: shpss_ is a Client Secret, not an Access Token. ' +
+                    'Please generate a shpat_ token from Shopify Admin → Settings → Apps → Develop Apps → Install App → Reveal Token.'
+                );
+            }
 
+            // Normalize shop URL (strip protocol if accidentally included)
+            const cleanShopUrl = shop_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+
+            let response;
+            try {
+                response = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/shop.json`, {
+                    headers: {
+                        'X-Shopify-Access-Token': access_token,
+                        'Content-Type': 'application/json'
+                    },
+                    signal: AbortSignal.timeout(10000) // 10s timeout
+                });
+            } catch (fetchErr) {
+                // Network-level failure (DNS, firewall, TLS)
+                throw new Error(`Network error reaching Shopify: ${fetchErr.cause?.code || fetchErr.message}. Check that the server has outbound HTTPS access to ${cleanShopUrl}.`);
+            }
+
+            if (response.status === 401) {
+                throw new Error('Authentication failed (401): Access token is invalid or has been revoked. Generate a new shpat_ token from Shopify Admin.');
+            }
+            if (response.status === 403) {
+                throw new Error('Permission denied (403): Access token lacks required scopes. Ensure read_products and read_inventory scopes are enabled.');
+            }
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.errors || 'Failed to connect to Shopify');
+                const errorBody = await response.json().catch(() => ({}));
+                throw new Error(`Shopify API error (${response.status}): ${errorBody.errors || 'Unknown error'}`);
             }
 
             const data = await response.json();
