@@ -41,6 +41,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.UUID,
             allowNull: true
         },
+        distributor_id: {
+            type: DataTypes.UUID,
+            allowNull: true
+        },
         supplier_id: {
             type: DataTypes.UUID,
             allowNull: true
@@ -59,6 +63,7 @@ module.exports = (sequelize, DataTypes) => {
         Transaction.belongsTo(models.Branch, { as: 'branch', foreignKey: 'branch_id' });
         Transaction.belongsTo(models.Account, { as: 'account', foreignKey: 'account_id' });
         Transaction.belongsTo(models.Customer, { as: 'customer', foreignKey: 'customer_id' });
+        Transaction.belongsTo(models.Distributor, { as: 'distributor', foreignKey: 'distributor_id' });
         Transaction.belongsTo(models.Supplier, { as: 'supplier', foreignKey: 'supplier_id' });
         Transaction.hasOne(models.SupplierPaymentMethod, { as: 'supplier_payment_method', foreignKey: 'transaction_id' });
         Transaction.hasOne(models.ExpensePaymentMethod, { as: 'expense_payment_method', foreignKey: 'transaction_id' });

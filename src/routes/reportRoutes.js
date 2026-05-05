@@ -52,5 +52,6 @@ router.get('/shifts/:id/detail', checkPermission('report:view'), reportControlle
 // Manufacturing Reports
 router.get('/manufacturing/summary', checkPermission('report:view'), reportController.getProductionSummary);
 router.get('/manufacturing/raw-material-usage', checkPermission('report:view'), reportController.getRawMaterialUsage);
+router.get('/manufacturing/distribution', checkPermission('report:view'), reportController.getDistributionReport);
 
 module.exports = router;

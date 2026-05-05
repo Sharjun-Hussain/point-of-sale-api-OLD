@@ -14,6 +14,7 @@ const branchRoutes = require('./branches');
 const productRoutes = require('./products');
 const supplierRoutes = require('./suppliers');
 const customerRoutes = require('./customers');
+const distributorRoutes = require('./distributors');
 const purchaseOrderRoutes = require('./purchaseOrders');
 const purchaseReturnRoutes = require('./purchaseReturns');
 const brandRoutes = require('./brands');
@@ -70,6 +71,7 @@ router.use('/attributes', attributeRoutes); // Added attributeRoutes mount
 router.use('/products', productRoutes);
 router.use('/suppliers', supplierRoutes);
 router.use('/customers', customerRoutes);
+router.use('/distributors', distributorRoutes);
 router.use('/purchase-orders', purchaseOrderRoutes);
 router.use('/purchase-returns', purchaseReturnRoutes);
 router.use('/measurement-units', measurementUnitRoutes);

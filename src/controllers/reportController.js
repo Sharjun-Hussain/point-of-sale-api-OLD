@@ -1942,18 +1942,21 @@ const reportController = {
         } catch (error) { next(error); }
     },
 
-    // 26. Raw Material Usage Report
     getRawMaterialUsage: async (req, res, next) => {
         try {
             const { start_date, end_date, branch_id } = req.query;
             const organization_id = req.user.organization_id;
 
-            const whereClause = { organization_id, status: 'completed' };
+            const whereClause = {
+                organization_id,
+            };
+
             if (branch_id && branch_id !== 'all') {
                 whereClause.branch_id = branch_id;
             }
+
             if (start_date && end_date) {
-                whereClause.end_date = {
+                whereClause.created_at = {
                     [Op.between]: [
                         new Date(start_date + 'T00:00:00'),
                         new Date(end_date + 'T23:59:59')
@@ -1961,42 +1964,76 @@ const reportController = {
                 };
             }
 
-            const usage = await db.ProductionOrderItem.findAll({
-                include: [
-                    {
-                        model: db.ProductionOrder,
-                        as: 'production_order',
-                        where: whereClause,
-                        attributes: []
-                    },
-                    {
-                        model: Product,
-                        as: 'raw_material',
-                        attributes: ['name', 'code']
-                    },
-                    {
-                        model: ProductVariant,
-                        as: 'raw_material_variant',
-                        attributes: ['name', 'sku']
-                    }
-                ],
+            const usage = await db.ProductionRawMaterial.findAll({
+                where: whereClause,
                 attributes: [
                     'raw_material_id',
                     'raw_material_variant_id',
-                    [Sequelize.fn('SUM', Sequelize.col('quantity_consumed')), 'total_consumed'],
-                    [Sequelize.fn('SUM', Sequelize.literal('quantity_consumed * cost_per_unit')), 'total_cost']
+                    [Sequelize.fn('SUM', Sequelize.col('quantity_used')), 'total_consumed'],
+                    [Sequelize.fn('SUM', Sequelize.col('total_cost')), 'total_cost'],
+                ],
+                include: [
+                    { model: db.Product, as: 'raw_material', attributes: ['name', 'code'] },
+                    { model: db.ProductVariant, as: 'raw_material_variant', attributes: ['name'] }
                 ],
                 group: ['raw_material_id', 'raw_material_variant_id', 'raw_material.id', 'raw_material_variant.id'],
-                raw: true,
-                nest: true
+                order: [[Sequelize.literal('total_consumed'), 'DESC']]
             });
 
-            return successResponse(res, usage, 'Raw material usage report fetched successfully');
+            return successResponse(res, usage, 'Raw material usage report fetched');
+        } catch (error) {
+            next(error);
+        }
+    },
 
-        } catch (error) { next(error); }
+    getDistributionReport: async (req, res, next) => {
+        try {
+            const { start_date, end_date, branch_id } = req.query;
+            const organization_id = req.user.organization_id;
+
+            const whereClause = {
+                organization_id,
+                status: 'completed'
+            };
+
+            if (branch_id && branch_id !== 'all') {
+                whereClause.branch_id = branch_id;
+            }
+
+            if (start_date && end_date) {
+                whereClause.created_at = {
+                    [Op.between]: [
+                        new Date(start_date + 'T00:00:00'),
+                        new Date(end_date + 'T23:59:59')
+                    ]
+                };
+            }
+
+            const sales = await Sale.findAll({
+                where: whereClause,
+                include: [
+                    { 
+                        model: db.Distributor, 
+                        as: 'distributor', 
+                        required: true,
+                        attributes: ['name', 'phone'] 
+                    },
+                    { model: db.Branch, as: 'branch', attributes: ['name'] }
+                ],
+                order: [['created_at', 'DESC']]
+            });
+
+            const summary = {
+                totalDistributed: sales.reduce((sum, s) => sum + Number(s.payable_amount), 0),
+                totalShipments: sales.length,
+                uniqueDistributors: new Set(sales.map(s => s.distributor_id)).size
+            };
+
+            return successResponse(res, { summary, transactions: sales }, 'Distribution report fetched successfully');
+        } catch (error) {
+            next(error);
+        }
     }
 };
-
-
 
 module.exports = reportController;

@@ -13,7 +13,7 @@ const { Sequelize, Op } = require('sequelize');
 const getAllSales = async (req, res, next) => {
     try {
         const { 
-            page, size, status, customer_id, branch_id, 
+            page, size, status, customer_id, distributor_id, branch_id, 
             start_date, end_date, search,
             supplier_id, main_category_id, sub_category_id, brand_id, product_id 
         } = req.query;
@@ -22,6 +22,7 @@ const getAllSales = async (req, res, next) => {
         const where = { organization_id: req.user.organization_id };
         if (status) where.status = status;
         if (customer_id) where.customer_id = customer_id;
+        if (distributor_id) where.distributor_id = distributor_id;
         if (branch_id) where.branch_id = branch_id;
 
         // Date Range Filter
@@ -71,6 +72,7 @@ const getAllSales = async (req, res, next) => {
             offset,
             include: [
                 { model: Customer, as: 'customer', attributes: ['name', 'phone'] },
+                { model: db.Distributor, as: 'distributor', attributes: ['name', 'phone'] },
                 { model: Branch, as: 'branch', attributes: ['name'] },
                 { model: User, as: 'cashier', attributes: ['name'] },
                 { model: User, as: 'sellers', attributes: ['name', 'id'], through: { attributes: [] } },
@@ -113,6 +115,7 @@ const getSaleById = async (req, res, next) => {
             where: { id, organization_id: req.user.organization_id },
             include: [
                 { model: Customer, as: 'customer' },
+                { model: db.Distributor, as: 'distributor' },
                 { model: Branch, as: 'branch' },
                 { model: User, as: 'cashier' },
                 {
@@ -146,6 +149,7 @@ const createSale = async (req, res, next) => {
     try {
         const {
             customer_id,
+            distributor_id,
             branch_id: payload_branch_id,
             items, // Array of { product_id, product_variant_id, quantity, discount_amount }
             payments, // Array of { payment_method, amount, transaction_reference, notes }
@@ -402,15 +406,27 @@ const createSale = async (req, res, next) => {
             }
         }
 
-        // Rule: Credit Limit Validation for Customers
-        if (payload_status !== 'draft' && customer_id && total_paid < final_payable_amount) {
-            const customer = await db.Customer.findByPk(customer_id, { transaction: t });
-            if (customer && customer.credit_limit > 0) {
-                const currentBalance = await accountingService.getCustomerBalance(organization_id, customer_id, t);
-                const newCreditAmount = final_payable_amount - total_paid;
-                if ((currentBalance + newCreditAmount) > parseFloat(customer.credit_limit)) {
-                    await t.rollback();
-                    return errorResponse(res, `Credit limit exceeded. Current Balance: ${currentBalance.toFixed(2)}, Limit: ${parseFloat(customer.credit_limit).toFixed(2)}`, 400);
+        // Rule: Credit Limit Validation for Customers OR Distributors
+        if (payload_status !== 'draft' && (customer_id || distributor_id) && total_paid < final_payable_amount) {
+            const newCreditAmount = final_payable_amount - total_paid;
+            
+            if (customer_id) {
+                const customer = await db.Customer.findByPk(customer_id, { transaction: t });
+                if (customer && customer.credit_limit > 0) {
+                    const currentBalance = await accountingService.getCustomerBalance(organization_id, customer_id, t);
+                    if ((currentBalance + newCreditAmount) > parseFloat(customer.credit_limit)) {
+                        await t.rollback();
+                        return errorResponse(res, `Credit limit exceeded. Current Balance: ${currentBalance.toFixed(2)}, Limit: ${parseFloat(customer.credit_limit).toFixed(2)}`, 400);
+                    }
+                }
+            } else if (distributor_id) {
+                const distributor = await db.Distributor.findByPk(distributor_id, { transaction: t });
+                if (distributor && distributor.credit_limit > 0) {
+                    const currentBalance = await accountingService.getDistributorBalance(organization_id, distributor_id, t);
+                    if ((currentBalance + newCreditAmount) > parseFloat(distributor.credit_limit)) {
+                        await t.rollback();
+                        return errorResponse(res, `Wholesale credit limit exceeded. Current Balance: ${currentBalance.toFixed(2)}, Limit: ${parseFloat(distributor.credit_limit).toFixed(2)}`, 400);
+                    }
                 }
             }
         }
@@ -429,6 +445,7 @@ const createSale = async (req, res, next) => {
             organization_id,
             branch_id,
             customer_id: customer_id || null,
+            distributor_id: distributor_id || null,
             user_id,
             invoice_number,
             total_amount: final_total_amount,
@@ -493,7 +510,9 @@ const createSale = async (req, res, next) => {
                 amount: chequePayment.amount,
                 received_issued_date: new Date(),
                 status: 'pending',
-                payee_payor_name: payee_payor_name || (sale.customer_id ? (await Customer.findOne({ where: { id: sale.customer_id, organization_id }, transaction: t })).name : 'Guest'),
+                payee_payor_name: payee_payor_name || 
+                                  (sale.customer_id ? (await Customer.findOne({ where: { id: sale.customer_id, organization_id }, transaction: t })).name : 
+                                  (sale.distributor_id ? (await db.Distributor.findOne({ where: { id: sale.distributor_id, organization_id }, transaction: t })).name : 'Guest')),
                 reference_type: 'sale',
                 reference_id: sale.id
             }, { transaction: t });
@@ -638,6 +657,7 @@ const createSale = async (req, res, next) => {
                 branch_id,
                 account_id: revenueAccount.id,
                 customer_id: customer_id || null,
+                distributor_id: distributor_id || null,
                 amount: final_payable_amount,
                 type: 'credit',
                 reference_type: 'Sale',
@@ -678,6 +698,7 @@ const createSale = async (req, res, next) => {
                     branch_id,
                     account_id: pmtAccount.id,
                     customer_id: customer_id || null,
+                    distributor_id: distributor_id || null,
                     amount: amount_to_ledger,
                     type: 'debit',
                     reference_type: 'Sale',
@@ -689,12 +710,13 @@ const createSale = async (req, res, next) => {
 
             // C. Debit AR (Remaining) -> Increase Asset
             const remaining = final_payable_amount - total_paid;
-            if (remaining > 0 && customer_id) {
+            if (remaining > 0 && (customer_id || distributor_id)) {
                 await accountingService.recordTransaction({
                     organization_id,
                     branch_id,
                     account_id: arAccount.id,
-                    customer_id: customer_id,
+                    customer_id: customer_id || null,
+                    distributor_id: distributor_id || null,
                     amount: remaining,
                     type: 'debit',
                     reference_type: 'Sale',
@@ -714,6 +736,7 @@ const createSale = async (req, res, next) => {
                 { model: User, as: 'sellers', attributes: ['id', 'name', 'email'] },
                 { model: User, as: 'cashier', attributes: ['id', 'name'] },
                 { model: Customer, as: 'customer', attributes: ['id', 'name', 'phone'] },
+                { model: db.Distributor, as: 'distributor', attributes: ['id', 'name', 'phone'] },
                 {
                     model: SaleItem,
                     as: 'items',

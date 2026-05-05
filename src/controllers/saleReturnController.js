@@ -11,17 +11,19 @@ const accountingService = require('../services/accountingService');
  */
 const getAllSaleReturns = async (req, res, next) => {
     try {
-        const { page, size, customer_id, sale_id } = req.query;
+        const { page, size, customer_id, distributor_id, sale_id } = req.query;
         const { limit, offset } = getPagination(page, size);
 
         const where = { organization_id: req.user.organization_id };
         if (customer_id) where.customer_id = customer_id;
+        if (distributor_id) where.distributor_id = distributor_id;
         if (sale_id) where.sale_id = sale_id;
 
         const returns = await SaleReturn.findAndCountAll({
             where,
             include: [
                 { model: Customer, as: 'customer', attributes: ['name', 'phone'] },
+                { model: db.Distributor, as: 'distributor', attributes: ['name', 'phone'] },
                 { model: Branch, as: 'branch', attributes: ['name'] },
                 { model: User, as: 'cashier', attributes: ['name'] },
                 { model: Sale, as: 'sale', attributes: ['invoice_number'] }
@@ -49,6 +51,7 @@ const getSaleReturnById = async (req, res, next) => {
             where: { id, organization_id: req.user.organization_id },
             include: [
                 { model: Customer, as: 'customer' },
+                { model: db.Distributor, as: 'distributor' },
                 { model: Branch, as: 'branch' },
                 { model: User, as: 'cashier' },
                 { model: Sale, as: 'sale' },
@@ -131,6 +134,7 @@ const createSaleReturn = async (req, res, next) => {
             organization_id,
             branch_id,
             customer_id: sale.customer_id,
+            distributor_id: sale.distributor_id,
             sale_id,
             user_id,
             return_number,
@@ -231,6 +235,7 @@ const createSaleReturn = async (req, res, next) => {
             branch_id,
             account_id: salesReturnAccount.id,
             customer_id: sale.customer_id,
+            distributor_id: sale.distributor_id,
             amount: total_return_amount,
             type: 'debit',
             reference_type: 'SaleReturn',
@@ -274,6 +279,7 @@ const createSaleReturn = async (req, res, next) => {
                 branch_id,
                 account_id: targetAccountId,
                 customer_id: sale.customer_id,
+                distributor_id: sale.distributor_id,
                 amount: amt,
                 type: 'credit',
                 reference_type: 'SaleReturn',

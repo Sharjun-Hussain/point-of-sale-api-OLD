@@ -17,6 +17,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.UUID,
             allowNull: true
         },
+        distributor_id: {
+            type: DataTypes.UUID,
+            allowNull: true
+        },
         user_id: {
             type: DataTypes.UUID,
             allowNull: false // Key for the cashier
@@ -96,6 +100,7 @@ module.exports = (sequelize, DataTypes) => {
         Sale.belongsTo(models.Branch, { as: 'branch', foreignKey: 'branch_id' });
         Sale.belongsTo(models.User, { as: 'cashier', foreignKey: 'user_id' });
         Sale.belongsTo(models.Customer, { as: 'customer', foreignKey: 'customer_id' });
+        Sale.belongsTo(models.Distributor, { as: 'distributor', foreignKey: 'distributor_id' });
         Sale.belongsToMany(models.User, { 
             through: models.SaleEmployee, 
             as: 'sellers', 

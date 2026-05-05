@@ -1,5 +1,5 @@
 const db = require('../models');
-const { Customer, Transaction, Account, Sale } = db;
+const { Distributor, Transaction, Account, Sale } = db;
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
 const { Sequelize } = require('sequelize');
@@ -7,9 +7,9 @@ const auditService = require('../services/auditService');
 const accountingService = require('../services/accountingService');
 
 /**
- * Customer Controller
+ * Distributor Controller
  */
-const getAllCustomers = async (req, res, next) => {
+const getAllDistributors = async (req, res, next) => {
     try {
         const { page, size, name } = req.query;
         const { limit, offset } = getPagination(page, size);
@@ -19,7 +19,7 @@ const getAllCustomers = async (req, res, next) => {
             where.name = { [Sequelize.Op.like]: `%${name}%` };
         }
 
-        const customers = await Customer.findAndCountAll({
+        const distributors = await Distributor.findAndCountAll({
             attributes: {
                 include: [
                     [
@@ -27,7 +27,7 @@ const getAllCustomers = async (req, res, next) => {
                             SELECT COALESCE(SUM(payable_amount), 0)
                             FROM sales AS sale
                             WHERE
-                                sale.customer_id = Customer.id
+                                sale.distributor_id = Distributor.id
                                 AND sale.status = 'completed'
                         )`),
                         'totalSpent'
@@ -37,7 +37,7 @@ const getAllCustomers = async (req, res, next) => {
                             SELECT COUNT(*)
                             FROM sales AS sale
                             WHERE
-                                sale.customer_id = Customer.id
+                                sale.distributor_id = Distributor.id
                                 AND sale.status = 'completed'
                         )`),
                         'visits'
@@ -50,32 +50,31 @@ const getAllCustomers = async (req, res, next) => {
             order: [['name', 'ASC']]
         });
 
-        return paginatedResponse(res, customers.rows, {
-            total: customers.count,
+        return paginatedResponse(res, distributors.rows, {
+            total: distributors.count,
             page: parseInt(page) || 1,
             limit
-        }, 'Customers fetched successfully');
+        }, 'Distributors fetched successfully');
     } catch (error) {
         next(error);
     }
 };
 
 /**
- * Customer Ledger
+ * Distributor Ledger
  */
-const getCustomerLedger = async (req, res, next) => {
+const getDistributorLedger = async (req, res, next) => {
     try {
         const { id } = req.params;
         const { from_date, to_date } = req.query;
 
-        const customer = await Customer.findOne({
+        const distributor = await Distributor.findOne({
             where: { id, organization_id: req.user.organization_id }
         });
-        if (!customer) {
-            return errorResponse(res, 'Customer not found', 404);
+        if (!distributor) {
+            return errorResponse(res, 'Distributor not found', 404);
         }
 
-        // Get the AR Account
         const arAccount = await Account.findOne({
             where: {
                 organization_id: req.user.organization_id,
@@ -84,13 +83,12 @@ const getCustomerLedger = async (req, res, next) => {
         });
 
         if (!arAccount) {
-            return errorResponse(res, 'Accounts Receivable account not found. Please set up your chart of accounts.', 500);
+            return errorResponse(res, 'Accounts Receivable account not found.', 500);
         }
 
-        // Build where clause for AR transactions only
         const where = {
-            customer_id: id,
-            account_id: arAccount.id  // CRITICAL FIX: Only AR transactions
+            distributor_id: id,
+            account_id: arAccount.id
         };
         if (from_date && to_date) {
             where.transaction_date = {
@@ -104,12 +102,11 @@ const getCustomerLedger = async (req, res, next) => {
             order: [['transaction_date', 'ASC'], ['id', 'ASC']]
         });
 
-        // Calculate running balance (what customer owes)
-        let balance = parseFloat(customer.opening_balance || 0);
+        let balance = parseFloat(distributor.opening_balance || 0);
         const ledger = transactions.map(t => {
-            if (t.type === 'debit') { // Sale or charge - customer owes MORE
+            if (t.type === 'debit') {
                 balance += parseFloat(t.amount);
-            } else { // Payment - customer owes LESS
+            } else {
                 balance -= parseFloat(t.amount);
             }
             return {
@@ -119,158 +116,136 @@ const getCustomerLedger = async (req, res, next) => {
         });
 
         return successResponse(res, {
-            customer,
+            distributor,
             ledger,
             current_balance: balance
-        }, 'Customer ledger fetched successfully');
+        }, 'Distributor ledger fetched successfully');
     } catch (error) {
         next(error);
     }
 };
 
-const getCustomerById = async (req, res, next) => {
+const getDistributorById = async (req, res, next) => {
     try {
-        const customer = await Customer.findOne({
+        const distributor = await Distributor.findOne({
             where: { id: req.params.id, organization_id: req.user.organization_id }
         });
-        if (!customer) return errorResponse(res, 'Customer not found', 404);
-        return successResponse(res, customer, 'Customer details fetched');
+        if (!distributor) return errorResponse(res, 'Distributor not found', 404);
+        return successResponse(res, distributor, 'Distributor details fetched');
     } catch (error) { next(error); }
 };
 
-const createCustomer = async (req, res, next) => {
+const createDistributor = async (req, res, next) => {
     try {
         const organization_id = req.user.organization_id;
-        const customer = await Customer.create({ ...req.body, organization_id });
+        const distributor = await Distributor.create({ ...req.body, organization_id });
 
-        // Log customer creation
         const { ipAddress, userAgent } = auditService.getRequestContext(req);
         await auditService.logCreate(
             organization_id,
             req.user.id,
-            'Customer',
-            customer.id,
-            { name: customer.name, email: customer.email, phone: customer.phone },
+            'Distributor',
+            distributor.id,
+            { name: distributor.name, email: distributor.email, phone: distributor.phone },
             ipAddress,
             userAgent
         );
 
-        return successResponse(res, customer, 'Customer created successfully', 201);
+        return successResponse(res, distributor, 'Distributor created successfully', 201);
     } catch (error) { next(error); }
 };
 
-const updateCustomer = async (req, res, next) => {
+const updateDistributor = async (req, res, next) => {
     try {
-        const customer = await Customer.findOne({
+        const distributor = await Distributor.findOne({
             where: { id: req.params.id, organization_id: req.user.organization_id }
         });
-        if (!customer) return errorResponse(res, 'Customer not found', 404);
+        if (!distributor) return errorResponse(res, 'Distributor not found', 404);
 
-        const oldValues = { name: customer.name, email: customer.email, phone: customer.phone };
-        await customer.update(req.body);
+        const oldValues = { name: distributor.name, email: distributor.email, phone: distributor.phone };
+        await distributor.update(req.body);
 
-        // Log customer update
         const { ipAddress, userAgent } = auditService.getRequestContext(req);
         await auditService.logUpdate(
             req.user.organization_id,
             req.user.id,
-            'Customer',
-            customer.id,
+            'Distributor',
+            distributor.id,
             oldValues,
             req.body,
             ipAddress,
             userAgent
         );
 
-        return successResponse(res, customer, 'Customer updated successfully');
+        return successResponse(res, distributor, 'Distributor updated successfully');
     } catch (error) { next(error); }
 };
 
-const deleteCustomer = async (req, res, next) => {
+const deleteDistributor = async (req, res, next) => {
     try {
-        const customer = await Customer.findOne({
+        const distributor = await Distributor.findOne({
             where: { id: req.params.id, organization_id: req.user.organization_id }
         });
-        if (!customer) return errorResponse(res, 'Customer not found', 404);
+        if (!distributor) return errorResponse(res, 'Distributor not found', 404);
 
-        // Log customer deletion
         const { ipAddress, userAgent } = auditService.getRequestContext(req);
         await auditService.logDelete(
             req.user.organization_id,
             req.user.id,
-            'Customer',
-            customer.id,
-            { name: customer.name, email: customer.email },
+            'Distributor',
+            distributor.id,
+            { name: distributor.name, email: distributor.email },
             ipAddress,
             userAgent
         );
 
-        await customer.destroy();
-        return successResponse(res, null, 'Customer deleted successfully');
+        await distributor.destroy();
+        return successResponse(res, null, 'Distributor deleted successfully');
     } catch (error) { next(error); }
 };
 
-const getActiveCustomersList = async (req, res, next) => {
+const getActiveDistributorsList = async (req, res, next) => {
     try {
-        const customers = await Customer.findAll({
+        const distributors = await Distributor.findAll({
             where: { is_active: true, organization_id: req.user.organization_id },
             order: [['name', 'ASC']]
         });
-        return successResponse(res, customers, 'Active customers list fetched');
+        return successResponse(res, distributors, 'Active distributors list fetched');
     } catch (error) { next(error); }
 };
 
-const createCustomerPayment = async (req, res, next) => {
+const createDistributorPayment = async (req, res, next) => {
     const t = await db.sequelize.transaction();
     try {
-        const { id: customer_id } = req.params;
+        const { id: distributor_id } = req.params;
         const { amount, payment_method, reference_number, transaction_date, description, cheque_details, branch_id: payload_branch_id } = req.body;
         const organization_id = req.user.organization_id;
-
+        
         let branch_id = payload_branch_id || req.user.branch_id;
 
-        // Fallback to main branch if no branch_id is found
         if (!branch_id) {
-            const mainBranch = await db.Branch.findOne({
-                where: { organization_id, is_main: true }
-            });
-            if (mainBranch) {
-                branch_id = mainBranch.id;
-            } else {
-                // Last resort: find any active branch for this org
-                const anyBranch = await db.Branch.findOne({
-                    where: { organization_id, is_active: true }
-                });
-                if (anyBranch) branch_id = anyBranch.id;
-            }
+            const mainBranch = await db.Branch.findOne({ where: { organization_id, is_main: true } });
+            branch_id = mainBranch?.id;
         }
 
         if (!branch_id) {
             if (t) await t.rollback();
-            return errorResponse(res, 'Branch ID is required but could not be determined.', 400);
+            return errorResponse(res, 'Branch ID is required.', 400);
         }
 
-        const customer = await Customer.findOne({
-            where: { id: customer_id, organization_id }
+        const distributor = await Distributor.findOne({
+            where: { id: distributor_id, organization_id }
         });
-        if (!customer) {
-            return errorResponse(res, 'Customer not found', 404);
+        if (!distributor) {
+            return errorResponse(res, 'Distributor not found', 404);
         }
 
-        // 1. Get Accounts Receivable account
         const [arAccount] = await Account.findOrCreate({
-            where: {
-                organization_id,
-                code: '1100', // Accounts Receivable
-            },
-            defaults: {
-                name: 'Accounts Receivable',
-                type: 'asset'
-            },
+            where: { organization_id, code: '1100' },
+            defaults: { name: 'Accounts Receivable', type: 'asset' },
             transaction: t
         });
 
-        // 2. Get Cash/Bank/Cheque account based on payment method
         const [paymentAccount] = await Account.findOrCreate({
             where: {
                 organization_id,
@@ -283,35 +258,32 @@ const createCustomerPayment = async (req, res, next) => {
             transaction: t
         });
 
-        // 3. Record CREDIT in AR (decreases asset)
         const creditTransaction = await accountingService.recordTransaction({
             organization_id,
             branch_id,
             account_id: arAccount.id,
-            customer_id,
+            distributor_id,
             amount,
             type: 'credit',
             reference_type: 'Payment',
             reference_id: reference_number || null,
             transaction_date: transaction_date || new Date(),
-            description: description || `Payment from ${customer.name}`
+            description: description || `Wholesale Payment from ${distributor.name}`
         }, t);
 
-        // 4. Record DEBIT in Cash/Bank/Cheque (increases asset)
         await accountingService.recordTransaction({
             organization_id,
             branch_id,
             account_id: paymentAccount.id,
-            customer_id,
+            distributor_id,
             amount,
             type: 'debit',
             reference_type: 'Payment',
             reference_id: creditTransaction.id,
             transaction_date: transaction_date || new Date(),
-            description: `Payment from ${customer.name} via ${payment_method}`
+            description: `Wholesale Payment from ${distributor.name} via ${payment_method}`
         }, t);
 
-        // Create Cheque record if needed
         if (payment_method === 'cheque' && cheque_details) {
             const { bank_name, cheque_number, cheque_date, payee_payor_name } = cheque_details;
             await db.Cheque.create({
@@ -324,33 +296,21 @@ const createCustomerPayment = async (req, res, next) => {
                 amount,
                 received_issued_date: transaction_date || new Date(),
                 status: 'pending',
-                payee_payor_name: payee_payor_name || customer.name,
+                payee_payor_name: payee_payor_name || distributor.name,
                 reference_type: 'sale',
                 reference_id: creditTransaction.id
             }, { transaction: t });
         }
 
-        // Log payment
-        const { ipAddress, userAgent } = auditService.getRequestContext(req);
-        await auditService.logCustom(
-            organization_id,
-            req.user.id,
-            'CUSTOMER_PAYMENT',
-            `Payment of ${amount} recorded for customer ${customer.name} via ${payment_method}`,
-            ipAddress,
-            userAgent,
-            { customer_id, amount, payment_method, reference_number }
-        );
-
         await t.commit();
-        return successResponse(res, creditTransaction, 'Payment recorded successfully', 201);
+        return successResponse(res, creditTransaction, 'Wholesale payment recorded successfully', 201);
     } catch (error) {
         if (t) await t.rollback();
         next(error);
     }
 };
 
-const getCustomerPurchasedItems = async (req, res, next) => {
+const getDistributorPurchasedItems = async (req, res, next) => {
     try {
         const { id } = req.params;
         const organization_id = req.user.organization_id;
@@ -366,7 +326,7 @@ const getCustomerPurchasedItems = async (req, res, next) => {
                     model: db.Sale,
                     as: 'sale',
                     attributes: [],
-                    where: { customer_id: id, organization_id, status: 'completed' }
+                    where: { distributor_id: id, organization_id, status: 'completed' }
                 },
                 {
                     model: db.Product,
@@ -385,20 +345,20 @@ const getCustomerPurchasedItems = async (req, res, next) => {
             last_purchase_date: item.get('last_purchase_date')
         }));
 
-        return successResponse(res, formatted, 'Purchased items fetched successfully');
+        return successResponse(res, formatted, 'Wholesale purchased items fetched');
     } catch (error) {
         next(error);
     }
 };
 
 module.exports = {
-    getAllCustomers,
-    getCustomerById,
-    createCustomer,
-    updateCustomer,
-    deleteCustomer,
-    getActiveCustomersList,
-    getCustomerLedger,
-    createCustomerPayment,
-    getCustomerPurchasedItems
+    getAllDistributors,
+    getDistributorById,
+    createDistributor,
+    updateDistributor,
+    deleteDistributor,
+    getActiveDistributorsList,
+    getDistributorLedger,
+    createDistributorPayment,
+    getDistributorPurchasedItems
 };

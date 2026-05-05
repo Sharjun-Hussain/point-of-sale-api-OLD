@@ -27,6 +27,7 @@ class AccountingService {
             reference_type,
             reference_id,
             customer_id,
+            distributor_id,
             supplier_id,
             transaction_date,
             description
@@ -53,6 +54,7 @@ class AccountingService {
             reference_type,
             reference_id,
             customer_id: customer_id || null,
+            distributor_id: distributor_id || null,
             supplier_id: supplier_id || null,
             transaction_date: transaction_date || new Date(),
             description
@@ -78,7 +80,7 @@ class AccountingService {
      * Ensure total debits equal total credits
      */
     async createDoubleEntry(organization_id, branch_id, entries, metadata, transaction = null) {
-        const { date, description, reference_type, reference_id, customer_id, supplier_id } = metadata;
+        const { date, description, reference_type, reference_id, customer_id, distributor_id, supplier_id } = metadata;
 
         let totalDebit = 0;
         let totalCredit = 0;
@@ -105,6 +107,7 @@ class AccountingService {
                 reference_type,
                 reference_id,
                 customer_id,
+                distributor_id,
                 supplier_id,
                 transaction_date: date,
                 description: entry.description || description
@@ -146,6 +149,42 @@ class AccountingService {
         const customer = await db.Customer.findByPk(customer_id, { transaction });
         if (customer) {
             balance += parseFloat(customer.opening_balance || 0);
+        }
+ 
+        return balance;
+    }
+
+    /**
+     * Get current AR balance for a distributor
+     */
+    async getDistributorBalance(organization_id, distributor_id, transaction = null) {
+        const arAccount = await Account.findOne({
+            where: { organization_id, code: '1100' },
+            transaction
+        });
+        if (!arAccount) return 0;
+ 
+        const totals = await Transaction.findAll({
+            attributes: [
+                'type',
+                [db.Sequelize.fn('SUM', db.Sequelize.col('amount')), 'total']
+            ],
+            where: { organization_id, distributor_id, account_id: arAccount.id },
+            group: ['type'],
+            transaction
+        });
+ 
+        let balance = 0;
+        totals.forEach(t => {
+            const amount = parseFloat(t.get('total') || 0);
+            if (t.type === 'debit') balance += amount;
+            else balance -= amount;
+        });
+ 
+        // Add opening balance from distributor record
+        const distributor = await db.Distributor.findByPk(distributor_id, { transaction });
+        if (distributor) {
+            balance += parseFloat(distributor.opening_balance || 0);
         }
  
         return balance;
