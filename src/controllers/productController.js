@@ -3,6 +3,7 @@ const { successResponse, errorResponse, paginatedResponse } = require('../utils/
 const { getPagination } = require('../utils/pagination');
 const { Op } = require('sequelize');
 const auditService = require('../services/auditService');
+const logger = require('../utils/logger');
 
 /**
  * Helper to initialize stock for a product/variant
@@ -1385,16 +1386,28 @@ const importProducts = async (req, res, next) => {
         const organization_id = req.user.organization_id;
         const results = { success: 0, failed: 0, logs: [] };
 
+        logger.info(`[Import] Received ${products?.length || 0} products for organization ${organization_id}`);
+        if (products && products.length > 0) {
+            logger.info(`[Import] Samples (first 5): ${JSON.stringify(products.slice(0, 5), null, 2)}`);
+        }
+
         // Fetch organization business type for auto-fill logic
         const organization = await Organization.findByPk(organization_id);
         const isRetail = organization?.business_type === 'Retail';
 
         if (!products || !Array.isArray(products)) {
+            logger.error('[Import] No products array in request body');
             return errorResponse(res, 'No product data provided', 400);
         }
 
         for (const [index, p] of products.entries()) {
             try {
+                if (index % 100 === 0) logger.info(`[Import] Processing row ${index + 1}...`);
+                
+                if (!p.name) {
+                    throw new Error('Product name is required');
+                }
+
                 // 1. Resolve Main Category
                 const [category] = await MainCategory.findOrCreate({
                     where: {
@@ -1433,6 +1446,7 @@ const importProducts = async (req, res, next) => {
                 if (p.unit) {
                     const [unit] = await Unit.findOrCreate({
                         where: { organization_id, name: p.unit },
+                        defaults: { organization_id, name: p.unit, short_name: p.unit },
                         transaction: t
                     });
                     unit_id = unit.id;
@@ -1459,7 +1473,7 @@ const importProducts = async (req, res, next) => {
                         barcode: p.barcode || p.code,
                         is_active: true,
                         is_variant: true, // Enable variants support
-                        product_type: p.product_type || (isRetail ? 'Finished Good' : 'Standard')
+                        product_type: p.product_type || 'Finished Good'
                     },
                     transaction: t
                 });
@@ -1562,10 +1576,16 @@ const importProducts = async (req, res, next) => {
             }
         }
 
+        logger.info(`[Import] Loop finished. Success: ${results.success}, Failed: ${results.failed}. Committing transaction...`);
+        if (results.failed > 0) {
+            logger.info(`[Import] Error Samples: ${JSON.stringify(results.logs.slice(0, 5), null, 2)}`);
+        }
         await t.commit();
+        logger.info(`[Import] Transaction committed successfully.`);
         return successResponse(res, results, 'Import completed');
     } catch (error) {
-        await t.rollback();
+        logger.error(`[Import] Fatal error during import: ${error.message}`);
+        if (t) await t.rollback();
         next(error);
     }
 };
