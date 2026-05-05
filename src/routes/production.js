@@ -9,5 +9,6 @@ router.use(protect);
 router.post('/orders', checkPermission('production:create'), productionController.createProductionOrder);
 router.post('/orders/:id/complete', checkPermission('production:manage'), productionController.completeProductionOrder);
 router.get('/orders', checkPermission('production:view'), productionController.getProductionOrders);
+router.get('/orders/:id', checkPermission('production:view'), productionController.getProductionOrderDetail);
 
 module.exports = router;

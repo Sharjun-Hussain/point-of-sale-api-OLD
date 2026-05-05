@@ -203,8 +203,30 @@ const getProductionOrders = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const getProductionOrderDetail = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const order = await ProductionOrder.findOne({
+            where: { id, organization_id: req.user.organization_id },
+            include: [
+                { model: Product, as: 'product', attributes: ['id', 'name', 'code'] },
+                { model: Recipe, as: 'recipe', attributes: ['id', 'name', 'batch_size'] },
+                { 
+                    model: ProductionOrderItem, 
+                    as: 'items',
+                    include: [{ model: Product, as: 'raw_material', attributes: ['id', 'name', 'code'] }]
+                }
+            ]
+        });
+
+        if (!order) return errorResponse(res, 'Production order not found', 404);
+        return successResponse(res, order, 'Production order detail fetched');
+    } catch (error) { next(error); }
+};
+
 module.exports = {
     createProductionOrder,
     completeProductionOrder,
-    getProductionOrders
+    getProductionOrders,
+    getProductionOrderDetail
 };
