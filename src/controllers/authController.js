@@ -37,7 +37,7 @@ const login = async (req, res, next) => {
                 {
                     model: Organization,
                     as: 'organization',
-                    attributes: ['id', 'name', 'logo']
+                    attributes: ['id', 'name', 'logo', 'business_type', 'business_mode']
                 }
             ]
         });
@@ -133,7 +133,9 @@ const login = async (req, res, next) => {
                 organization: user.organization ? {
                     id: user.organization.id,
                     name: user.organization.name,
-                    logo: user.organization.logo
+                    logo: user.organization.logo,
+                    business_type: user.organization.business_type,
+                    business_mode: user.organization.business_mode
                 } : null,
                 roles: user.roles,
                 branches: allBranches
@@ -304,7 +306,9 @@ const me = async (req, res) => {
             organization: user.organization ? {
                 id: user.organization.id,
                 name: user.organization.name,
-                logo: user.organization.logo
+                logo: user.organization.logo,
+                business_type: user.organization.business_type,
+                business_mode: user.organization.business_mode
             } : null,
             roles: user.roles,
             branches: allBranches
