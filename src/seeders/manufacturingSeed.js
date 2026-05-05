@@ -161,6 +161,7 @@ const seedManufacturing = async () => {
                         organization_id,
                         sku: item.code,
                         price: 0,
+                        wholesale_price: 0,
                         cost_price: item.cost,
                         stock_quantity: 1000,
                         is_active: true
@@ -216,6 +217,7 @@ const seedManufacturing = async () => {
                         organization_id,
                         sku: fg.code,
                         price: fg.price,
+                        wholesale_price: fg.price * 0.9,
                         cost_price: 65, // Estimated
                         stock_quantity: 0,
                         is_active: true

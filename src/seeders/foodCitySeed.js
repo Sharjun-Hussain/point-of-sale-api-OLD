@@ -249,6 +249,7 @@ const seedFoodCity = async () => {
                         code: vSku,
                         barcode: `BAR-${vSku}`,
                         price: price,
+                        wholesale_price: price * 0.9,
                         cost_price: cost,
                         stock_quantity: stockQty,
                         is_default: true

@@ -555,7 +555,7 @@ const getActiveProductsList = async (req, res, next) => {
         const { branch_id } = req.query;
         const products = await Product.findAll({
             where: { is_active: true, organization_id: req.user.organization_id },
-            attributes: ['id', 'name', 'sku', 'barcode', 'code', 'image', 'main_category_id', 'is_variant', 'product_type'],
+            attributes: ['id', 'name', 'sku', 'barcode', 'code', 'image', 'main_category_id', 'is_variant', 'product_type', 'can_be_manufactured'],
             include: [
                 { model: MainCategory, as: 'main_category', attributes: ['id', 'name'] },
                 { model: Brand, as: 'brand', attributes: ['id', 'name'] },
@@ -571,7 +571,7 @@ const getActiveProductsList = async (req, res, next) => {
                     as: 'variants',
                     where: { is_active: true, organization_id: req.user.organization_id },
                     required: false,
-                    attributes: ['id', 'product_id', 'name', 'sku', 'barcode', 'price', 'wholesale_price', 'stock_quantity'],
+                    attributes: ['id', 'product_id', 'name', 'sku', 'barcode', 'price', 'wholesale_price', 'cost_price', 'stock_quantity'],
                     include: [
                         {
                             model: AttributeValue,

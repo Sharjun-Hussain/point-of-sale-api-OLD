@@ -321,6 +321,7 @@ const seedHardwareShop = async () => {
                             name: vData.name,
                             sku: vData.sku,
                             price: vData.price,
+                            wholesale_price: vData.price * 0.85,
                             cost_price: vData.cost,
                             stock_quantity: vData.stock
                         }
@@ -347,6 +348,7 @@ const seedHardwareShop = async () => {
                         name: pData.name,
                         sku: pData.code,
                         price: pData.price || 0,
+                        wholesale_price: (pData.price || 0) * 0.85,
                         cost_price: pData.cost || 0,
                         stock_quantity: pData.stock || 0
                     }
