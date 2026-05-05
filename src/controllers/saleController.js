@@ -1,5 +1,5 @@
 const db = require('../models');
-const { Sale, SaleItem, SalePayment, Product, ProductVariant, Stock, ProductBatch, Transaction, Account, Customer, Branch, User, SaleEmployee, Cheque } = db;
+const { Sale, SaleItem, SalePayment, Product, ProductVariant, Stock, ProductBatch, Transaction, Account, Customer, Branch, User, SaleEmployee, Cheque, Organization } = db;
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
 const auditService = require('../services/auditService');
