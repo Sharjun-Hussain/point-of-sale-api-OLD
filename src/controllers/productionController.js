@@ -219,7 +219,7 @@ const getProductionOrderDetail = async (req, res, next) => {
             include: [
                 { model: Product, as: 'product', attributes: ['id', 'name', 'code'] },
                 { model: Recipe, as: 'recipe', attributes: ['id', 'name', 'batch_size'] },
-                { model: User, as: 'user', attributes: ['id', 'full_name'] },
+                { model: User, as: 'user', attributes: ['id', 'name'] },
                 { 
                     model: ProductionOrderItem, 
                     as: 'items',
