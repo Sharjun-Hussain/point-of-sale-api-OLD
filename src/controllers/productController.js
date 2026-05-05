@@ -117,7 +117,7 @@ const createProduct = async (req, res, next) => {
             name, code, description, sku, barcode,
             main_category_id, sub_category_id, brand_id,
             unit_id, measurement_id, container_id, supplier_id, is_variant, is_active,
-
+            product_type, can_be_manufactured,
             variants, product_attributes, suppliers // Added suppliers array
         } = req.body;
 
@@ -128,6 +128,7 @@ const createProduct = async (req, res, next) => {
         
         is_variant = is_variant === 'true' || is_variant === true || is_variant === '1';
         is_active = is_active === 'true' || is_active === true || is_active === '1' || is_active === undefined;
+        can_be_manufactured = can_be_manufactured === 'true' || can_be_manufactured === true || can_be_manufactured === '1';
 
         // Handle Image Upload
         let imagePath = null;
@@ -152,6 +153,8 @@ const createProduct = async (req, res, next) => {
             supplier_id,
             is_variant,
             is_active,
+            product_type,
+            can_be_manufactured,
             image: imagePath,
             organization_id
         }, { transaction: t });
@@ -340,6 +343,7 @@ const updateProduct = async (req, res, next) => {
             name, code, description, sku, barcode,
             main_category_id, sub_category_id, brand_id,
             unit_id, measurement_id, container_id, supplier_id, is_variant,
+            product_type, can_be_manufactured,
             variants, product_attributes, suppliers // Added suppliers
         } = req.body;
 
@@ -366,7 +370,9 @@ const updateProduct = async (req, res, next) => {
             supplier_id,
             sku,
             barcode,
-            is_variant
+            is_variant,
+            product_type,
+            can_be_manufactured: can_be_manufactured === 'true' || can_be_manufactured === true || can_be_manufactured === '1'
         };
 
         // Handle Image Upload
