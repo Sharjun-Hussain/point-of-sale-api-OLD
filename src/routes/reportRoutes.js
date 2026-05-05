@@ -49,4 +49,8 @@ router.get('/dashboard/charts', reportController.getDashboardCharts);
 router.get('/shifts/history', checkPermission('report:view'), reportController.getShiftHistory);
 router.get('/shifts/:id/detail', checkPermission('report:view'), reportController.getShiftReport);
 
+// Manufacturing Reports
+router.get('/manufacturing/summary', checkPermission('report:view'), reportController.getProductionSummary);
+router.get('/manufacturing/raw-material-usage', checkPermission('report:view'), reportController.getRawMaterialUsage);
+
 module.exports = router;

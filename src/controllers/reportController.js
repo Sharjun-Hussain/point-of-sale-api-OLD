@@ -1888,6 +1888,112 @@ const reportController = {
                 topPerformers
             }, 'Inventory insights fetched successfully');
         } catch (error) { next(error); }
+    },
+
+    // 25. Production Summary Report
+    getProductionSummary: async (req, res, next) => {
+        try {
+            const { start_date, end_date, branch_id } = req.query;
+            const organization_id = req.user.organization_id;
+
+            const whereClause = { organization_id };
+            if (branch_id && branch_id !== 'all') {
+                whereClause.branch_id = branch_id;
+            }
+
+            if (start_date && end_date) {
+                whereClause.end_date = {
+                    [Op.between]: [
+                        new Date(start_date + 'T00:00:00'),
+                        new Date(end_date + 'T23:59:59')
+                    ]
+                };
+            }
+
+            const productionOrders = await db.ProductionOrder.findAll({
+                where: { ...whereClause, status: 'completed' },
+                include: [
+                    { model: Product, as: 'product', attributes: ['name', 'code', 'image'] },
+                    { model: ProductVariant, as: 'variant', attributes: ['name', 'sku'] },
+                    { model: Branch, as: 'branch', attributes: ['name'] },
+                    { 
+                        model: db.ProductionOrderItem, 
+                        as: 'items',
+                        include: [{ model: Product, as: 'raw_material', attributes: ['name'] }]
+                    }
+                ],
+                order: [['end_date', 'DESC']]
+            });
+
+            const summary = {
+                totalBatches: productionOrders.length,
+                totalProduced: productionOrders.reduce((sum, po) => sum + Number(po.quantity_produced), 0),
+                totalPlanned: productionOrders.reduce((sum, po) => sum + Number(po.quantity_planned), 0),
+                totalCost: productionOrders.reduce((sum, po) => sum + Number(po.total_cost), 0),
+            };
+
+            summary.efficiency = summary.totalPlanned > 0 ? (summary.totalProduced / summary.totalPlanned) * 100 : 0;
+
+            return successResponse(res, {
+                details: productionOrders,
+                summary
+            }, 'Production summary report fetched successfully');
+
+        } catch (error) { next(error); }
+    },
+
+    // 26. Raw Material Usage Report
+    getRawMaterialUsage: async (req, res, next) => {
+        try {
+            const { start_date, end_date, branch_id } = req.query;
+            const organization_id = req.user.organization_id;
+
+            const whereClause = { organization_id, status: 'completed' };
+            if (branch_id && branch_id !== 'all') {
+                whereClause.branch_id = branch_id;
+            }
+            if (start_date && end_date) {
+                whereClause.end_date = {
+                    [Op.between]: [
+                        new Date(start_date + 'T00:00:00'),
+                        new Date(end_date + 'T23:59:59')
+                    ]
+                };
+            }
+
+            const usage = await db.ProductionOrderItem.findAll({
+                include: [
+                    {
+                        model: db.ProductionOrder,
+                        as: 'production_order',
+                        where: whereClause,
+                        attributes: []
+                    },
+                    {
+                        model: Product,
+                        as: 'raw_material',
+                        attributes: ['name', 'code']
+                    },
+                    {
+                        model: ProductVariant,
+                        as: 'raw_material_variant',
+                        attributes: ['name', 'sku']
+                    }
+                ],
+                attributes: [
+                    'raw_material_id',
+                    'raw_material_variant_id',
+                    [Sequelize.fn('SUM', Sequelize.col('quantity_consumed')), 'total_consumed'],
+                    [Sequelize.fn('SUM', Sequelize.literal('quantity_consumed * cost_per_unit')), 'total_cost']
+                ],
+                group: ['raw_material_id', 'raw_material_variant_id', 'raw_material.id', 'raw_material_variant.id'],
+                raw: true,
+                nest: true
+            });
+
+            return successResponse(res, usage, 'Raw material usage report fetched successfully');
+
+        } catch (error) { next(error); }
     }
 };
 
