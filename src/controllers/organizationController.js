@@ -204,8 +204,7 @@ const updateOrganization = async (req, res, next) => {
         // Filter req.body to only include valid Organization fields to avoid polluting the model
         const allowedFields = [
             'name', 'email', 'phone', 'address', 'tax_id', 'website', 
-            'business_type', 'business_mode', 'city', 'state', 'zip_code', 'logo',
-            'shopify_enabled', 'whatsapp_enabled'
+            'business_type', 'business_mode', 'city', 'state', 'zip_code', 'logo'
         ];
         const updateData = Object.keys(req.body)
             .filter(key => allowedFields.includes(key))
