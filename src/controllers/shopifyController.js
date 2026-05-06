@@ -1,4 +1,5 @@
 const shopifyService = require('../services/shopifyService');
+const tokenManager = require('../services/shopifyTokenManager');
 const { Setting, Organization } = require('../models');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 
@@ -11,7 +12,7 @@ const getConfig = async (req, res, next) => {
 
 const saveConfig = async (req, res, next) => {
     try {
-        const { shop_url, access_token, location_id, enabled } = req.body;
+        const { shop_url, access_token, client_id, client_secret, location_id, enabled } = req.body;
 
         // Verify connection before saving
         const verification = await shopifyService.verifyConnection({ shop_url, access_token });
@@ -19,23 +20,28 @@ const saveConfig = async (req, res, next) => {
             return errorResponse(res, `Connection Failed: ${verification.message}`, 400);
         }
 
+        const settingsData = { shop_url, access_token, location_id, enabled };
+        // Store OAuth credentials if provided (needed for 24h token auto-refresh)
+        if (client_id) settingsData.client_id = client_id;
+        if (client_secret) settingsData.client_secret = client_secret;
+        settingsData.token_saved_at = new Date().toISOString();
+
         const [setting, created] = await Setting.findOrCreate({
             where: {
                 organization_id: req.user.organization_id,
                 category: 'shopify'
             },
-            defaults: {
-                settings_data: { shop_url, access_token, location_id, enabled }
-            }
+            defaults: { settings_data: settingsData }
         });
 
         if (!created) {
-            await setting.update({
-                settings_data: { shop_url, access_token, location_id, enabled }
-            });
+            await setting.update({ settings_data: settingsData });
         }
 
-        return successResponse(res, setting.settings_data, 'Shopify configuration saved successfully');
+        // Seed the in-memory token cache immediately so first requests don't wait
+        tokenManager.cacheToken(req.user.organization_id, access_token);
+
+        return successResponse(res, { ...settingsData, client_secret: undefined }, 'Shopify configuration saved successfully');
     } catch (error) { next(error); }
 };
 
@@ -43,6 +49,10 @@ const testConnection = async (req, res, next) => {
     try {
         const verification = await shopifyService.verifyConnection(req.body);
         if (verification.success) {
+            // Seed the cache with this validated token
+            if (req.body.access_token && req.user?.organization_id) {
+                tokenManager.cacheToken(req.user.organization_id, req.body.access_token);
+            }
             return successResponse(res, verification.shop, 'Shopify connection verified');
         } else {
             return errorResponse(res, verification.message, 400);

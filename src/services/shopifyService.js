@@ -1,5 +1,6 @@
 const { Setting, Product, ProductVariant, Organization } = require('../models');
 const logger = require('../utils/logger');
+const tokenManager = require('./shopifyTokenManager');
 
 class ShopifyService {
     /**
@@ -14,7 +15,20 @@ class ShopifyService {
         });
 
         if (!setting || !setting.settings_data) return null;
-        return setting.settings_data;
+
+        // Strip client_secret from public config response for security
+        const { client_secret, ...safeConfig } = setting.settings_data;
+        return safeConfig;
+    }
+
+    /**
+     * Get full config including credentials (internal use only)
+     */
+    async _getFullConfig(organizationId) {
+        const setting = await Setting.findOne({
+            where: { organization_id: organizationId, category: 'shopify' }
+        });
+        return setting?.settings_data || null;
     }
 
     /**
@@ -76,13 +90,22 @@ class ShopifyService {
      */
     async syncInventory(organizationId, sku, quantityChange) {
         try {
-            const config = await this.getConfig(organizationId);
+            const config = await this._getFullConfig(organizationId);
             if (!config || !config.enabled) return;
 
-            const { shop_url, access_token, location_id } = config;
-            if (!shop_url || !access_token || !location_id) return;
+            const { shop_url, location_id } = config;
+            if (!shop_url || !location_id) return;
 
-            // 1. Fetch Local Variant Data (Including latest batch for smart pricing)
+            // Get a valid (auto-refreshed) token
+            const access_token = await tokenManager.getValidToken(organizationId);
+            if (!access_token) {
+                logger.warn(`Shopify Sync skipped: No valid token for org ${organizationId}`);
+                return;
+            }
+
+            const cleanShopUrl = shop_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+
+            // 1. Fetch Local Variant Data
             const localVariant = await ProductVariant.findOne({
                 where: { sku: sku, organization_id: organizationId },
                 include: [{
@@ -99,9 +122,10 @@ class ShopifyService {
                 return;
             }
 
-            // 2. Find Shopify Inventory Item
-            const itemResponse = await fetch(`https://${shop_url}/admin/api/2024-04/inventory_items.json?sku=${sku}`, {
-                headers: { 'X-Shopify-Access-Token': access_token }
+            // 2. Find Shopify Inventory Item by SKU
+            const itemResponse = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/inventory_items.json?sku=${sku}`, {
+                headers: { 'X-Shopify-Access-Token': access_token },
+                signal: AbortSignal.timeout(10000)
             });
             const itemData = await itemResponse.json();
             const invItem = itemData.inventory_items?.[0];
@@ -111,29 +135,26 @@ class ShopifyService {
                 return;
             }
 
-            // 3. Update Price on Shopify (Optional: If we want to keep prices in sync real-time)
-            const latestBatch = localVariant.batches?.[0];
-            const retailPrice = latestBatch ? latestBatch.selling_price : localVariant.price;
-            
-            // We'd need variant_id to update price. For simplicity, we focus on stock adjust.
-            // (If variant_id is stored in DB, we'd use it here)
-
-            // 4. Adjust inventory level
-            const adjustResponse = await fetch(`https://${shop_url}/admin/api/2024-04/inventory_levels/adjust.json`, {
+            // 3. Adjust inventory level
+            const adjustResponse = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/inventory_levels/adjust.json`, {
                 method: 'POST',
                 headers: {
                     'X-Shopify-Access-Token': access_token,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    location_id: location_id,
+                    location_id: parseInt(location_id),
                     inventory_item_id: invItem.id,
                     available_adjustment: Math.round(quantityChange)
-                })
+                }),
+                signal: AbortSignal.timeout(10000)
             });
 
             if (adjustResponse.ok) {
                 logger.info(`Shopify Sync: Adjusted ${sku} by ${quantityChange}`);
+            } else {
+                const errBody = await adjustResponse.json().catch(() => ({}));
+                logger.error(`Shopify Sync adjust failed for ${sku}: ${JSON.stringify(errBody)}`);
             }
         } catch (error) {
             logger.error(`Shopify Real-time Sync Error (SKU: ${sku}): ${error.message}`);
@@ -186,10 +207,15 @@ class ShopifyService {
      */
     async pushAllInventory(organizationId) {
         try {
-            const config = await this.getConfig(organizationId);
+            const config = await this._getFullConfig(organizationId);
             if (!config) throw new Error('Shopify not configured');
 
-            const { shop_url, access_token, location_id } = config;
+            const { shop_url, location_id } = config;
+            const cleanShopUrl = shop_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+
+            // Get a valid (auto-refreshed) token
+            const access_token = await tokenManager.getValidToken(organizationId);
+            if (!access_token) throw new Error('Could not obtain a valid Shopify access token. Please check your credentials.');
 
             const variants = await ProductVariant.findAll({
                 where: { 
@@ -210,12 +236,11 @@ class ShopifyService {
                 if (!sku) { results.skipped++; continue; }
 
                 const totalStock = variant.stocks.reduce((sum, s) => sum + parseFloat(s.quantity), 0);
-                const latestBatch = variant.batches?.[0];
-                const retailPrice = latestBatch ? latestBatch.selling_price : variant.price;
 
                 try {
-                    const itemResponse = await fetch(`https://${shop_url}/admin/api/2024-04/inventory_items.json?sku=${sku}`, {
-                        headers: { 'X-Shopify-Access-Token': access_token }
+                    const itemResponse = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/inventory_items.json?sku=${encodeURIComponent(sku)}`, {
+                        headers: { 'X-Shopify-Access-Token': access_token },
+                        signal: AbortSignal.timeout(10000)
                     });
                     const itemData = await itemResponse.json();
                     const shopifyItem = itemData.inventory_items?.[0];
@@ -223,21 +248,26 @@ class ShopifyService {
                     if (!shopifyItem) { results.skipped++; continue; }
 
                     // Set Stock
-                    const setResponse = await fetch(`https://${shop_url}/admin/api/2024-04/inventory_levels/set.json`, {
+                    const setResponse = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/inventory_levels/set.json`, {
                         method: 'POST',
                         headers: {
                             'X-Shopify-Access-Token': access_token,
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            location_id: location_id,
+                            location_id: parseInt(location_id),
                             inventory_item_id: shopifyItem.id,
                             available: Math.round(totalStock)
-                        })
+                        }),
+                        signal: AbortSignal.timeout(10000)
                     });
 
                     if (setResponse.ok) results.pushed++;
-                    else results.failed++;
+                    else {
+                        const errBody = await setResponse.json().catch(() => ({}));
+                        logger.error(`Push Set failed (SKU: ${sku}): ${JSON.stringify(errBody)}`);
+                        results.failed++;
+                    }
                 } catch (err) {
                     results.failed++;
                     logger.error(`Push Error (SKU: ${sku}): ${err.message}`);
@@ -256,18 +286,25 @@ class ShopifyService {
      */
     async getAnalytics(organizationId) {
         try {
-            const config = await this.getConfig(organizationId);
+            const config = await this._getFullConfig(organizationId);
             if (!config) throw new Error('Shopify not configured');
 
-            const { shop_url, access_token } = config;
+            const { shop_url } = config;
+            const cleanShopUrl = shop_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
-            const productCountRes = await fetch(`https://${shop_url}/admin/api/2024-04/products/count.json`, {
-                headers: { 'X-Shopify-Access-Token': access_token }
+            // Get a valid (auto-refreshed) token
+            const access_token = await tokenManager.getValidToken(organizationId);
+            if (!access_token) throw new Error('No valid Shopify token available');
+
+            const productCountRes = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/products/count.json`, {
+                headers: { 'X-Shopify-Access-Token': access_token },
+                signal: AbortSignal.timeout(10000)
             });
             const { count: productCount } = await productCountRes.json();
 
-            const orderCountRes = await fetch(`https://${shop_url}/admin/api/2024-04/orders/count.json?status=any`, {
-                headers: { 'X-Shopify-Access-Token': access_token }
+            const orderCountRes = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/orders/count.json?status=any`, {
+                headers: { 'X-Shopify-Access-Token': access_token },
+                signal: AbortSignal.timeout(10000)
             });
             const { count: orderCount } = await orderCountRes.json();
 
