@@ -415,7 +415,7 @@ class ShopifyService {
     }
 
     /**
-     * Fetch products directly from Shopify Admin API
+     * Fetch products directly from Shopify Admin API and check for local links
      */
     async getShopifyProducts(organizationId) {
         try {
@@ -438,7 +438,31 @@ class ShopifyService {
             }
 
             const data = await response.json();
-            return data.products || [];
+            const shopifyProducts = data.products || [];
+
+            // Cross-reference with local products by SKU
+            const skus = shopifyProducts.flatMap(p => p.variants?.map(v => v.sku)).filter(Boolean);
+            const localVariants = await ProductVariant.findAll({
+                where: { 
+                    organization_id: organizationId,
+                    sku: skus
+                },
+                attributes: ['id', 'sku', 'name', 'price', 'shopify_sync_enabled'],
+                include: [{ model: Product, as: 'product', attributes: ['name'] }]
+            });
+
+            const localSkuMap = localVariants.reduce((map, v) => {
+                map[v.sku] = v;
+                return map;
+            }, {});
+
+            // Append local link info
+            const enrichedProducts = shopifyProducts.map(p => ({
+                ...p,
+                local_match: p.variants?.map(v => localSkuMap[v.sku] || null).find(m => m !== null) || null
+            }));
+
+            return enrichedProducts;
         } catch (error) {
             logger.error(`Get Shopify Products Error: ${error.message}`);
             throw error;
