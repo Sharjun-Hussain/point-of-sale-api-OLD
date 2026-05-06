@@ -20,5 +20,6 @@ router.post('/products/sync', checkPermission('settings:manage'), shopifyControl
 router.post('/products/create', checkPermission('settings:manage'), shopifyController.createProduct);
 router.post('/products/update-status', checkPermission('settings:manage'), shopifyController.updateProductStatus);
 router.post('/products/delete', checkPermission('settings:manage'), shopifyController.deleteProduct);
+router.post('/disconnect', checkPermission('settings:manage'), shopifyController.disconnectStore);
 
 module.exports = router;

@@ -173,6 +173,13 @@ const deleteProduct = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const disconnectStore = async (req, res, next) => {
+    try {
+        await shopifyService.disconnect(req.user.organization_id);
+        return successResponse(res, null, 'Shopify store disconnected and settings cleared');
+    } catch (error) { next(error); }
+};
+
 module.exports = {
     getConfig,
     saveConfig,
@@ -187,5 +194,6 @@ module.exports = {
     getStoreDetails,
     createProduct,
     updateProductStatus,
-    deleteProduct
+    deleteProduct,
+    disconnectStore
 };

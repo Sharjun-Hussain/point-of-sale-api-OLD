@@ -848,6 +848,37 @@ class ShopifyService {
             return 0;
         }
     }
+
+    /**
+     * Disconnect Shopify store and clear settings
+     */
+    async disconnect(organizationId) {
+        try {
+            await Setting.destroy({
+                where: {
+                    organization_id: organizationId,
+                    category: 'shopify'
+                }
+            });
+
+            // Also disable shopify_sync_enabled for all variants of this organization
+            await ProductVariant.update(
+                { shopify_sync_enabled: false },
+                { where: { organization_id: organizationId } }
+            );
+
+            // Also disable shopify_sync_enabled for all products of this organization
+            await Product.update(
+                { shopify_sync_enabled: false },
+                { where: { organization_id: organizationId } }
+            );
+
+            return { success: true, message: 'Shopify integration disconnected successfully' };
+        } catch (error) {
+            logger.error(`Disconnect Shopify Error: ${error.message}`);
+            throw error;
+        }
+    }
 }
 
 module.exports = new ShopifyService();
