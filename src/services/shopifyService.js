@@ -1,4 +1,4 @@
-const { Setting, Product, ProductVariant, Organization } = require('../models');
+const { Setting, Product, ProductVariant, Organization, Branch, Stock } = require('../models');
 const logger = require('../utils/logger');
 const tokenManager = require('./shopifyTokenManager');
 const { decrypt } = require('../utils/security');
@@ -101,159 +101,155 @@ class ShopifyService {
                 );
             }
 
-            // Normalize shop URL (strip protocol if accidentally included)
             const cleanShopUrl = shop_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+            const response = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/shop.json`, {
+                headers: {
+                    'X-Shopify-Access-Token': access_token
+                },
+                signal: AbortSignal.timeout(10000)
+            });
 
-            let response;
-            try {
-                response = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/shop.json`, {
-                    headers: {
-                        'X-Shopify-Access-Token': access_token,
-                        'Content-Type': 'application/json'
-                    },
-                    signal: AbortSignal.timeout(10000) // 10s timeout
-                });
-            } catch (fetchErr) {
-                // Network-level failure (DNS, firewall, TLS)
-                throw new Error(`Network error reaching Shopify: ${fetchErr.cause?.code || fetchErr.message}. Check that the server has outbound HTTPS access to ${cleanShopUrl}.`);
-            }
-
-            if (response.status === 401) {
-                throw new Error('Authentication failed (401): Access token is invalid or has been revoked. Generate a new shpat_ token from Shopify Admin.');
-            }
-            if (response.status === 403) {
-                throw new Error('Permission denied (403): Access token lacks required scopes. Ensure read_products and read_inventory scopes are enabled.');
-            }
             if (!response.ok) {
-                const errorBody = await response.json().catch(() => ({}));
-                throw new Error(`Shopify API error (${response.status}): ${errorBody.errors || 'Unknown error'}`);
+                const err = await response.json().catch(() => ({}));
+                return {
+                    success: false,
+                    error: err.errors || 'Unauthorized'
+                };
             }
 
             const data = await response.json();
-            return { success: true, shop: data.shop };
+            return {
+                success: true,
+                shop: data.shop
+            };
         } catch (error) {
-            logger.error(`Shopify Connection Error: ${error.message}`);
-            return { success: false, message: error.message };
+            return {
+                success: false,
+                error: error.message
+            };
         }
     }
 
     /**
-     * Sync inventory and price for a specific SKU (Real-time)
+     * Sync inventory from POS to Shopify for a specific product
      */
     async syncInventory(organizationId, sku, quantityChange) {
         try {
             const config = await this._getFullConfig(organizationId);
-            if (!config || !config.enabled) return;
+            if (!config || !config.enabled || !config.location_id) return;
 
-            const { shop_url, location_id } = config;
-            if (!shop_url || !location_id) return;
-
-            // Get a valid (auto-refreshed) token
             const access_token = await tokenManager.getValidToken(organizationId);
-            if (!access_token) {
-                logger.warn(`Shopify Sync skipped: No valid token for org ${organizationId}`);
-                return;
-            }
+            const cleanShopUrl = config.shop_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
-            const cleanShopUrl = shop_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
-
-            // 1. Fetch Local Variant Data
-            const localVariant = await ProductVariant.findOne({
-                where: { sku: sku, organization_id: organizationId },
-                include: [{
-                    model: Product.sequelize.models.ProductBatch,
-                    as: 'batches',
-                    where: { is_active: true },
-                    order: [['created_at', 'DESC']],
-                    limit: 1
-                }]
-            });
-
-            if (!localVariant || !localVariant.shopify_sync_enabled) {
-                logger.info(`Shopify Sync skipped: Variant ${sku} is not enabled for Shopify sync.`);
-                return;
-            }
-
-            // 2. Find Shopify Inventory Item by SKU
-            const itemResponse = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/inventory_items.json?sku=${sku}`, {
+            // 1. Find the inventory item ID for this SKU
+            const itemResponse = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/inventory_items.json?sku=${encodeURIComponent(sku)}`, {
                 headers: { 'X-Shopify-Access-Token': access_token },
                 signal: AbortSignal.timeout(10000)
             });
+
+            if (!itemResponse.ok) return;
+
             const itemData = await itemResponse.json();
-            const invItem = itemData.inventory_items?.[0];
+            const shopifyItem = itemData.inventory_items?.[0];
 
-            if (!invItem) {
-                logger.warn(`Shopify Sync: No product found on Shopify with SKU ${sku}`);
-                return;
-            }
+            if (!shopifyItem) return;
 
-            // 3. Adjust inventory level
-            const adjustResponse = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/inventory_levels/adjust.json`, {
+            // 2. Adjust inventory level
+            await fetch(`https://${cleanShopUrl}/admin/api/2024-10/inventory_levels/adjust.json`, {
                 method: 'POST',
                 headers: {
                     'X-Shopify-Access-Token': access_token,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    location_id: parseInt(location_id),
-                    inventory_item_id: invItem.id,
-                    available_adjustment: Math.round(quantityChange)
+                    location_id: config.location_id,
+                    inventory_item_id: shopifyItem.id,
+                    available_adjustment: Math.floor(quantityChange)
                 }),
                 signal: AbortSignal.timeout(10000)
             });
 
-            if (adjustResponse.ok) {
-                logger.info(`Shopify Sync: Adjusted ${sku} by ${quantityChange}`);
-            } else {
-                const errBody = await adjustResponse.json().catch(() => ({}));
-                logger.error(`Shopify Sync adjust failed for ${sku}: ${JSON.stringify(errBody)}`);
-            }
+            logger.info(`Shopify Sync: Adjusted SKU ${sku} by ${quantityChange}`);
         } catch (error) {
-            logger.error(`Shopify Real-time Sync Error (SKU: ${sku}): ${error.message}`);
+            logger.error(`Shopify Sync Error: ${error.message}`);
         }
     }
 
     /**
-     * Get local products and variants with Shopify sync status (Paginated)
+     * Get products that are not yet linked to Shopify
      */
     async getLocalProducts(organizationId, page = 1, limit = 10, filters = {}) {
-        try {
-            const offset = (page - 1) * limit;
-            const where = { organization_id: organizationId };
-            
-            if (filters.search) {
-                const { Op } = Product.sequelize.Sequelize;
-                where[Op.or] = [
-                    { name: { [Op.like]: `%${filters.search}%` } },
-                    { code: { [Op.like]: `%${filters.search}%` } }
-                ];
-            }
+        const p = parseInt(page) || 1;
+        const l = parseInt(limit) || 10;
+        const offset = (p - 1) * l;
+        const where = { organization_id: organizationId };
 
-            const { count, rows } = await Product.findAndCountAll({
-                where,
-                attributes: ['id', 'name', 'code'],
-                include: [{
-                    model: ProductVariant,
-                    as: 'variants',
-                    attributes: ['id', 'name', 'sku', 'price', 'shopify_sync_enabled']
-                }],
-                order: [['name', 'ASC']],
-                limit: parseInt(limit),
-                offset: parseInt(offset),
-                distinct: true
-            });
-
-            return {
-                data: rows,
-                total: count,
-                page: parseInt(page),
-                limit: parseInt(limit),
-                totalPages: Math.ceil(count / limit)
-            };
-        } catch (error) {
-            logger.error(`Get Local Products Error: ${error.message}`);
-            throw error;
+        if (filters.search) {
+            where[Setting.sequelize.Op.or] = [
+                { name: { [Setting.sequelize.Op.iLike]: `%${filters.search}%` } },
+                { sku: { [Setting.sequelize.Op.iLike]: `%${filters.search}%` } }
+            ];
         }
+
+        // Find Branch ID for stock filtering
+        const config = await this._getFullConfig(organizationId);
+        let branchId = config?.pos_branch_id;
+        if (!branchId) {
+            const mainBranch = await Branch.findOne({
+                where: { organization_id: organizationId, is_main: true },
+                attributes: ['id']
+            });
+            branchId = mainBranch ? mainBranch.id : null;
+        }
+
+        logger.info(`Shopify Sync: Fetching local products for Org: ${organizationId}, Branch: ${branchId}`);
+
+        const order = [];
+        if (filters.sortField === 'stock') {
+            // Sort by total aggregated stock for this branch
+            order.push([
+                Setting.sequelize.literal(`(
+                    SELECT COALESCE(SUM(quantity), 0)
+                    FROM stocks
+                    WHERE product_id = "Product".id
+                    AND branch_id = ${Setting.sequelize.escape(branchId)}
+                    AND organization_id = ${Setting.sequelize.escape(organizationId)}
+                )`),
+                filters.sortOrder || 'DESC'
+            ]);
+        } else if (filters.sortField) {
+            order.push([filters.sortField, filters.sortOrder || 'ASC']);
+        } else {
+            order.push(['created_at', 'DESC']);
+        }
+
+        const { count, rows } = await Product.findAndCountAll({
+            where,
+            include: [
+                { 
+                    model: ProductVariant, 
+                    as: 'variants',
+                    include: [{
+                        model: Stock,
+                        as: 'stocks',
+                        where: { 
+                            organization_id: organizationId,
+                            branch_id: branchId
+                        },
+                        required: false
+                    }]
+                }
+            ],
+            limit: l,
+            offset: offset,
+            order
+        });
+
+        return {
+            total: count,
+            data: rows,
+            totalPages: Math.ceil(count / l)
+        };
     }
 
     async updateShopifyProductStatus(organizationId, productId, status) {
@@ -266,20 +262,24 @@ class ShopifyService {
             const response = await fetch(url, {
                 method: 'PUT',
                 headers: {
-                    'X-Shopify-Access-Token': config.access_token,
+                    'X-Shopify-Access-Token': await tokenManager.getValidToken(organizationId),
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    product: { id: productId, status: status }
-                })
+                    product: {
+                        id: productId,
+                        status: status
+                    }
+                }),
+                signal: AbortSignal.timeout(15000)
             });
 
-            const data = await response.json();
             if (!response.ok) {
-                throw new Error(data.errors ? JSON.stringify(data.errors) : 'Failed to update product status');
+                const err = await response.json().catch(() => ({}));
+                throw new Error(`Shopify API Error: ${JSON.stringify(err.errors || 'Unknown error')}`);
             }
 
-            return data.product;
+            return await response.json();
         } catch (error) {
             logger.error(`Update Shopify Product Status Error: ${error.message}`);
             throw error;
@@ -296,13 +296,14 @@ class ShopifyService {
             const response = await fetch(url, {
                 method: 'DELETE',
                 headers: {
-                    'X-Shopify-Access-Token': config.access_token
-                }
+                    'X-Shopify-Access-Token': await tokenManager.getValidToken(organizationId)
+                },
+                signal: AbortSignal.timeout(15000)
             });
 
             if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.errors ? JSON.stringify(data.errors) : 'Failed to delete Shopify product');
+                const err = await response.json().catch(() => ({}));
+                throw new Error(`Shopify API Error: ${JSON.stringify(err.errors || 'Unknown error')}`);
             }
 
             return true;
@@ -312,29 +313,23 @@ class ShopifyService {
         }
     }
 
-
     /**
      * Update sync status for multiple variants
      */
     async updateProductSyncStatus(organizationId, variantIds, enabled) {
-        try {
-            return await ProductVariant.update(
-                { shopify_sync_enabled: enabled },
-                {
-                    where: {
-                        id: variantIds,
-                        organization_id: organizationId
-                    }
+        return await ProductVariant.update(
+            { shopify_sync_enabled: enabled },
+            {
+                where: {
+                    id: variantIds,
+                    organization_id: organizationId
                 }
-            );
-        } catch (error) {
-            logger.error(`Update Variant Sync Error: ${error.message}`);
-            throw error;
-        }
+            }
+        );
     }
 
     /**
-     * Push enabled variants to Shopify (Bulk)
+     * Push ALL local inventory to Shopify
      */
     async pushAllInventory(organizationId) {
         try {
@@ -348,14 +343,31 @@ class ShopifyService {
             const access_token = await tokenManager.getValidToken(organizationId);
             if (!access_token) throw new Error('Could not obtain a valid Shopify access token. Please check your credentials.');
 
+            // Find Branch ID for stock filtering (Use config.pos_branch_id or fallback to main branch)
+            let branchId = config.pos_branch_id;
+            if (!branchId) {
+                const mainBranch = await Branch.findOne({
+                    where: { organization_id: organizationId, is_main: true },
+                    attributes: ['id']
+                });
+                branchId = mainBranch ? mainBranch.id : null;
+            }
+
             const variants = await ProductVariant.findAll({
                 where: {
                     organization_id: organizationId,
                     shopify_sync_enabled: true
                 },
                 include: [
-                    { model: Setting.sequelize.models.Stock, as: 'stocks', where: { organization_id: organizationId } },
-                    { model: Setting.sequelize.models.ProductBatch, as: 'batches', where: { is_active: true }, order: [['created_at', 'DESC']] },
+                    { 
+                        model: Setting.sequelize.models.Stock, 
+                        as: 'stocks', 
+                        where: { 
+                            organization_id: organizationId,
+                            branch_id: branchId
+                        },
+                        required: false 
+                    },
                     { model: Product, as: 'product' }
                 ]
             });
@@ -379,54 +391,44 @@ class ShopifyService {
                     if (!shopifyItem) { results.skipped++; continue; }
 
                     // Set Stock
-                    const setResponse = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/inventory_levels/set.json`, {
+                    await fetch(`https://${cleanShopUrl}/admin/api/2024-10/inventory_levels/set.json`, {
                         method: 'POST',
                         headers: {
                             'X-Shopify-Access-Token': access_token,
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            location_id: parseInt(location_id),
+                            location_id: location_id,
                             inventory_item_id: shopifyItem.id,
-                            available: Math.round(totalStock)
+                            available: Math.max(0, Math.floor(totalStock))
                         }),
                         signal: AbortSignal.timeout(10000)
                     });
 
-                    if (setResponse.ok) results.pushed++;
-                    else {
-                        const errBody = await setResponse.json().catch(() => ({}));
-                        logger.error(`Push Set failed (SKU: ${sku}): ${JSON.stringify(errBody)}`);
-                        results.failed++;
-                    }
+                    results.pushed++;
                 } catch (err) {
+                    logger.error(`Shopify Push Error (SKU: ${sku}): ${err.message}`);
                     results.failed++;
-                    logger.error(`Push Error (SKU: ${sku}): ${err.message}`);
                 }
             }
 
             return results;
         } catch (error) {
-            logger.error(`Selective Push Error: ${error.message}`);
+            logger.error(`Shopify Bulk Push Error: ${error.message}`);
             throw error;
         }
     }
 
     /**
-     * Get basic analytics from Shopify
+     * Get basic stats for the dashboard
      */
     async getAnalytics(organizationId) {
         try {
             const config = await this._getFullConfig(organizationId);
-            if (!config) throw new Error('Shopify not configured');
+            if (!config) return null;
 
-            const { shop_url } = config;
-            if (!shop_url) throw new Error('Shopify shop URL is not configured. Please save your settings first.');
-            const cleanShopUrl = shop_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
-
-            // Get a valid (auto-refreshed) token
             const access_token = await tokenManager.getValidToken(organizationId);
-            if (!access_token) throw new Error('No valid Shopify token available');
+            const cleanShopUrl = config.shop_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
             let productCount = 0;
             try {
@@ -482,7 +484,7 @@ class ShopifyService {
     }
 
     /**
-     * Fetch products directly from Shopify Admin API with pagination support
+     * Fetch products directly from Shopify Admin API
      */
     async getShopifyProducts(organizationId, search = '', pageInfo = '', limit = 50, filters = {}) {
         try {
@@ -584,27 +586,21 @@ class ShopifyService {
             // Cross-reference with local data
             const skus = shopifyProducts.flatMap(p => p.variants?.map(v => v.sku)).filter(Boolean);
             const localVariants = await ProductVariant.findAll({
-                where: { 
-                    organization_id: organizationId,
-                    sku: skus
-                },
-                attributes: ['id', 'sku', 'name', 'price', 'shopify_sync_enabled'],
-                include: [{ model: Product, as: 'product', attributes: ['name'] }]
+                where: {
+                    sku: skus,
+                    organization_id: organizationId
+                }
             });
 
-            const localSkuMap = localVariants.reduce((map, v) => {
-                map[v.sku] = v;
-                return map;
-            }, {});
+            const skuMap = {};
+            localVariants.forEach(v => { skuMap[v.sku] = v; });
 
-            // Append local link info
-            const enrichedProducts = shopifyProducts.map(p => ({
-                ...p,
-                local_match: p.variants?.map(v => localSkuMap[v.sku] || null).find(m => m !== null) || null
-            }));
+            shopifyProducts.forEach(p => {
+                p.local_match = p.variants?.some(v => skuMap[v.sku]) || false;
+            });
 
             return {
-                products: enrichedProducts,
+                products: shopifyProducts,
                 next_page_info,
                 prev_page_info
             };
@@ -615,7 +611,7 @@ class ShopifyService {
     }
 
     /**
-     * Fetch recent orders directly from Shopify Admin API
+     * Fetch orders from Shopify Admin API
      */
     async getShopifyOrders(organizationId) {
         try {
@@ -643,8 +639,8 @@ class ShopifyService {
             logger.error(`Get Shopify Orders Error: ${error.message}`);
             throw error;
         }
-
     }
+
     /**
      * Fetch store details from Shopify Admin API
      */
@@ -674,8 +670,8 @@ class ShopifyService {
             logger.error(`Get Shopify Store Details Error: ${error.message}`);
             throw error;
         }
-
     }
+
     /**
      * Smart Create: Check if SKU exists on Shopify first, if not create it
      */
@@ -706,10 +702,30 @@ class ShopifyService {
             if (checkData.inventory_items?.length > 0) {
                 // SKU exists! Just enable local sync
                 await variant.update({ shopify_sync_enabled: true });
+                
+                // Immediately push current local stock to the existing SKU
+                const inventoryItemId = checkData.inventory_items[0].id;
+                try {
+                    const totalStock = await this._getLocalStockTotal(organizationId, variantId);
+                    if (config.location_id) {
+                        await fetch(`https://${cleanShopUrl}/admin/api/2024-10/inventory_levels/set.json`, {
+                            method: 'POST',
+                            headers: { 'X-Shopify-Access-Token': access_token, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                location_id: config.location_id,
+                                inventory_item_id: inventoryItemId,
+                                available: Math.max(0, Math.floor(totalStock))
+                            })
+                        });
+                    }
+                } catch (stockErr) {
+                    logger.error(`Shopify: Initial stock push failed for existing SKU: ${stockErr.message}`);
+                }
+
                 return { 
                     action: 'linked', 
-                    message: 'Existing SKU found on Shopify. Product linked successfully.',
-                    shopify_id: checkData.inventory_items[0].id 
+                    message: 'Existing SKU found on Shopify. Product linked and stock synced successfully.',
+                    shopify_id: inventoryItemId 
                 };
             }
 
@@ -748,6 +764,27 @@ class ShopifyService {
             }
 
             const data = await response.json();
+            const createdVariant = data.product?.variants?.[0];
+
+            if (createdVariant && createdVariant.inventory_item_id) {
+                // 3. Immediately Push Current Local Stock to the new SKU
+                try {
+                    const totalStock = await this._getLocalStockTotal(organizationId, variantId);
+                    if (config.location_id) {
+                        await fetch(`https://${cleanShopUrl}/admin/api/2024-10/inventory_levels/set.json`, {
+                            method: 'POST',
+                            headers: { 'X-Shopify-Access-Token': access_token, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                location_id: config.location_id,
+                                inventory_item_id: createdVariant.inventory_item_id,
+                                available: Math.max(0, Math.floor(totalStock))
+                            })
+                        });
+                    }
+                } catch (stockErr) {
+                    logger.error(`Shopify: Initial stock push failed: ${stockErr.message}`);
+                }
+            }
             
             // Mark as enabled locally
             await variant.update({ shopify_sync_enabled: true });
@@ -760,6 +797,42 @@ class ShopifyService {
         } catch (error) {
             logger.error(`Create Shopify Product Error: ${error.message}`);
             throw error;
+        }
+    }
+
+    /**
+     * Helper to get total local stock for a variant
+     */
+    async _getLocalStockTotal(organizationId, variantId) {
+        try {
+            const config = await this._getFullConfig(organizationId);
+            
+            // Find Branch ID for stock filtering
+            let branchId = config?.pos_branch_id;
+            if (!branchId) {
+                const mainBranch = await Branch.findOne({
+                    where: { organization_id: organizationId, is_main: true },
+                    attributes: ['id']
+                });
+                branchId = mainBranch ? mainBranch.id : null;
+            }
+
+            const variant = await ProductVariant.findByPk(variantId, {
+                include: [{ 
+                    model: Setting.sequelize.models.Stock, 
+                    as: 'stocks', 
+                    where: { 
+                        organization_id: organizationId,
+                        branch_id: branchId
+                    },
+                    required: false
+                }]
+            });
+            if (!variant) return 0;
+            return (variant.stocks || []).reduce((sum, s) => sum + parseFloat(s.quantity || 0), 0);
+        } catch (error) {
+            logger.error(`Error calculating local stock total: ${error.message}`);
+            return 0;
         }
     }
 }

@@ -18,7 +18,7 @@ const saveConfig = async (req, res, next) => {
             return errorResponse(res, 'Shopify integration is not enabled for this organization. Please contact your Super Admin.', 403);
         }
 
-        const { shop_url, access_token, client_id, client_secret, location_id, enabled } = req.body;
+        const { shop_url, access_token, client_id, client_secret, location_id, pos_branch_id, enabled } = req.body;
 
         // Verify connection before saving
         const verification = await shopifyService.verifyConnection({ shop_url, access_token });
@@ -30,6 +30,7 @@ const saveConfig = async (req, res, next) => {
             shop_url, 
             access_token: encrypt(access_token), 
             location_id, 
+            pos_branch_id,
             enabled 
         };
 
@@ -105,8 +106,8 @@ const pullProducts = async (req, res, next) => {
 
 const getLocalProducts = async (req, res, next) => {
     try {
-        const { page, limit, categoryId, brandId, search } = req.query;
-        const products = await shopifyService.getLocalProducts(req.user.organization_id, page, limit, { categoryId, brandId, search });
+        const { page, limit, categoryId, brandId, search, sortField, sortOrder } = req.query;
+        const products = await shopifyService.getLocalProducts(req.user.organization_id, page, limit, { categoryId, brandId, search, sortField, sortOrder });
         return successResponse(res, products, 'Local products fetched');
     } catch (error) { next(error); }
 };
