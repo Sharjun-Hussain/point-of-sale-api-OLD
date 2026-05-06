@@ -8,6 +8,7 @@ const { checkUnusualLoginActivity, checkFailedLoginAlert } = require('../utils/a
 const upload = require('../middleware/upload');
 const crypto = require('crypto');
 const { Op } = require('sequelize');
+const logger = require('../utils/logger');
 
 /**
  * Auth Controller
