@@ -44,9 +44,16 @@ const saveConfig = async (req, res, next) => {
         
         if (!created) {
             // Ensure we have a clean object from the DB
-            const currentData = typeof setting.settings_data === 'string' 
+            let currentData = typeof setting.settings_data === 'string' 
                 ? JSON.parse(setting.settings_data) 
                 : setting.get('settings_data') || {};
+
+            // Defensive cleanup: Remove any numeric keys (remnants of previous string-spread corruption)
+            if (currentData && typeof currentData === 'object') {
+                Object.keys(currentData).forEach(key => {
+                    if (!isNaN(key)) delete currentData[key];
+                });
+            }
 
             // Merge new settings with existing ones
             const updatedSettings = {
