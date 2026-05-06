@@ -415,9 +415,9 @@ class ShopifyService {
     }
 
     /**
-     * Fetch products directly from Shopify Admin API and check for local links
+     * Fetch products directly from Shopify Admin API with pagination support
      */
-    async getShopifyProducts(organizationId) {
+    async getShopifyProducts(organizationId, search = '', pageInfo = '', limit = 50) {
         try {
             const config = await this._getFullConfig(organizationId);
             if (!config) throw new Error('Shopify not configured');
@@ -427,7 +427,17 @@ class ShopifyService {
             if (!access_token) throw new Error('No valid Shopify token available');
 
             const cleanShopUrl = shop_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
-            const response = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/products.json?limit=50`, {
+            
+            let url = `https://${cleanShopUrl}/admin/api/2024-10/products.json?limit=${limit}`;
+            
+            if (pageInfo) {
+                // If we have page_info, we must NOT include other filters like search/title
+                url = `https://${cleanShopUrl}/admin/api/2024-10/products.json?limit=${limit}&page_info=${pageInfo}`;
+            } else if (search) {
+                url += `&title=${encodeURIComponent(search)}`;
+            }
+
+            const response = await fetch(url, {
                 headers: { 'X-Shopify-Access-Token': access_token },
                 signal: AbortSignal.timeout(15000)
             });
@@ -437,13 +447,41 @@ class ShopifyService {
                 throw new Error(`Shopify API Error: ${JSON.stringify(err.errors || 'Unknown error')}`);
             }
 
+            // Robust Link header parsing
+            const linkHeader = response.headers.get('Link');
+            let next_page_info = null;
+            let prev_page_info = null;
+
+            if (linkHeader) {
+                const links = linkHeader.split(',');
+                links.forEach(link => {
+                    const [urlPart, relPart] = link.split(';');
+                    const url = urlPart.trim().replace(/<(.*)>/, '$1');
+                    const rel = relPart.trim().replace(/rel="(.*)"/, '$1');
+                    
+                    try {
+                        const urlObj = new URL(url);
+                        const info = urlObj.searchParams.get('page_info');
+                        if (rel === 'next') next_page_info = info;
+                        if (rel === 'previous') prev_page_info = info;
+                    } catch (e) {
+                        // Fallback if URL parsing fails
+                        const match = url.match(/page_info=([^&]*)/);
+                        if (match) {
+                            if (rel === 'next') next_page_info = match[1];
+                            if (rel === 'previous') prev_page_info = match[1];
+                        }
+                    }
+                });
+            }
+
             const data = await response.json();
             const shopifyProducts = data.products || [];
 
-            // Cross-reference with local products by SKU
+            // Cross-reference with local data
             const skus = shopifyProducts.flatMap(p => p.variants?.map(v => v.sku)).filter(Boolean);
             const localVariants = await ProductVariant.findAll({
-                where: {
+                where: { 
                     organization_id: organizationId,
                     sku: skus
                 },
@@ -462,7 +500,11 @@ class ShopifyService {
                 local_match: p.variants?.map(v => localSkuMap[v.sku] || null).find(m => m !== null) || null
             }));
 
-            return enrichedProducts;
+            return {
+                products: enrichedProducts,
+                next_page_info,
+                prev_page_info
+            };
         } catch (error) {
             logger.error(`Get Shopify Products Error: ${error.message}`);
             throw error;
@@ -527,6 +569,93 @@ class ShopifyService {
             return data.shop || null;
         } catch (error) {
             logger.error(`Get Shopify Store Details Error: ${error.message}`);
+            throw error;
+        }
+
+    }
+    /**
+     * Smart Create: Check if SKU exists on Shopify first, if not create it
+     */
+    async createShopifyProduct(organizationId, variantId) {
+        try {
+            const config = await this._getFullConfig(organizationId);
+            if (!config) throw new Error('Shopify not configured');
+
+            const { shop_url } = config;
+            const access_token = await tokenManager.getValidToken(organizationId);
+            const cleanShopUrl = shop_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+
+            const variant = await ProductVariant.findByPk(variantId, {
+                include: [{ model: Product, as: 'product' }]
+            });
+
+            if (!variant) throw new Error('Local variant not found');
+            const sku = variant.sku || variant.barcode;
+            if (!sku) throw new Error('Variant must have a SKU or Barcode to sync with Shopify');
+
+            // 1. Check if SKU already exists on Shopify
+            const checkResponse = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/inventory_items.json?sku=${encodeURIComponent(sku)}`, {
+                headers: { 'X-Shopify-Access-Token': access_token },
+                signal: AbortSignal.timeout(10000)
+            });
+            const checkData = await checkResponse.json();
+            
+            if (checkData.inventory_items?.length > 0) {
+                // SKU exists! Just enable local sync
+                await variant.update({ shopify_sync_enabled: true });
+                return { 
+                    action: 'linked', 
+                    message: 'Existing SKU found on Shopify. Product linked successfully.',
+                    shopify_id: checkData.inventory_items[0].id 
+                };
+            }
+
+            // 2. Create New Product on Shopify
+            const shopifyPayload = {
+                product: {
+                    title: variant.product.name + (variant.name && variant.name !== 'Default' ? ` - ${variant.name}` : ''),
+                    body_html: variant.product.description || 'Synced from Inzeedo POS',
+                    vendor: 'Inzeedo POS',
+                    product_type: 'POS Sync',
+                    status: 'active',
+                    variants: [
+                        {
+                            sku: sku,
+                            price: variant.price,
+                            inventory_management: 'shopify',
+                            inventory_policy: 'deny'
+                        }
+                    ]
+                }
+            };
+
+            const response = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/products.json`, {
+                method: 'POST',
+                headers: {
+                    'X-Shopify-Access-Token': access_token,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(shopifyPayload),
+                signal: AbortSignal.timeout(15000)
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(`Shopify API Error: ${JSON.stringify(err.errors || 'Unknown error')}`);
+            }
+
+            const data = await response.json();
+            
+            // Mark as enabled locally
+            await variant.update({ shopify_sync_enabled: true });
+
+            return { 
+                action: 'created', 
+                message: 'New product created on Shopify successfully.',
+                product: data.product 
+            };
+        } catch (error) {
+            logger.error(`Create Shopify Product Error: ${error.message}`);
             throw error;
         }
     }

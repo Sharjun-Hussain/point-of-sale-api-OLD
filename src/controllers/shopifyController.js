@@ -128,8 +128,9 @@ const getAnalytics = async (req, res, next) => {
 
 const getShopifyProducts = async (req, res, next) => {
     try {
-        const products = await shopifyService.getShopifyProducts(req.user.organization_id);
-        return successResponse(res, products, 'Shopify products fetched');
+        const { search, page_info, limit } = req.query;
+        const result = await shopifyService.getShopifyProducts(req.user.organization_id, search, page_info, limit);
+        return successResponse(res, result, 'Shopify products fetched');
     } catch (error) { next(error); }
 };
 
@@ -137,6 +138,14 @@ const getShopifyOrders = async (req, res, next) => {
     try {
         const orders = await shopifyService.getShopifyOrders(req.user.organization_id);
         return successResponse(res, orders, 'Shopify orders fetched');
+    } catch (error) { next(error); }
+};
+
+const createProduct = async (req, res, next) => {
+    try {
+        const { variant_id } = req.body;
+        const product = await shopifyService.createShopifyProduct(req.user.organization_id, variant_id);
+        return successResponse(res, product, 'Product created on Shopify');
     } catch (error) { next(error); }
 };
 
@@ -158,5 +167,6 @@ module.exports = {
     getShopifyOrders,
     getLocalProducts,
     updateProductSync,
-    getStoreDetails
+    getStoreDetails,
+    createProduct
 };
