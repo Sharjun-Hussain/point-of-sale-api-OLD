@@ -547,6 +547,40 @@ class ShopifyService {
             const data = await response.json();
             const shopifyProducts = data.products || [];
 
+            // Fetch Inventory Levels for all variants to show real-time stock
+            const inventoryItemIds = shopifyProducts.flatMap(p => p.variants.map(v => v.inventory_item_id)).filter(id => !!id);
+            let inventoryMap = {};
+
+            if (inventoryItemIds.length > 0) {
+                try {
+                    // Fetch in chunks of 50 (Shopify limit for inventory_item_ids parameter)
+                    for (let i = 0; i < inventoryItemIds.length; i += 50) {
+                        const chunk = inventoryItemIds.slice(i, i + 50);
+                        const invUrl = `https://${cleanShopUrl}/admin/api/2024-10/inventory_levels.json?inventory_item_ids=${chunk.join(',')}`;
+                        const invRes = await fetch(invUrl, {
+                            headers: { 'X-Shopify-Access-Token': access_token },
+                            signal: AbortSignal.timeout(10000)
+                        });
+                        if (invRes.ok) {
+                            const invData = await invRes.json();
+                            invData.inventory_levels?.forEach(level => {
+                                if (!inventoryMap[level.inventory_item_id]) inventoryMap[level.inventory_item_id] = 0;
+                                inventoryMap[level.inventory_item_id] += (level.available || 0);
+                            });
+                        }
+                    }
+                } catch (invErr) {
+                    logger.error(`Shopify: Failed to fetch inventory levels: ${invErr.message}`);
+                }
+            }
+
+            // Attach inventory to products
+            shopifyProducts.forEach(p => {
+                p.variants?.forEach(v => {
+                    v.inventory_quantity = inventoryMap[v.inventory_item_id] || 0;
+                });
+            });
+
             // Cross-reference with local data
             const skus = shopifyProducts.flatMap(p => p.variants?.map(v => v.sku)).filter(Boolean);
             const localVariants = await ProductVariant.findAll({
