@@ -8,22 +8,23 @@ class ShopifyService {
      * Get Shopify configuration for an organization
      */
     async getConfig(organizationId) {
-        const setting = await Setting.findOne({
-            where: {
-                organization_id: organizationId,
-                category: 'shopify',
-                branch_id: null
-            }
+        const config = await this._getFullConfig(organizationId);
+        if (!config) return null;
+
+        // Verify if the stored credentials actually work
+        const verification = await this.verifyConnection({
+            shop_url: config.shop_url,
+            access_token: config.access_token
         });
 
-        if (!setting || !setting.settings_data) return null;
-
-        const config = { ...setting.settings_data };
-        if (config.access_token) config.access_token = decrypt(config.access_token);
-
-        // Strip client_secret from public config response for security
+        // Strip client_secret for public response
         const { client_secret, ...safeConfig } = config;
-        return safeConfig;
+        
+        return {
+            ...safeConfig,
+            connected: verification.success,
+            shop_name: verification.shop?.name || null
+        };
     }
 
     /**
