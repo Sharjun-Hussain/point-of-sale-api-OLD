@@ -2,6 +2,7 @@ const shopifyService = require('../services/shopifyService');
 const tokenManager = require('../services/shopifyTokenManager');
 const { Setting, Organization } = require('../models');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
+const { encrypt } = require('../utils/security');
 
 const getConfig = async (req, res, next) => {
     try {
@@ -20,22 +21,40 @@ const saveConfig = async (req, res, next) => {
             return errorResponse(res, `Connection Failed: ${verification.message}`, 400);
         }
 
-        const settingsData = { shop_url, access_token, location_id, enabled };
+        const settingsData = { 
+            shop_url, 
+            access_token: encrypt(access_token), 
+            location_id, 
+            enabled 
+        };
+
         // Store OAuth credentials if provided (needed for 24h token auto-refresh)
         if (client_id) settingsData.client_id = client_id;
-        if (client_secret) settingsData.client_secret = client_secret;
+        if (client_secret) settingsData.client_secret = encrypt(client_secret);
         settingsData.token_saved_at = new Date().toISOString();
 
         const [setting, created] = await Setting.findOrCreate({
             where: {
                 organization_id: req.user.organization_id,
-                category: 'shopify'
+                category: 'shopify',
+                branch_id: null // Shopify settings are organization-wide
             },
             defaults: { settings_data: settingsData }
         });
-
+        
         if (!created) {
-            await setting.update({ settings_data: settingsData });
+            // Ensure we have a clean object from the DB
+            const currentData = typeof setting.settings_data === 'string' 
+                ? JSON.parse(setting.settings_data) 
+                : setting.get('settings_data') || {};
+
+            // Merge new settings with existing ones
+            const updatedSettings = {
+                ...currentData,
+                ...settingsData
+            };
+            
+            await setting.update({ settings_data: updatedSettings });
         }
 
         // Seed the in-memory token cache immediately so first requests don't wait

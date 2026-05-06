@@ -1,6 +1,7 @@
 const { Setting, Product, ProductVariant, Organization } = require('../models');
 const logger = require('../utils/logger');
 const tokenManager = require('./shopifyTokenManager');
+const { decrypt } = require('../utils/security');
 
 class ShopifyService {
     /**
@@ -10,14 +11,18 @@ class ShopifyService {
         const setting = await Setting.findOne({
             where: {
                 organization_id: organizationId,
-                category: 'shopify'
+                category: 'shopify',
+                branch_id: null
             }
         });
 
         if (!setting || !setting.settings_data) return null;
 
+        const config = { ...setting.settings_data };
+        if (config.access_token) config.access_token = decrypt(config.access_token);
+
         // Strip client_secret from public config response for security
-        const { client_secret, ...safeConfig } = setting.settings_data;
+        const { client_secret, ...safeConfig } = config;
         return safeConfig;
     }
 
@@ -26,9 +31,33 @@ class ShopifyService {
      */
     async _getFullConfig(organizationId) {
         const setting = await Setting.findOne({
-            where: { organization_id: organizationId, category: 'shopify' }
+            where: { 
+                organization_id: organizationId, 
+                category: 'shopify',
+                branch_id: null
+            }
         });
-        return setting?.settings_data || null;
+        
+        if (!setting) return null;
+
+        // Ensure we have a clean object
+        let rawData = setting.get('settings_data');
+        if (typeof rawData === 'string') {
+            try {
+                rawData = JSON.parse(rawData);
+            } catch (e) {
+                logger.error(`Shopify: Failed to parse settings_data: ${e.message}`);
+                return null;
+            }
+        }
+        
+        if (!rawData || typeof rawData !== 'object') return null;
+
+        const config = { ...rawData };
+        if (config.access_token) config.access_token = decrypt(config.access_token);
+        if (config.client_secret) config.client_secret = decrypt(config.client_secret);
+        
+        return config;
     }
 
     /**
@@ -290,23 +319,44 @@ class ShopifyService {
             if (!config) throw new Error('Shopify not configured');
 
             const { shop_url } = config;
+            if (!shop_url) throw new Error('Shopify shop URL is not configured. Please save your settings first.');
             const cleanShopUrl = shop_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
             // Get a valid (auto-refreshed) token
             const access_token = await tokenManager.getValidToken(organizationId);
             if (!access_token) throw new Error('No valid Shopify token available');
 
-            const productCountRes = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/products/count.json`, {
-                headers: { 'X-Shopify-Access-Token': access_token },
-                signal: AbortSignal.timeout(10000)
-            });
-            const { count: productCount } = await productCountRes.json();
+            let productCount = 0;
+            try {
+                const productCountRes = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/products/count.json`, {
+                    headers: { 'X-Shopify-Access-Token': access_token },
+                    signal: AbortSignal.timeout(10000)
+                });
+                if (productCountRes.ok) {
+                    const pcData = await productCountRes.json();
+                    productCount = pcData.count || 0;
+                } else {
+                    logger.error(`Shopify Product Count failed: ${productCountRes.status}`);
+                }
+            } catch (pcErr) {
+                logger.error(`Shopify Product Count error: ${pcErr.message}`);
+            }
 
-            const orderCountRes = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/orders/count.json?status=any`, {
-                headers: { 'X-Shopify-Access-Token': access_token },
-                signal: AbortSignal.timeout(10000)
-            });
-            const { count: orderCount } = await orderCountRes.json();
+            let orderCount = 0;
+            try {
+                const orderCountRes = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/orders/count.json?status=any`, {
+                    headers: { 'X-Shopify-Access-Token': access_token },
+                    signal: AbortSignal.timeout(10000)
+                });
+                if (orderCountRes.ok) {
+                    const ocData = await orderCountRes.json();
+                    orderCount = ocData.count || 0;
+                } else {
+                    logger.error(`Shopify Order Count failed: ${orderCountRes.status}`);
+                }
+            } catch (ocErr) {
+                logger.error(`Shopify Order Count error: ${ocErr.message}`);
+            }
 
             // Local Stats: Variants ENABLED for Shopify sync
             const linkedVariants = await ProductVariant.count({

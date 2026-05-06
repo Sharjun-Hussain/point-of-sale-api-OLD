@@ -1,5 +1,6 @@
 const { Setting } = require('../models');
 const logger = require('../utils/logger');
+const { encrypt, decrypt } = require('../utils/security');
 
 /**
  * ShopifyTokenManager
@@ -138,9 +139,20 @@ class ShopifyTokenManager {
     async _loadConfig(organizationId) {
         try {
             const setting = await Setting.findOne({
-                where: { organization_id: organizationId, category: 'shopify' }
+                where: { 
+                    organization_id: organizationId, 
+                    category: 'shopify',
+                    branch_id: null
+                }
             });
-            return setting?.settings_data || null;
+            
+            if (!setting?.settings_data) return null;
+
+            const config = { ...setting.settings_data };
+            if (config.access_token) config.access_token = decrypt(config.access_token);
+            if (config.client_secret) config.client_secret = decrypt(config.client_secret);
+            
+            return config;
         } catch (err) {
             logger.error(`ShopifyTokenManager: Failed to load config: ${err.message}`);
             return null;
@@ -152,15 +164,27 @@ class ShopifyTokenManager {
      */
     async _persistToken(organizationId, newToken, existingConfig) {
         try {
+            // Re-encrypt everything before saving
+            const settingsToSave = {
+                ...existingConfig,
+                access_token: encrypt(newToken),
+                token_refreshed_at: new Date().toISOString()
+            };
+
+            // Ensure existing credentials in existingConfig are re-encrypted if they were decrypted
+            if (settingsToSave.client_secret) {
+                settingsToSave.client_secret = encrypt(settingsToSave.client_secret);
+            }
+
             await Setting.update(
-                {
-                    settings_data: {
-                        ...existingConfig,
-                        access_token: newToken,
-                        token_refreshed_at: new Date().toISOString()
-                    }
-                },
-                { where: { organization_id: organizationId, category: 'shopify' } }
+                { settings_data: settingsToSave },
+                { 
+                    where: { 
+                        organization_id: organizationId, 
+                        category: 'shopify',
+                        branch_id: null
+                    } 
+                }
             );
         } catch (err) {
             logger.error(`ShopifyTokenManager: Failed to persist token: ${err.message}`);
