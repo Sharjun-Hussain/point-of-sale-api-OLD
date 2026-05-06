@@ -156,6 +156,22 @@ const getStoreDetails = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const updateProductStatus = async (req, res, next) => {
+    try {
+        const { product_id, status } = req.body;
+        const product = await shopifyService.updateShopifyProductStatus(req.user.organization_id, product_id, status);
+        return successResponse(res, product, `Product status updated to ${status}`);
+    } catch (error) { next(error); }
+};
+
+const deleteProduct = async (req, res, next) => {
+    try {
+        const { product_id } = req.body;
+        await shopifyService.deleteShopifyProduct(req.user.organization_id, product_id);
+        return successResponse(res, null, 'Product deleted from Shopify');
+    } catch (error) { next(error); }
+};
+
 module.exports = {
     getConfig,
     saveConfig,
@@ -168,5 +184,7 @@ module.exports = {
     getLocalProducts,
     updateProductSync,
     getStoreDetails,
-    createProduct
+    createProduct,
+    updateProductStatus,
+    deleteProduct
 };

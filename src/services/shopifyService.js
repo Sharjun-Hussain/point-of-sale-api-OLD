@@ -256,6 +256,61 @@ class ShopifyService {
         }
     }
 
+    async updateShopifyProductStatus(organizationId, productId, status) {
+        try {
+            const config = await this.getShopifyConfig(organizationId);
+            if (!config) throw new Error('Shopify not configured');
+
+            const url = `https://${config.shop_url}/admin/api/2024-01/products/${productId}.json`;
+            const response = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'X-Shopify-Access-Token': config.access_token,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    product: { id: productId, status: status }
+                })
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.errors ? JSON.stringify(data.errors) : 'Failed to update product status');
+            }
+
+            return data.product;
+        } catch (error) {
+            logger.error(`Update Shopify Product Status Error: ${error.message}`);
+            throw error;
+        }
+    }
+
+    async deleteShopifyProduct(organizationId, productId) {
+        try {
+            const config = await this.getShopifyConfig(organizationId);
+            if (!config) throw new Error('Shopify not configured');
+
+            const url = `https://${config.shop_url}/admin/api/2024-01/products/${productId}.json`;
+            const response = await fetch(url, {
+                method: 'DELETE',
+                headers: {
+                    'X-Shopify-Access-Token': config.access_token
+                }
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.errors ? JSON.stringify(data.errors) : 'Failed to delete Shopify product');
+            }
+
+            return true;
+        } catch (error) {
+            logger.error(`Delete Shopify Product Error: ${error.message}`);
+            throw error;
+        }
+    }
+
+
     /**
      * Update sync status for multiple variants
      */
