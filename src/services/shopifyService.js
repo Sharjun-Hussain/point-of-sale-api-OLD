@@ -258,10 +258,11 @@ class ShopifyService {
 
     async updateShopifyProductStatus(organizationId, productId, status) {
         try {
-            const config = await this.getShopifyConfig(organizationId);
+            const config = await this._getFullConfig(organizationId);
             if (!config) throw new Error('Shopify not configured');
 
-            const url = `https://${config.shop_url}/admin/api/2024-01/products/${productId}.json`;
+            const cleanShopUrl = config.shop_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+            const url = `https://${cleanShopUrl}/admin/api/2024-01/products/${productId}.json`;
             const response = await fetch(url, {
                 method: 'PUT',
                 headers: {
@@ -287,10 +288,11 @@ class ShopifyService {
 
     async deleteShopifyProduct(organizationId, productId) {
         try {
-            const config = await this.getShopifyConfig(organizationId);
+            const config = await this._getFullConfig(organizationId);
             if (!config) throw new Error('Shopify not configured');
 
-            const url = `https://${config.shop_url}/admin/api/2024-01/products/${productId}.json`;
+            const cleanShopUrl = config.shop_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+            const url = `https://${cleanShopUrl}/admin/api/2024-01/products/${productId}.json`;
             const response = await fetch(url, {
                 method: 'DELETE',
                 headers: {
