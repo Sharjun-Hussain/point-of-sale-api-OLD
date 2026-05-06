@@ -376,6 +376,35 @@ const createGRN = async (req, res, next) => {
         }
 
         await t.commit();
+
+        // --- SHOPIFY SYNC ---
+        (async () => {
+            try {
+                const shopifyService = require('../services/shopifyService');
+                for (const item of items) {
+                    let sku = null;
+                    const pVariantId = item.product_variant_id || item.productVariantId;
+                    const pProductId = item.product_id || item.productId;
+
+                    if (pVariantId) {
+                        const variant = await db.ProductVariant.findByPk(pVariantId);
+                        sku = variant?.sku || variant?.barcode;
+                    } else {
+                        const product = await db.Product.findByPk(pProductId);
+                        sku = product?.code || product?.barcode;
+                    }
+
+                    if (sku) {
+                        const qtyReceived = parseFloat(item.quantity_received || item.received_qty || item.receivedQty || 0);
+                        const freeQty = parseFloat(item.free_qty || item.freeQty || 0);
+                        await shopifyService.syncInventory(organization_id, sku, qtyReceived + freeQty);
+                    }
+                }
+            } catch (err) {
+                console.error('[SHOPIFY] GRN sync failed:', err);
+            }
+        })();
+
         return successResponse(res, grn, 'GRN created and stock updated successfully', 201);
     } catch (error) {
         await t.rollback();

@@ -13,6 +13,11 @@ const getConfig = async (req, res, next) => {
 
 const saveConfig = async (req, res, next) => {
     try {
+        const organization = await Organization.findByPk(req.user.organization_id);
+        if (!organization?.shopify_enabled) {
+            return errorResponse(res, 'Shopify integration is not enabled for this organization. Please contact your Super Admin.', 403);
+        }
+
         const { shop_url, access_token, client_id, client_secret, location_id, enabled } = req.body;
 
         // Verify connection before saving

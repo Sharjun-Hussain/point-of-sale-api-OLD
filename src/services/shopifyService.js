@@ -31,6 +31,16 @@ class ShopifyService {
      * Get full config including credentials (internal use only)
      */
     async _getFullConfig(organizationId) {
+        // 1. Check if organization has Shopify enabled at the master level
+        const org = await Organization.findByPk(organizationId, {
+            attributes: ['id', 'shopify_enabled']
+        });
+
+        if (!org || !org.shopify_enabled) {
+            return null;
+        }
+
+        // 2. Fetch specific Shopify settings
         const setting = await Setting.findOne({
             where: { 
                 organization_id: organizationId, 
@@ -53,6 +63,18 @@ class ShopifyService {
         }
         
         if (!rawData || typeof rawData !== 'object') return null;
+
+        // Defensive cleanup: If data has numeric keys (corrupted string-spread), reconstruct it
+        if (rawData['0'] !== undefined) {
+            const keys = Object.keys(rawData).filter(k => !isNaN(k)).sort((a, b) => Number(a) - Number(b));
+            const jsonStr = keys.map(k => rawData[k]).join('');
+            try {
+                rawData = JSON.parse(jsonStr);
+            } catch (e) {
+                logger.error(`Shopify: Failed to reconstruct corrupted settings: ${e.message}`);
+                return null;
+            }
+        }
 
         const config = { ...rawData };
         if (config.access_token) config.access_token = decrypt(config.access_token);

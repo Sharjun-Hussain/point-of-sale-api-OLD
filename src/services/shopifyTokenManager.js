@@ -148,7 +148,24 @@ class ShopifyTokenManager {
             
             if (!setting?.settings_data) return null;
 
-            const config = { ...setting.settings_data };
+            let rawData = setting.settings_data;
+            if (typeof rawData === 'string') {
+                try { rawData = JSON.parse(rawData); } catch (e) {}
+            }
+
+            // Defensive cleanup for string-spread corruption
+            if (rawData && typeof rawData === 'object' && rawData['0'] !== undefined) {
+                const keys = Object.keys(rawData).filter(k => !isNaN(k)).sort((a, b) => Number(a) - Number(b));
+                const jsonStr = keys.map(k => rawData[k]).join('');
+                try {
+                    rawData = JSON.parse(jsonStr);
+                } catch (e) {
+                    logger.error(`ShopifyTokenManager: Failed to reconstruct corrupted settings: ${e.message}`);
+                    return null;
+                }
+            }
+
+            const config = { ...rawData };
             if (config.access_token) config.access_token = decrypt(config.access_token);
             if (config.client_secret) config.client_secret = decrypt(config.client_secret);
             

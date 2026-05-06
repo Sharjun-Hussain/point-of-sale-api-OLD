@@ -346,6 +346,30 @@ const createSaleReturn = async (req, res, next) => {
             userAgent
         );
 
+
+        // --- SHOPIFY SYNC ---
+        (async () => {
+            try {
+                const shopifyService = require('../services/shopifyService');
+                for (const item of items) {
+                    let sku = null;
+                    if (item.product_variant_id) {
+                        const variant = await ProductVariant.findByPk(item.product_variant_id);
+                        sku = variant?.sku || variant?.barcode;
+                    } else {
+                        const product = await Product.findByPk(item.product_id);
+                        sku = product?.code || product?.barcode;
+                    }
+
+                    if (sku) {
+                        await shopifyService.syncInventory(organization_id, sku, parseFloat(item.quantity));
+                    }
+                }
+            } catch (err) {
+                console.error('[SHOPIFY] Sale Return sync failed:', err);
+            }
+        })();
+
         return successResponse(res, saleReturn, 'Sale Return processed successfully', 201);
 
     } catch (error) {

@@ -151,6 +151,28 @@ const createWastage = async (req, res, next) => {
         );
 
         await t.commit();
+
+        // --- SHOPIFY SYNC ---
+        (async () => {
+            try {
+                const shopifyService = require('../services/shopifyService');
+                let sku = null;
+                if (product_variant_id) {
+                    const variant = await ProductVariant.findByPk(product_variant_id);
+                    sku = variant?.sku || variant?.barcode;
+                } else {
+                    const product = await Product.findByPk(product_id);
+                    sku = product?.code || product?.barcode;
+                }
+
+                if (sku) {
+                    await shopifyService.syncInventory(organization_id, sku, -qtyValue);
+                }
+            } catch (err) {
+                console.error('[SHOPIFY] Wastage sync failed:', err);
+            }
+        })();
+
         return successResponse(res, wastage, 'Wastage recorded successfully', 201);
     } catch (error) {
         await t.rollback();

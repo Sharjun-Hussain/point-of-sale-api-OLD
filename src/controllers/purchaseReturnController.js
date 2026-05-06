@@ -297,6 +297,30 @@ const createPurchaseReturn = async (req, res, next) => {
         }
 
         await t.commit();
+
+        // --- SHOPIFY SYNC ---
+        (async () => {
+            try {
+                const shopifyService = require('../services/shopifyService');
+                for (const item of processedItems) {
+                    let sku = null;
+                    if (item.product_variant_id) {
+                        const variant = await ProductVariant.findByPk(item.product_variant_id);
+                        sku = variant?.sku || variant?.barcode;
+                    } else {
+                        const product = await Product.findByPk(item.product_id);
+                        sku = product?.code || product?.barcode;
+                    }
+
+                    if (sku) {
+                        await shopifyService.syncInventory(organization_id, sku, -parseFloat(item.quantity));
+                    }
+                }
+            } catch (err) {
+                console.error('[SHOPIFY] Purchase Return sync failed:', err);
+            }
+        })();
+
         return successResponse(res, purchaseReturn, 'Purchase Return created successfully', 201);
 
     } catch (error) {
