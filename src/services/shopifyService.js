@@ -185,9 +185,22 @@ class ShopifyService {
         const where = { organization_id: organizationId };
 
         if (filters.search) {
+            const searchVal = `%${filters.search}%`;
             where[Setting.sequelize.Op.or] = [
-                { name: { [Setting.sequelize.Op.iLike]: `%${filters.search}%` } },
-                { sku: { [Setting.sequelize.Op.iLike]: `%${filters.search}%` } }
+                { name: { [Setting.sequelize.Op.iLike]: searchVal } },
+                { sku: { [Setting.sequelize.Op.iLike]: searchVal } },
+                { code: { [Setting.sequelize.Op.iLike]: searchVal } },
+                { barcode: { [Setting.sequelize.Op.iLike]: searchVal } },
+                // Match variants as well
+                Setting.sequelize.literal(`EXISTS (
+                    SELECT 1 FROM product_variants 
+                    WHERE product_variants.product_id = "Product".id 
+                    AND (
+                        product_variants.name ILIKE ${Setting.sequelize.escape(searchVal)} OR 
+                        product_variants.sku ILIKE ${Setting.sequelize.escape(searchVal)} OR 
+                        product_variants.barcode ILIKE ${Setting.sequelize.escape(searchVal)}
+                    )
+                )`)
             ];
         }
 
@@ -226,13 +239,13 @@ class ShopifyService {
         const { count, rows } = await Product.findAndCountAll({
             where,
             include: [
-                { 
-                    model: ProductVariant, 
+                {
+                    model: ProductVariant,
                     as: 'variants',
                     include: [{
                         model: Stock,
                         as: 'stocks',
-                        where: { 
+                        where: {
                             organization_id: organizationId,
                             branch_id: branchId
                         },
@@ -359,14 +372,14 @@ class ShopifyService {
                     shopify_sync_enabled: true
                 },
                 include: [
-                    { 
-                        model: Setting.sequelize.models.Stock, 
-                        as: 'stocks', 
-                        where: { 
+                    {
+                        model: Setting.sequelize.models.Stock,
+                        as: 'stocks',
+                        where: {
                             organization_id: organizationId,
                             branch_id: branchId
                         },
-                        required: false 
+                        required: false
                     },
                     { model: Product, as: 'product' }
                 ]
@@ -496,9 +509,9 @@ class ShopifyService {
             if (!access_token) throw new Error('No valid Shopify token available');
 
             const cleanShopUrl = shop_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
-            
+
             let url = `https://${cleanShopUrl}/admin/api/2024-10/products.json?limit=${limit}`;
-            
+
             if (pageInfo) {
                 // If we have page_info, we must NOT include other filters like search/title
                 url = `https://${cleanShopUrl}/admin/api/2024-10/products.json?limit=${limit}&page_info=${pageInfo}`;
@@ -529,7 +542,7 @@ class ShopifyService {
                     const [urlPart, relPart] = link.split(';');
                     const url = urlPart.trim().replace(/<(.*)>/, '$1');
                     const rel = relPart.trim().replace(/rel="(.*)"/, '$1');
-                    
+
                     try {
                         const urlObj = new URL(url);
                         const info = urlObj.searchParams.get('page_info');
@@ -698,11 +711,11 @@ class ShopifyService {
                 signal: AbortSignal.timeout(10000)
             });
             const checkData = await checkResponse.json();
-            
+
             if (checkData.inventory_items?.length > 0) {
                 // SKU exists! Just enable local sync
                 await variant.update({ shopify_sync_enabled: true });
-                
+
                 // Immediately push current local stock to the existing SKU
                 const inventoryItemId = checkData.inventory_items[0].id;
                 try {
@@ -722,10 +735,10 @@ class ShopifyService {
                     logger.error(`Shopify: Initial stock push failed for existing SKU: ${stockErr.message}`);
                 }
 
-                return { 
-                    action: 'linked', 
+                return {
+                    action: 'linked',
                     message: 'Existing SKU found on Shopify. Product linked and stock synced successfully.',
-                    shopify_id: inventoryItemId 
+                    shopify_id: inventoryItemId
                 };
             }
 
@@ -785,14 +798,14 @@ class ShopifyService {
                     logger.error(`Shopify: Initial stock push failed: ${stockErr.message}`);
                 }
             }
-            
+
             // Mark as enabled locally
             await variant.update({ shopify_sync_enabled: true });
 
-            return { 
-                action: 'created', 
+            return {
+                action: 'created',
                 message: 'New product created on Shopify successfully.',
-                product: data.product 
+                product: data.product
             };
         } catch (error) {
             logger.error(`Create Shopify Product Error: ${error.message}`);
@@ -806,7 +819,7 @@ class ShopifyService {
     async _getLocalStockTotal(organizationId, variantId) {
         try {
             const config = await this._getFullConfig(organizationId);
-            
+
             // Find Branch ID for stock filtering
             let branchId = config?.pos_branch_id;
             if (!branchId) {
@@ -818,10 +831,10 @@ class ShopifyService {
             }
 
             const variant = await ProductVariant.findByPk(variantId, {
-                include: [{ 
-                    model: Setting.sequelize.models.Stock, 
-                    as: 'stocks', 
-                    where: { 
+                include: [{
+                    model: Setting.sequelize.models.Stock,
+                    as: 'stocks',
+                    where: {
                         organization_id: organizationId,
                         branch_id: branchId
                     },
