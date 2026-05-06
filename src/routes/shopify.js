@@ -13,6 +13,8 @@ router.post('/push', checkPermission('settings:manage'), shopifyController.pushI
 router.post('/pull', checkPermission('settings:manage'), shopifyController.pullProducts);
 router.get('/analytics', checkPermission('settings:manage'), shopifyController.getAnalytics);
 router.get('/products', checkPermission('settings:manage'), shopifyController.getLocalProducts);
+router.get('/shopify-products', checkPermission('settings:manage'), shopifyController.getShopifyProducts);
+router.get('/shopify-orders', checkPermission('settings:manage'), shopifyController.getShopifyOrders);
 router.post('/products/sync', checkPermission('settings:manage'), shopifyController.updateProductSync);
 
 module.exports = router;

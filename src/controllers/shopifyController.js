@@ -125,6 +125,20 @@ const getAnalytics = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const getShopifyProducts = async (req, res, next) => {
+    try {
+        const products = await shopifyService.getShopifyProducts(req.user.organization_id);
+        return successResponse(res, products, 'Shopify products fetched');
+    } catch (error) { next(error); }
+};
+
+const getShopifyOrders = async (req, res, next) => {
+    try {
+        const orders = await shopifyService.getShopifyOrders(req.user.organization_id);
+        return successResponse(res, orders, 'Shopify orders fetched');
+    } catch (error) { next(error); }
+};
+
 module.exports = {
     getConfig,
     saveConfig,
@@ -132,6 +146,8 @@ module.exports = {
     pushInventory,
     pullProducts,
     getAnalytics,
+    getShopifyProducts,
+    getShopifyOrders,
     getLocalProducts,
     updateProductSync
 };

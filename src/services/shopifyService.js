@@ -401,6 +401,68 @@ class ShopifyService {
             throw error;
         }
     }
+
+    /**
+     * Fetch products directly from Shopify Admin API
+     */
+    async getShopifyProducts(organizationId) {
+        try {
+            const config = await this._getFullConfig(organizationId);
+            if (!config) throw new Error('Shopify not configured');
+
+            const { shop_url } = config;
+            const access_token = await tokenManager.getValidToken(organizationId);
+            if (!access_token) throw new Error('No valid Shopify token available');
+
+            const cleanShopUrl = shop_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+            const response = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/products.json?limit=50`, {
+                headers: { 'X-Shopify-Access-Token': access_token },
+                signal: AbortSignal.timeout(15000)
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(`Shopify API Error: ${JSON.stringify(err.errors || 'Unknown error')}`);
+            }
+
+            const data = await response.json();
+            return data.products || [];
+        } catch (error) {
+            logger.error(`Get Shopify Products Error: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Fetch recent orders directly from Shopify Admin API
+     */
+    async getShopifyOrders(organizationId) {
+        try {
+            const config = await this._getFullConfig(organizationId);
+            if (!config) throw new Error('Shopify not configured');
+
+            const { shop_url } = config;
+            const access_token = await tokenManager.getValidToken(organizationId);
+            if (!access_token) throw new Error('No valid Shopify token available');
+
+            const cleanShopUrl = shop_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+            const response = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/orders.json?limit=50&status=any`, {
+                headers: { 'X-Shopify-Access-Token': access_token },
+                signal: AbortSignal.timeout(15000)
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(`Shopify API Error: ${JSON.stringify(err.errors || 'Unknown error')}`);
+            }
+
+            const data = await response.json();
+            return data.orders || [];
+        } catch (error) {
+            logger.error(`Get Shopify Orders Error: ${error.message}`);
+            throw error;
+        }
+    }
 }
 
 module.exports = new ShopifyService();
