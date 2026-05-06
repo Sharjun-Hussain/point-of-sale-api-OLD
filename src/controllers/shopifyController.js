@@ -105,7 +105,8 @@ const pullProducts = async (req, res, next) => {
 
 const getLocalProducts = async (req, res, next) => {
     try {
-        const products = await shopifyService.getLocalProducts(req.user.organization_id);
+        const { page, limit } = req.query;
+        const products = await shopifyService.getLocalProducts(req.user.organization_id, page, limit);
         return successResponse(res, products, 'Local products fetched');
     } catch (error) { next(error); }
 };

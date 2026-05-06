@@ -214,11 +214,12 @@ class ShopifyService {
     }
 
     /**
-     * Get local products and variants with Shopify sync status
+     * Get local products and variants with Shopify sync status (Paginated)
      */
-    async getLocalProducts(organizationId) {
+    async getLocalProducts(organizationId, page = 1, limit = 10) {
         try {
-            return await Product.findAll({
+            const offset = (page - 1) * limit;
+            const { count, rows } = await Product.findAndCountAll({
                 where: { organization_id: organizationId },
                 attributes: ['id', 'name', 'code'],
                 include: [{
@@ -226,8 +227,19 @@ class ShopifyService {
                     as: 'variants',
                     attributes: ['id', 'name', 'sku', 'price', 'shopify_sync_enabled']
                 }],
-                order: [['name', 'ASC']]
+                order: [['name', 'ASC']],
+                limit: parseInt(limit),
+                offset: parseInt(offset),
+                distinct: true // Ensure count is correct with includes
             });
+
+            return {
+                data: rows,
+                total: count,
+                page: parseInt(page),
+                limit: parseInt(limit),
+                totalPages: Math.ceil(count / limit)
+            };
         } catch (error) {
             logger.error(`Get Local Products Error: ${error.message}`);
             throw error;
