@@ -204,6 +204,37 @@ class MaintenanceService {
         
         try {
             const health = await this.getSystemHealth();
+            
+            // Get previous counters to calculate rate
+            const lastStatsRaw = await redisService.client.get('pos:telemetry:last_counters');
+            const lastStats = lastStatsRaw ? JSON.parse(lastStatsRaw) : null;
+            
+            // Get current HTTP counters from Redis
+            const httpRequests = parseInt(await redisService.client.get('pos:traffic:requests') || 0);
+            const httpBytesIn  = parseInt(await redisService.client.get('pos:traffic:bytes_in') || 0);
+            
+            const currentCounters = {
+                timestamp: new Date().getTime(),
+                httpRequests,
+                httpBytesIn,
+                dbBytesIn: health.db.bytesReceived || 0,
+                dbBytesOut: health.db.bytesSent || 0
+            };
+
+            // Calculate throughput (Rate per 30s)
+            let httpReqRate = 0;
+            let httpInRate  = 0;
+            let dbInRate    = 0;
+            let dbOutRate   = 0;
+
+            if (lastStats) {
+                // We use Math.max(0, ...) to handle counter resets
+                httpReqRate = Math.max(0, currentCounters.httpRequests - lastStats.httpRequests);
+                httpInRate  = Math.max(0, currentCounters.httpBytesIn  - lastStats.httpBytesIn);
+                dbInRate    = Math.max(0, currentCounters.dbBytesIn    - lastStats.dbBytesIn);
+                dbOutRate   = Math.max(0, currentCounters.dbBytesOut   - lastStats.dbBytesOut);
+            }
+
             const point = {
                 timestamp: new Date().toISOString(),
                 heapUsed: parseInt(health.memory.heapUsed),
@@ -213,13 +244,22 @@ class MaintenanceService {
                 cpuLoad: health.system.load[0], // 1m average
                 ioUtil: health.system.io,
                 threads: health.db.threadsConnected || 0,
-                slowQueries: health.db.slowQueries || 0
+                slowQueries: health.db.slowQueries || 0,
+                // New Traffic Metrics (Rate per 30s)
+                httpReqRate,
+                httpInRate: Math.round(httpInRate / 1024), // KB per 30s
+                dbInRate: Math.round(dbInRate / 1024),     // KB per 30s
+                dbOutRate: Math.round(dbOutRate / 1024)    // KB per 30s
             };
 
             const listKey = 'pos:telemetry:health';
             const pipeline = redisService.client.pipeline();
             pipeline.lpush(listKey, JSON.stringify(point));
             pipeline.ltrim(listKey, 0, 1439); // Keep last 24 hours (1440 points)
+            
+            // Update last counters for next calculation
+            pipeline.set('pos:telemetry:last_counters', JSON.stringify(currentCounters));
+            
             await pipeline.exec();
         } catch (err) {
             logger.error(`Telemetry Record Error: ${err.message}`);
