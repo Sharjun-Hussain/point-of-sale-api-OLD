@@ -140,6 +140,13 @@ const getShopifyOrders = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const getStoreDetails = async (req, res, next) => {
+    try {
+        const shop = await shopifyService.getShopifyStoreDetails(req.user.organization_id);
+        return successResponse(res, shop, 'Store details fetched');
+    } catch (error) { next(error); }
+};
+
 module.exports = {
     getConfig,
     saveConfig,
@@ -150,5 +157,6 @@ module.exports = {
     getShopifyProducts,
     getShopifyOrders,
     getLocalProducts,
-    updateProductSync
+    updateProductSync,
+    getStoreDetails
 };

@@ -19,7 +19,7 @@ class ShopifyService {
 
         // Strip client_secret for public response
         const { client_secret, ...safeConfig } = config;
-        
+
         return {
             ...safeConfig,
             connected: verification.success,
@@ -42,13 +42,13 @@ class ShopifyService {
 
         // 2. Fetch specific Shopify settings
         const setting = await Setting.findOne({
-            where: { 
-                organization_id: organizationId, 
+            where: {
+                organization_id: organizationId,
                 category: 'shopify',
                 branch_id: null
             }
         });
-        
+
         if (!setting) return null;
 
         // Ensure we have a clean object
@@ -61,7 +61,7 @@ class ShopifyService {
                 return null;
             }
         }
-        
+
         if (!rawData || typeof rawData !== 'object') return null;
 
         // Defensive cleanup: If data has numeric keys (corrupted string-spread), reconstruct it
@@ -79,7 +79,7 @@ class ShopifyService {
         const config = { ...rawData };
         if (config.access_token) config.access_token = decrypt(config.access_token);
         if (config.client_secret) config.client_secret = decrypt(config.client_secret);
-        
+
         return config;
     }
 
@@ -253,11 +253,11 @@ class ShopifyService {
         try {
             return await ProductVariant.update(
                 { shopify_sync_enabled: enabled },
-                { 
-                    where: { 
+                {
+                    where: {
                         id: variantIds,
-                        organization_id: organizationId 
-                    } 
+                        organization_id: organizationId
+                    }
                 }
             );
         } catch (error) {
@@ -282,7 +282,7 @@ class ShopifyService {
             if (!access_token) throw new Error('Could not obtain a valid Shopify access token. Please check your credentials.');
 
             const variants = await ProductVariant.findAll({
-                where: { 
+                where: {
                     organization_id: organizationId,
                     shopify_sync_enabled: true
                 },
@@ -294,7 +294,7 @@ class ShopifyService {
             });
 
             const results = { total: variants.length, pushed: 0, failed: 0, skipped: 0 };
-            
+
             for (const variant of variants) {
                 const sku = variant.sku || variant.barcode || variant.product?.code;
                 if (!sku) { results.skipped++; continue; }
@@ -395,7 +395,7 @@ class ShopifyService {
 
             // Local Stats: Variants ENABLED for Shopify sync
             const linkedVariants = await ProductVariant.count({
-                where: { 
+                where: {
                     organization_id: organizationId,
                     shopify_sync_enabled: true
                 }
@@ -443,7 +443,7 @@ class ShopifyService {
             // Cross-reference with local products by SKU
             const skus = shopifyProducts.flatMap(p => p.variants?.map(v => v.sku)).filter(Boolean);
             const localVariants = await ProductVariant.findAll({
-                where: { 
+                where: {
                     organization_id: organizationId,
                     sku: skus
                 },
@@ -496,6 +496,37 @@ class ShopifyService {
             return data.orders || [];
         } catch (error) {
             logger.error(`Get Shopify Orders Error: ${error.message}`);
+            throw error;
+        }
+
+    }
+    /**
+     * Fetch store details from Shopify Admin API
+     */
+    async getShopifyStoreDetails(organizationId) {
+        try {
+            const config = await this._getFullConfig(organizationId);
+            if (!config) throw new Error('Shopify not configured');
+
+            const { shop_url } = config;
+            const access_token = await tokenManager.getValidToken(organizationId);
+            if (!access_token) throw new Error('No valid Shopify token available');
+
+            const cleanShopUrl = shop_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+            const response = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/shop.json`, {
+                headers: { 'X-Shopify-Access-Token': access_token },
+                signal: AbortSignal.timeout(10000)
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(`Shopify API Error: ${JSON.stringify(err.errors || 'Unknown error')}`);
+            }
+
+            const data = await response.json();
+            return data.shop || null;
+        } catch (error) {
+            logger.error(`Get Shopify Store Details Error: ${error.message}`);
             throw error;
         }
     }
