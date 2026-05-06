@@ -216,11 +216,21 @@ class ShopifyService {
     /**
      * Get local products and variants with Shopify sync status (Paginated)
      */
-    async getLocalProducts(organizationId, page = 1, limit = 10) {
+    async getLocalProducts(organizationId, page = 1, limit = 10, filters = {}) {
         try {
             const offset = (page - 1) * limit;
+            const where = { organization_id: organizationId };
+            
+            if (filters.search) {
+                const { Op } = Product.sequelize.Sequelize;
+                where[Op.or] = [
+                    { name: { [Op.like]: `%${filters.search}%` } },
+                    { code: { [Op.like]: `%${filters.search}%` } }
+                ];
+            }
+
             const { count, rows } = await Product.findAndCountAll({
-                where: { organization_id: organizationId },
+                where,
                 attributes: ['id', 'name', 'code'],
                 include: [{
                     model: ProductVariant,
@@ -230,7 +240,7 @@ class ShopifyService {
                 order: [['name', 'ASC']],
                 limit: parseInt(limit),
                 offset: parseInt(offset),
-                distinct: true // Ensure count is correct with includes
+                distinct: true
             });
 
             return {
@@ -417,7 +427,7 @@ class ShopifyService {
     /**
      * Fetch products directly from Shopify Admin API with pagination support
      */
-    async getShopifyProducts(organizationId, search = '', pageInfo = '', limit = 50) {
+    async getShopifyProducts(organizationId, search = '', pageInfo = '', limit = 50, filters = {}) {
         try {
             const config = await this._getFullConfig(organizationId);
             if (!config) throw new Error('Shopify not configured');
@@ -433,8 +443,10 @@ class ShopifyService {
             if (pageInfo) {
                 // If we have page_info, we must NOT include other filters like search/title
                 url = `https://${cleanShopUrl}/admin/api/2024-10/products.json?limit=${limit}&page_info=${pageInfo}`;
-            } else if (search) {
-                url += `&title=${encodeURIComponent(search)}`;
+            } else {
+                if (search) url += `&title=${encodeURIComponent(search)}`;
+                if (filters.status) url += `&status=${filters.status}`;
+                if (filters.vendor) url += `&vendor=${encodeURIComponent(filters.vendor)}`;
             }
 
             const response = await fetch(url, {

@@ -105,8 +105,8 @@ const pullProducts = async (req, res, next) => {
 
 const getLocalProducts = async (req, res, next) => {
     try {
-        const { page, limit } = req.query;
-        const products = await shopifyService.getLocalProducts(req.user.organization_id, page, limit);
+        const { page, limit, categoryId, brandId, search } = req.query;
+        const products = await shopifyService.getLocalProducts(req.user.organization_id, page, limit, { categoryId, brandId, search });
         return successResponse(res, products, 'Local products fetched');
     } catch (error) { next(error); }
 };
@@ -128,8 +128,8 @@ const getAnalytics = async (req, res, next) => {
 
 const getShopifyProducts = async (req, res, next) => {
     try {
-        const { search, page_info, limit } = req.query;
-        const result = await shopifyService.getShopifyProducts(req.user.organization_id, search, page_info, limit);
+        const { search, page_info, limit, status, vendor } = req.query;
+        const result = await shopifyService.getShopifyProducts(req.user.organization_id, search, page_info, limit, { status, vendor });
         return successResponse(res, result, 'Shopify products fetched');
     } catch (error) { next(error); }
 };
