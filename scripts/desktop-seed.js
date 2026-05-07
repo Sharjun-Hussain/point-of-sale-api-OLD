@@ -188,8 +188,28 @@ async function seed() {
 
         // 3. Business Plans
         const plans = [
-            { name: 'Essential', price: 15000, max_users: 2, max_branches: 1, features: ['pos_billing', 'inventory_basic'] },
-            { name: 'Professional', price: 30000, max_users: 5, max_branches: 3, features: ['pos_advanced', 'inventory_advanced'] },
+            { 
+                name: 'Essential', 
+                price: 15000, 
+                max_users: 2, 
+                max_branches: 1, 
+                features: ['pos_billing', 'inventory_basic', 'inventory_po', 'staff_management', 'barcode_customization', 'reports_basic', 'dashboard_kpi_live', 'dashboard_health'] 
+            },
+            { 
+                name: 'Professional', 
+                price: 30000, 
+                max_users: 5, 
+                max_branches: 3, 
+                features: [
+                    'dashboard_kpi_live', 'dashboard_health', 'dashboard_custom', 'reports_basic',
+                    'reports_advanced', 'pos_billing', 'pos_advanced', 'invoice_customization',
+                    'pos_payments', 'pos_offline', 'inventory_basic', 'inventory_advanced',
+                    'inventory_ledger', 'inventory_po', 'inventory_transfers', 'accounting_basic',
+                    'accounting_advanced', 'accounting_ledger_manual', 'accounting_ledger_supplier',
+                    'accounting_ledger_customer', 'accounting_reconciliation', 'staff_management',
+                    'multi_location', 'barcode_customization', 'backup_manual', 'data_export'
+                ] 
+            },
             { name: 'Enterprise', price: 50000, max_users: 15, max_branches: -1, features: ['all_features'] }
         ];
         for (const plan of plans) {
