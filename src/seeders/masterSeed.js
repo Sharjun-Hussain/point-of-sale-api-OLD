@@ -16,7 +16,7 @@ const {
 } = require('../models');
 const bcrypt = require('bcryptjs');
 
-const seed = async () => {
+const seed = async (options = { exitOnComplete: true }) => {
     try {
         console.log('🌱 Starting Master Seed...');
 
@@ -297,11 +297,18 @@ const seed = async () => {
         console.log('✅ Seeded Categories (Main & Sub).');
 
         console.log('🌱 Mastering Seeding Completed Successfully!');
-        process.exit(0);
+        if (options.exitOnComplete) process.exit(0);
+        return true;
     } catch (error) {
         console.error('❌ Seeding failed:', error);
-        process.exit(1);
+        if (options.exitOnComplete) process.exit(1);
+        throw error;
     }
 };
 
-seed();
+module.exports = seed;
+
+// If run directly
+if (require.main === module) {
+    seed();
+}

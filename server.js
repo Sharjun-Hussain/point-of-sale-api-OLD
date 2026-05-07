@@ -5,10 +5,12 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
 const path = require('path');
+const fs = require('fs');
 
-// Import database
-const db = require('./src/config/database');
+// Import models
+const db = require('./src/models');
 const mysql = require('mysql2/promise');
+const masterSeed = require('./src/seeders/masterSeed');
 
 // Import routes
 const routes = require('./src/routes');
@@ -47,9 +49,11 @@ const envOrigins = process.env.FRONTEND_URL
 const alwaysAllowedOrigins = [
     'http://localhost',           // Capacitor Android local
     'http://localhost:3000',      // Next.js dev server
+    'http://localhost:5000',      // Electron Desktop local
     'http://localhost:8100',      // Ionic/Capacitor livereload
     'https://localhost',          // Capacitor HTTPS scheme
     'https://localhost:3000',
+    'https://localhost:5000',
     'https://localhost:8100',
     'capacitor://localhost',      // Capacitor iOS
     'ionic://localhost',          // Ionic iOS
@@ -59,8 +63,10 @@ const alwaysAllowedOrigins = [
     'https://10.0.2.2:3000',
     'http://127.0.0.1',
     'http://127.0.0.1:3000',
+    'http://127.0.0.1:5000',
     'https://127.0.0.1',
     'https://127.0.0.1:3000',
+    'https://127.0.0.1:5000',
     // Production frontend(s)
     'https://pos.inzeedo.lk',
     'http://pos.inzeedo.lk',
@@ -105,12 +111,14 @@ app.use(cors(corsOptions));
 // Security middleware
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
-    contentSecurityPolicy: {
-        directives: {
-            ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-            "img-src": ["'self'", "data:", process.env.BACKEND_URL || "http://localhost:5000", "https://images.unsplash.com"],
+    contentSecurityPolicy: (process.env.APP_PLATFORM === 'DESKTOP' || process.env.ELECTRON_RUNNING === 'true') 
+        ? false // Disable strict CSP on desktop to allow Next.js inline scripts
+        : {
+            directives: {
+                ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+                "img-src": ["'self'", "data:", process.env.BACKEND_URL || "http://localhost:5000", "https://images.unsplash.com"],
+            },
         },
-    },
 }));
 
 // Body parser middleware
@@ -133,6 +141,39 @@ if (process.env.NODE_ENV === 'development') {
 
 // Static files for uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Serve Frontend Static Files (for Desktop/Electron mode)
+if (process.env.APP_PLATFORM === 'DESKTOP' || process.env.ELECTRON_RUNNING === 'true') {
+    const frontendPath = path.join(__dirname, '../frontend');
+    const devFrontendPath = path.join(__dirname, '../electron-desktop/out');
+    
+    const finalPath = fs.existsSync(frontendPath) ? frontendPath : devFrontendPath;
+    
+    if (fs.existsSync(finalPath)) {
+        logger.info(`🌐 Serving frontend from: ${finalPath}`);
+        app.use(express.static(finalPath));
+        
+        // Handle SPA routing (redirect only Page requests to index.html)
+        app.use((req, res, next) => {
+            // Only handle GET requests that are NOT:
+            // 1. API calls (/api)
+            // 2. File uploads (/uploads)
+            // 3. Static assets (/_next)
+            // 4. Files with extensions (contains a dot)
+            const isPageRequest = req.method === 'GET' && 
+                                 !req.path.startsWith('/api') && 
+                                 !req.path.startsWith('/_next') &&
+                                 !req.path.startsWith('/uploads') &&
+                                 !req.path.includes('.');
+
+            if (isPageRequest) {
+                res.sendFile(path.join(finalPath, 'index.html'));
+            } else {
+                next();
+            }
+        });
+    }
+}
 
 // Rate limiting
 app.use(rateLimiter);
@@ -191,40 +232,46 @@ const startServer = async () => {
                 }
             }
 
-            // Test database connection
-            await db.authenticate();
-            logger.info('✅ Database connection established successfully.');
-
-            // Auto-Sync for Desktop Mode
-            // This ensures that when the user updates the .exe, the database schema updates automatically
-            if (process.env.APP_PLATFORM === 'DESKTOP' || process.env.ELECTRON_RUNNING === 'true') {
-                logger.info('🖥️  Desktop mode: Initializing database tables...');
-                // Note: alter: true is disabled to avoid "Too many keys specified" errors on MySQL.
-                // For a desktop app, sync() is safer and handles fresh installs perfectly.
-                await db.sync({ alter: false });
-                logger.info('✅ Database tables initialized.');
+            // 1. Start server immediately so Electron doesn't timeout
+            // We only start the listener ONCE. Even if DB is down, the server stays alive 
+            // and retries the connection in the background.
+            if (!server) {
+                server = app.listen(PORT, () => {
+                    logger.info(`🚀 Server listening on port ${PORT} (Initialization in progress...)`);
+                });
             }
 
-            // Start scheduled jobs
+            // 2. Test database connection
+            await db.sequelize.authenticate();
+            logger.info('✅ Database connection established successfully.');
+
+            // 3. Auto-Sync and Seed for Desktop Mode (in background)
+            if (process.env.APP_PLATFORM === 'DESKTOP' || process.env.ELECTRON_RUNNING === 'true') {
+                logger.info('🖥️  Desktop mode: Initializing database tables...');
+                await db.sequelize.sync({ alter: false });
+                logger.info('✅ Database tables initialized.');
+
+                const userCount = await db.User.count();
+                if (userCount === 0) {
+                    logger.info('🆕 Fresh installation detected. Bootstrapping initial data...');
+                    await masterSeed({ exitOnComplete: false });
+                    logger.info('✅ Master data (Admin, Roles, Permissions) seeded successfully.');
+                }
+            }
+
+            // 4. Start scheduled jobs
             await scheduleSubscriptionCheck();
             await scheduleExpiryWatcher();
             await scheduleInventoryWatcher();
             await scheduleBackupJob();
 
-            // Telemetry: Record system metrics every 30 seconds
+            // 5. Telemetry: Record system metrics every 30 seconds
             await maintenanceService.recordSystemMetrics(); // Initial point on boot
             cron.schedule('*/30 * * * * *', async () => {
                 await maintenanceService.recordSystemMetrics();
             });
 
-            // Start server
-            server = app.listen(PORT, () => {
-                logger.info(`🚀 Server running on port ${PORT}`);
-                logger.info(`📍 Environment: ${process.env.NODE_ENV}`);
-                logger.info(`🔗 API Base URL: ${process.env.BACKEND_URL || `http://localhost:${PORT}`}/api/${process.env.API_VERSION || 'v1'}`);
-            });
-
-            // If we successfully started everything, break the retry loop
+            logger.info('🏁 System fully ready.');
             return;
 
         } catch (error) {
@@ -254,7 +301,7 @@ const gracefulShutdown = async (signal) => {
 
     try {
         // 2. Close database connections
-        await db.close();
+        await db.sequelize.close();
         logger.info('Database connection closed.');
 
         // 3. Exit process successfully
