@@ -21,7 +21,8 @@ const seed = async () => {
         console.log('🌱 Starting Master Seed...');
 
         // 0. Sync Database
-        await sequelize.sync({ alter: true });
+        // Note: alter: true is disabled to avoid "Too many keys specified" errors on MySQL.
+        await sequelize.sync({ alter: false });
         console.log('✅ Database schema synchronized.');
 
         // 1. Permissions
@@ -154,18 +155,20 @@ const seed = async () => {
 
         // 3. Organization & Branch
         const [org] = await Organization.findOrCreate({
-            where: { name: 'Main Organization' },
+            where: { name: 'Inzeedo' },
             defaults: {
                 email: 'mrjoon005@gmail.com',
                 phone: '0757340891',
-                address: 'No 1, Main Street, Colombo',
-                business_type: 'Retail',
-                status: 'active'
+                address: 'Colombo, Sri Lanka',
+                business_type: 'Software',
+                subscription_status: 'Active',
+                billing_cycle: 'Lifetime',
+                is_master: true
             }
         });
 
         const [branch] = await Branch.findOrCreate({
-            where: { name: 'Central Branch', organization_id: org.id },
+            where: { name: 'HQ', organization_id: org.id },
             defaults: {
                 email: 'hello@inzeedo.lk',
                 phone: '0112233446',
@@ -173,14 +176,14 @@ const seed = async () => {
                 status: 'active'
             }
         });
-        console.log('✅ Created default Organization and Branch.');
+        console.log('✅ Created Inzeedo Master Organization and Branch.');
 
         // 4. Super Admin User
         const passwordHash = await bcrypt.hash('admin123', 10);
         const [adminUser] = await User.findOrCreate({
             where: { email: 'mrjoon005@gmail.com' },
             defaults: {
-                name: 'Super Admin',
+                name: 'Inzeedo Master',
                 password: passwordHash,
                 organization_id: org.id,
                 status: 'active'

@@ -14,11 +14,11 @@ module.exports = (sequelize, DataTypes) => {
             }
         },
         subscription_tier: {
-            type: DataTypes.ENUM('Basic', 'Pro', 'Enterprise'),
+            type: DataTypes.ENUM('Essential', 'Professional', 'Enterprise'),
             allowNull: false
         },
         billing_cycle: {
-            type: DataTypes.ENUM('Monthly', 'Yearly', 'Lifetime'),
+            type: DataTypes.ENUM('Monthly', '6 Months', 'Yearly', 'Lifetime'),
             allowNull: false
         },
         amount: {

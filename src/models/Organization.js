@@ -54,11 +54,15 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: true
         },
         subscription_tier: {
-            type: DataTypes.ENUM('Basic', 'Pro', 'Enterprise'),
+            type: DataTypes.ENUM('Essential', 'Professional', 'Enterprise'),
             allowNull: true
         },
+        billing_model: {
+            type: DataTypes.ENUM('SaaS', 'Perpetual'),
+            defaultValue: 'SaaS'
+        },
         billing_cycle: {
-            type: DataTypes.ENUM('Monthly', 'Yearly', 'Lifetime'),
+            type: DataTypes.ENUM('Monthly', '6 Months', 'Yearly', 'Lifetime'),
             allowNull: true
         },
         subscription_expiry_date: {
@@ -97,6 +101,11 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.BOOLEAN,
             defaultValue: false
         },
+        module_overrides: {
+            type: DataTypes.JSON,
+            allowNull: true,
+            comment: 'JSON object for granular module overrides'
+        },
         onboarding_completed: {
             type: DataTypes.BOOLEAN,
             defaultValue: false
@@ -132,6 +141,10 @@ module.exports = (sequelize, DataTypes) => {
         last_backup_date: {
             type: DataTypes.DATE,
             allowNull: true
+        },
+        is_master: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
         }
     }, {
         tableName: 'organizations',

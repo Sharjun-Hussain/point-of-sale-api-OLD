@@ -3,8 +3,10 @@ const router = express.Router();
 const planController = require('../controllers/planController');
 const authenticate = require('../middleware/auth');
 const roleMiddleware = require('../middleware/roleMiddleware');
+const isMaster = require('../middleware/isMaster');
 
 router.use(authenticate);
+router.use(isMaster);
 
 // Only Super Admin can manage plans
 router.get('/', planController.getAllPlans);

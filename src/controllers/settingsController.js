@@ -1,4 +1,4 @@
-const { Organization, Setting } = require('../models');
+const { Organization, Setting, BusinessPlan } = require('../models');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const multer = require('multer');
 const path = require('path');
@@ -91,7 +91,9 @@ const upload = multer({
  */
 const getBusinessSettings = async (req, res, next) => {
     try {
-        const organization = await Organization.findByPk(req.user.organization_id);
+        const organization = await Organization.findByPk(req.user.organization_id, {
+            include: [{ model: BusinessPlan, as: 'plan' }]
+        });
         if (!organization) return errorResponse(res, 'Organization not found', 404);
 
         return successResponse(res, organization, 'Business settings fetched');
@@ -202,6 +204,17 @@ const updateSettingsByCategory = async (req, res, next) => {
         // ENCRYPT: Protect sensitive fields before saving
         const securedData = processSecrets(cleanData, 'encrypt', existingData);
 
+        // ENTITLEMENT CHECK: Prevent enabling restricted features
+        if (category === 'pos' && securedData.requireShift === true) {
+            const organization = await Organization.findByPk(req.user.organization_id, {
+                include: [{ model: BusinessPlan, as: 'plan' }]
+            });
+            const { getModuleAccess } = require('../utils/entitlement');
+            if (!getModuleAccess(organization, 'shift_management')) {
+                securedData.requireShift = false; // Force disable if not entitled
+            }
+        }
+
         // PROTECT: Preserve usage_stats from existing data if missing or older in incoming data
         if (existingData.usage_stats && !securedData.usage_stats) {
             securedData.usage_stats = existingData.usage_stats;
@@ -240,7 +253,9 @@ const updateSettingsByCategory = async (req, res, next) => {
 const getGlobalSettings = async (req, res, next) => {
     try {
         const [organization, modularSettings] = await Promise.all([
-            Organization.findByPk(req.user.organization_id),
+            Organization.findByPk(req.user.organization_id, {
+                include: [{ model: BusinessPlan, as: 'plan' }]
+            }),
             Setting.findAll({ where: { organization_id: req.user.organization_id } })
         ]);
 

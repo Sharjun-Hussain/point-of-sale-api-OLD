@@ -8,6 +8,7 @@ const path = require('path');
 
 // Import database
 const db = require('./src/config/database');
+const mysql = require('mysql2/promise');
 
 // Import routes
 const routes = require('./src/routes');
@@ -171,6 +172,25 @@ const startServer = async () => {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
             logger.info(`Attempting to connect to database... (Attempt ${attempt}/${maxAttempts})`);
+            
+            // On desktop, try to create the database if it doesn't exist
+            if (process.env.ELECTRON_RUNNING === 'true' || process.env.APP_PLATFORM === 'DESKTOP') {
+                try {
+                    const connection = await mysql.createConnection({
+                        host: process.env.DB_HOST || '127.0.0.1',
+                        port: process.env.DB_PORT || 3306,
+                        user: process.env.DB_USER || 'root',
+                        password: process.env.DB_PASSWORD || ''
+                    });
+                    await connection.query(`CREATE DATABASE IF NOT EXISTS \`${process.env.DB_NAME || 'pos_system'}\`;`);
+                    await connection.end();
+                    logger.info(`✅ Database verified/created: ${process.env.DB_NAME || 'pos_system'}`);
+                } catch (dbError) {
+                    logger.warn(`⚠️  Could not auto-create database (MySQL might not be running or credentials wrong): ${dbError.message}`);
+                    // We continue, Sequelize will fail and trigger retry if it's a connection issue
+                }
+            }
+
             // Test database connection
             await db.authenticate();
             logger.info('✅ Database connection established successfully.');
@@ -178,9 +198,11 @@ const startServer = async () => {
             // Auto-Sync for Desktop Mode
             // This ensures that when the user updates the .exe, the database schema updates automatically
             if (process.env.APP_PLATFORM === 'DESKTOP' || process.env.ELECTRON_RUNNING === 'true') {
-                logger.info('🖥️  Desktop mode: Synchronizing database schema...');
-                await db.sync({ alter: true });
-                logger.info('✅ Database schema synchronized.');
+                logger.info('🖥️  Desktop mode: Initializing database tables...');
+                // Note: alter: true is disabled to avoid "Too many keys specified" errors on MySQL.
+                // For a desktop app, sync() is safer and handles fresh installs perfectly.
+                await db.sync({ alter: false });
+                logger.info('✅ Database tables initialized.');
             }
 
             // Start scheduled jobs

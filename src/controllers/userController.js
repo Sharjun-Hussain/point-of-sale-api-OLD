@@ -1,4 +1,4 @@
-const { User, Role, Organization, Branch, Employee } = require('../models');
+const { User, Role, Organization, Branch, Employee, BusinessPlan } = require('../models');
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
 const { hashPassword } = require('../utils/passwordHelper');
@@ -56,6 +56,20 @@ const createUser = async (req, res, next) => {
         
         const isSuperAdmin = req.user.roles.some(role => role.name === 'Super Admin');
         const organization_id = (isSuperAdmin && selected_org_id) ? selected_org_id : req.user.organization_id;
+
+        // User Limit Enforcement
+        const organization = await Organization.findByPk(organization_id, {
+            include: [{ model: BusinessPlan, as: 'plan' }]
+        });
+        
+        if (organization && organization.plan) {
+            const currentUsersCount = await User.count({ where: { organization_id, is_active: true } });
+            const maxUsers = organization.plan.max_users;
+            
+            if (maxUsers !== -1 && currentUsersCount >= maxUsers) {
+                return errorResponse(res, `User Limit Reached: Your current plan '${organization.plan.name}' allows only ${maxUsers} users. Please upgrade your plan or purchase additional user licenses.`, 403);
+            }
+        }
 
         // Handle File Upload
         if (req.file) {

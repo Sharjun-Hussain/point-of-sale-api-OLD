@@ -35,6 +35,10 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: true,
             comment: 'JSON array of enabled feature keys'
         },
+        price_per_additional_user: {
+            type: DataTypes.DECIMAL(10, 2),
+            defaultValue: 1000.00
+        },
         trial_days: {
             type: DataTypes.INTEGER,
             defaultValue: 0

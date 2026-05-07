@@ -43,20 +43,38 @@ const createOrganization = async (req, res, next) => {
         }
 
         // 1. Create Organization with Smart Subscription Setup
-        // If Trial: auto-set 30-day expiry
-        // If Paid: use provided subscription details
         const subscriptionStatus = req.body.subscription_status || 'Trial';
+        let subscriptionTier = req.body.subscription_tier || 'Essential';
+        let plan_id = req.body.plan_id;
+        let trialDays = 30; // Default fallback
+
+        // Case A: plan_id provided → derive tier name and trial days from it
+        if (plan_id) {
+            const plan = await BusinessPlan.findByPk(plan_id);
+            if (plan) {
+                subscriptionTier = plan.name;
+                trialDays = plan.trial_days || 0;
+            }
+        }
+        // Case B: only tier name provided (from UI form) → look up and link plan_id
+        else if (subscriptionTier) {
+            const plan = await BusinessPlan.findOne({ where: { name: subscriptionTier } });
+            if (plan) {
+                plan_id = plan.id;
+                trialDays = plan.trial_days || 30;
+            }
+        }
+
         let subscriptionExpiryDate = req.body.subscription_expiry_date;
-        let subscriptionTier = req.body.subscription_tier || 'Basic';
         let billingCycle = req.body.billing_cycle || 'Monthly';
         let notes = req.body.notes || 'Initial setup';
 
         // Auto-configure trial period
         if (subscriptionStatus === 'Trial') {
             const trialExpiry = new Date();
-            trialExpiry.setDate(trialExpiry.getDate() + 30); // 30 days from now
+            trialExpiry.setDate(trialExpiry.getDate() + trialDays);
             subscriptionExpiryDate = trialExpiry;
-            notes = '30-day free trial';
+            notes = `${trialDays}-day free trial`;
         }
 
         const organization = await Organization.create({
@@ -66,11 +84,12 @@ const createOrganization = async (req, res, next) => {
             address,
             city,
             website,
-            logo,
+            logo: logoPath,
             tax_id,
             business_type,
             business_mode,
             subscription_tier: subscriptionTier,
+            plan_id: plan_id,
             billing_cycle: billingCycle,
             subscription_expiry_date: subscriptionExpiryDate,
             subscription_status: subscriptionStatus,
@@ -299,23 +318,50 @@ const updateOrganizationById = async (req, res, next) => {
 
         const oldValues = organization.toJSON();
         const oldStatus = organization.subscription_status;
+        const updateData = { ...req.body };
 
-        // Auto-activate organization if subscription status is being set to Active
-        if (req.body.subscription_status === 'Active') {
-            req.body.is_active = true;
+        // 1. Smart Plan/Tier Alignment
+        // Case A: plan_id provided → derive tier name from it
+        if (updateData.plan_id) {
+            const plan = await BusinessPlan.findByPk(updateData.plan_id);
+            if (plan) {
+                updateData.subscription_tier = plan.name;
+            }
+        }
+        // Case B: only subscription_tier provided (from UI form) → look up and link plan_id
+        else if (updateData.subscription_tier) {
+            const plan = await BusinessPlan.findOne({ where: { name: updateData.subscription_tier } });
+            if (plan) {
+                updateData.plan_id = plan.id;
+            }
         }
 
-        // Auto-suspend if subscription status is being set to Expired or Suspended
-        if (req.body.subscription_status === 'Expired' || req.body.subscription_status === 'Suspended') {
-            req.body.is_active = false;
+        // 2. Smart Status Logic
+        if (updateData.subscription_status === 'Active') {
+            updateData.is_active = true;
+        } else if (['Expired', 'Suspended'].includes(updateData.subscription_status)) {
+            updateData.is_active = false;
+        }
+
+        // 3. Smart Expiry Calculation
+        if (updateData.subscription_status === 'Active' && !updateData.subscription_expiry_date) {
+            const now = new Date();
+            const cycle = updateData.billing_cycle || organization.billing_cycle || 'Monthly';
+            
+            if (cycle === 'Monthly') now.setMonth(now.getMonth() + 1);
+            else if (cycle === '6 Months') now.setMonth(now.getMonth() + 6);
+            else if (cycle === 'Yearly') now.setFullYear(now.getFullYear() + 1);
+            else if (cycle === 'Lifetime') now.setFullYear(now.getFullYear() + 100);
+            
+            updateData.subscription_expiry_date = now;
         }
 
         // Handle Logo Upload
         if (req.file) {
-            req.body.logo = req.file.path.replace(/\\/g, '/');
+            updateData.logo = req.file.path.replace(/\\/g, '/');
         }
 
-        await organization.update(req.body, { transaction });
+        await organization.update(updateData, { transaction });
 
         // If subscription details changed, create a history record
         if (req.body.subscription_tier !== undefined || req.body.billing_cycle !== undefined || req.body.subscription_status !== oldStatus) {
@@ -511,6 +557,28 @@ const createBranch = async (req, res, next) => {
         } else if (!branchData.organization_id) {
             if (req.user.organization_id) {
                 branchData.organization_id = req.user.organization_id;
+            }
+        }
+
+        if (branchData.organization_id) {
+            const organization = await Organization.findByPk(branchData.organization_id, {
+                include: [{ model: BusinessPlan, as: 'plan' }]
+            });
+            
+            if (organization) {
+                const tier = organization.subscription_tier;
+                if (tier === 'Essential') {
+                    return errorResponse(res, "Plan Restriction: Multi-location management is not available on the Essential plan. Please upgrade to Professional or Enterprise to add more branches.", 403);
+                }
+
+                if (organization.plan) {
+                    const currentBranchesCount = await Branch.count({ where: { organization_id: branchData.organization_id, is_active: true } });
+                    const maxBranches = organization.plan.max_branches;
+                    
+                    if (maxBranches !== -1 && currentBranchesCount >= maxBranches) {
+                        return errorResponse(res, `Branch Limit Reached: Your current plan '${organization.plan.name}' allows only ${maxBranches} branches. Please upgrade your plan for multi-location support.`, 403);
+                    }
+                }
             }
         }
 
@@ -810,11 +878,183 @@ const updateOnboardingPolicy = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const updateOrganizationPlan = async (req, res, next) => {
+    const transaction = await sequelize.transaction();
+    try {
+        const { id } = req.params;
+        const { plan_id, subscription_status, billing_cycle, billing_model, subscription_expiry_date } = req.body;
+
+        const organization = await Organization.findByPk(id);
+        if (!organization) return errorResponse(res, 'Organization not found', 404);
+
+        const plan = await BusinessPlan.findByPk(plan_id);
+        if (!plan) return errorResponse(res, 'Plan not found', 404);
+
+        const oldValues = organization.toJSON();
+
+        // Smart Expiry Calculation
+        let expiryDate = subscription_expiry_date;
+        if (!expiryDate && subscription_status === 'Active') {
+            const now = new Date();
+            const cycle = billing_cycle || organization.billing_cycle || 'Monthly';
+            
+            if (cycle === 'Monthly') now.setMonth(now.getMonth() + 1);
+            else if (cycle === '6 Months') now.setMonth(now.getMonth() + 6);
+            else if (cycle === 'Yearly') now.setFullYear(now.getFullYear() + 1);
+            else if (cycle === 'Lifetime') now.setFullYear(now.getFullYear() + 100);
+            
+            expiryDate = now;
+        }
+
+        // Update Organization
+        await organization.update({
+            plan_id,
+            subscription_tier: plan.name,
+            subscription_status: subscription_status || 'Active',
+            billing_cycle: billing_cycle || organization.billing_cycle,
+            billing_model: billing_model || organization.billing_model,
+            subscription_expiry_date: expiryDate || organization.subscription_expiry_date,
+            is_active: (subscription_status !== 'Expired' && subscription_status !== 'Suspended')
+        }, { transaction });
+
+        // Create History Record
+        await SubscriptionHistory.create({
+            organization_id: organization.id,
+            subscription_tier: organization.subscription_tier,
+            billing_cycle: organization.billing_cycle,
+            amount: req.body.amount || plan.price_monthly,
+            purchase_date: new Date(),
+            expiry_date: organization.subscription_expiry_date,
+            payment_status: 'Paid',
+            notes: req.body.notes || `Plan changed to ${plan.name} by Super Admin`
+        }, { transaction });
+
+        // Audit Log
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logUpdate(
+            organization.id,
+            req.user.id,
+            'Organization',
+            organization.id,
+            oldValues,
+            req.body,
+            ipAddress,
+            userAgent,
+            { is_admin_action: true, action: 'plan_change' },
+            transaction
+        );
+
+        await transaction.commit();
+        return successResponse(res, organization, `Plan updated to ${plan.name} successfully`);
+    } catch (error) {
+        await transaction.rollback();
+        next(error);
+    }
+};
+
+const updateOrganizationModules = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { module_overrides } = req.body;
+
+        const organization = await Organization.findByPk(id);
+        if (!organization) return errorResponse(res, 'Organization not found', 404);
+
+        const oldOverrides = organization.module_overrides;
+        organization.module_overrides = module_overrides;
+        await organization.save();
+
+        // Audit Log
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logUpdate(
+            organization.id,
+            req.user.id,
+            'Organization',
+            organization.id,
+            { module_overrides: oldOverrides },
+            { module_overrides },
+            ipAddress,
+            userAgent,
+            { is_admin_action: true, action: 'module_overrides' }
+        );
+
+        return successResponse(res, organization, 'Module overrides updated successfully');
+    } catch (error) { next(error); }
+};
+
+const extendOrganizationTrial = async (req, res, next) => {
+    const transaction = await sequelize.transaction();
+    try {
+        const { id } = req.params;
+        const { days } = req.body;
+
+        if (!days || isNaN(days) || days <= 0) {
+            return errorResponse(res, 'Invalid number of days provided', 400);
+        }
+
+        const organization = await Organization.findByPk(id);
+        if (!organization) return errorResponse(res, 'Organization not found', 404);
+
+        const oldValues = organization.toJSON();
+
+        // Calculate new expiry: extend from current expiry, or from today if none
+        const baseDate = organization.subscription_expiry_date
+            ? new Date(organization.subscription_expiry_date)
+            : new Date();
+        baseDate.setDate(baseDate.getDate() + parseInt(days));
+
+        await organization.update({
+            subscription_expiry_date: baseDate,
+            subscription_status: 'Trial',
+            is_active: true
+        }, { transaction });
+
+        // Create history entry
+        await SubscriptionHistory.create({
+            organization_id: organization.id,
+            subscription_tier: organization.subscription_tier,
+            billing_cycle: organization.billing_cycle || 'Monthly',
+            amount: 0,
+            purchase_date: new Date(),
+            expiry_date: baseDate,
+            payment_status: 'Paid',
+            notes: `Trial extended by ${days} day(s) by Super Admin`
+        }, { transaction });
+
+        // Audit Log
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logUpdate(
+            organization.id,
+            req.user.id,
+            'Organization',
+            organization.id,
+            oldValues,
+            { subscription_expiry_date: baseDate, subscription_status: 'Trial' },
+            ipAddress,
+            userAgent,
+            { is_admin_action: true, action: 'extend_trial', days: parseInt(days) },
+            transaction
+        );
+
+        await transaction.commit();
+        return successResponse(res, { 
+            new_expiry_date: baseDate, 
+            days_extended: parseInt(days) 
+        }, `Trial extended by ${days} day(s) successfully`);
+    } catch (error) {
+        await transaction.rollback();
+        next(error);
+    }
+};
+
+
 module.exports = {
     getOrganization, getAllOrganizations, updateOrganization, createOrganization,
     getOrganizationById, updateOrganizationById, toggleOrganizationStatus, getSubscriptionHistory,
     getOrganizationFullDetails,
     getAllBranches, getActiveBranchesList, getBranchById, createBranch, updateBranch, toggleBranchStatus,
     getSuperAdminStats, toggleShopifyIntegration, toggleWhatsAppIntegration, toggleLoyaltyIntegration, toggleBackupFeature,
-    getOnboardingStatus, updateOnboardingStatus, updateOnboardingPolicy
+    getOnboardingStatus, updateOnboardingStatus, updateOnboardingPolicy,
+    updateOrganizationPlan, updateOrganizationModules, extendOrganizationTrial
 };
+

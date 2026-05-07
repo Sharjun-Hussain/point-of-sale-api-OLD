@@ -11,8 +11,8 @@ const sequelize = new Sequelize(
     {
         // On desktop, we default to localhost. If using portable MariaDB, 
         // we might use a custom port like 3307 to avoid conflicts.
-        host: isDesktop ? '127.0.0.1' : (process.env.DB_HOST || 'localhost'),
-        port: isDesktop ? (process.env.DB_PORT || 3306) : (process.env.DB_PORT || 3306),
+        host: process.env.DB_HOST || (isDesktop ? '127.0.0.1' : 'localhost'),
+        port: process.env.DB_PORT || 3306,
         dialect: process.env.DB_DIALECT || 'mysql',
         logging: process.env.DB_LOGGING === 'true' ? console.log : false,
         pool: {

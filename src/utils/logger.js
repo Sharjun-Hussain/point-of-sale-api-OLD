@@ -4,9 +4,22 @@ const path = require('path');
 const fs = require('fs');
 
 // Ensure log directory exists
-const logDir = path.join('node_modules', '.logs');
-if (!fs.existsSync(logDir)) {
-    fs.mkdirSync(logDir, { recursive: true });
+let logDir = process.env.LOG_DIR || path.join(__dirname, '../../logs');
+
+// If we are in a read-only environment (like an AppImage), 
+// we must ensure the log directory is actually writeable.
+// If the default fails, we'll try to fallback or just use console.
+try {
+    if (!fs.existsSync(logDir)) {
+        fs.mkdirSync(logDir, { recursive: true });
+    }
+} catch (e) {
+    console.error(`Failed to create log directory at ${logDir}: ${e.message}`);
+    // Fallback to a temporary directory if primary fails
+    logDir = path.join(require('os').tmpdir(), 'inzeedo-pos-logs');
+    if (!fs.existsSync(logDir)) {
+        fs.mkdirSync(logDir, { recursive: true });
+    }
 }
 
 // Define log format

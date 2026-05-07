@@ -7,13 +7,14 @@ const upload = require('../middleware/upload');
 
 const { updateOrganizationValidationRules } = require('../validations/organizationValidation');
 const validate = require('../middleware/validate');
+const isMaster = require('../middleware/isMaster');
 
 router.use(authenticate);
 
-router.post('/create', upload.single('logo'), checkPermission('org:create'), orgController.createOrganization);
+router.post('/create', isMaster, upload.single('logo'), checkPermission('org:create'), orgController.createOrganization);
 // Super Admin should see all organizations
-router.get('/stats', checkPermission('org:view'), orgController.getSuperAdminStats);
-router.get('/', checkPermission('org:view'), orgController.getAllOrganizations); // Changed from getOrganization
+router.get('/stats', isMaster, checkPermission('org:view'), orgController.getSuperAdminStats);
+router.get('/', isMaster, checkPermission('org:view'), orgController.getAllOrganizations); // Changed from getOrganization
 router.get('/me', checkPermission('org:view'), orgController.getOrganization);
 
 // Synchronized Business Identity Updates
@@ -26,18 +27,21 @@ router.post('/onboarding/complete', orgController.updateOnboardingStatus);
 router.post('/onboarding/policy', orgController.updateOnboardingPolicy); // For current org
 
 // Admin Routes for specific Organization ID
-router.get('/:id/full-details', checkPermission('org:view'), orgController.getOrganizationFullDetails);
-router.get('/:id', checkPermission('org:view'), orgController.getOrganizationById);
-router.patch('/:id', upload.single('logo'), checkPermission('org:edit'), orgController.updateOrganizationById);
-router.patch('/:id/status/:action', checkPermission('org:edit'), orgController.toggleOrganizationStatus);
-router.patch('/:id/status', checkPermission('org:edit'), orgController.toggleOrganizationStatus);
-router.patch('/:id/shopify', checkPermission('org:edit'), orgController.toggleShopifyIntegration);
-router.patch('/:id/whatsapp', checkPermission('org:edit'), orgController.toggleWhatsAppIntegration);
-router.patch('/:id/loyalty', checkPermission('org:edit'), orgController.toggleLoyaltyIntegration);
-router.patch('/:id/backup', checkPermission('backup:admin'), orgController.toggleBackupFeature);
-router.patch('/:id/:action', checkPermission('org:edit'), orgController.toggleOrganizationStatus); // Alias for frontend compatibility
-router.get('/:id/subscription-history', checkPermission('org:view'), orgController.getSubscriptionHistory);
-router.post('/:id/onboarding/policy', checkPermission('org:edit'), orgController.updateOnboardingPolicy);
+router.get('/:id/full-details', isMaster, checkPermission('org:view'), orgController.getOrganizationFullDetails);
+router.get('/:id', isMaster, checkPermission('org:view'), orgController.getOrganizationById);
+router.patch('/:id', isMaster, upload.single('logo'), checkPermission('org:edit'), orgController.updateOrganizationById);
+router.patch('/:id/shopify', isMaster, checkPermission('org:edit'), orgController.toggleShopifyIntegration);
+router.patch('/:id/whatsapp', isMaster, checkPermission('org:edit'), orgController.toggleWhatsAppIntegration);
+router.patch('/:id/loyalty', isMaster, checkPermission('org:edit'), orgController.toggleLoyaltyIntegration);
+router.patch('/:id/backup', isMaster, checkPermission('backup:admin'), orgController.toggleBackupFeature);
+router.get('/:id/subscription-history', isMaster, checkPermission('org:view'), orgController.getSubscriptionHistory);
+router.patch('/:id/plan', isMaster, checkPermission('org:edit'), orgController.updateOrganizationPlan);
+router.patch('/:id/modules', isMaster, checkPermission('org:edit'), orgController.updateOrganizationModules);
+router.patch('/:id/extend-trial', isMaster, checkPermission('org:edit'), orgController.extendOrganizationTrial);
+router.patch('/:id/status/:action', isMaster, checkPermission('org:edit'), orgController.toggleOrganizationStatus);
+router.patch('/:id/status', isMaster, checkPermission('org:edit'), orgController.toggleOrganizationStatus);
+router.patch('/:id/:action', isMaster, checkPermission('org:edit'), orgController.toggleOrganizationStatus); // Alias for frontend compatibility
+router.post('/:id/onboarding/policy', isMaster, checkPermission('org:edit'), orgController.updateOnboardingPolicy);
 
 
 module.exports = router;

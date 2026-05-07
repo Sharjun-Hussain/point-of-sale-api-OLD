@@ -3,6 +3,7 @@ const router = express.Router();
 const reportController = require('../controllers/reportController');
 const authenticate = require('../middleware/auth');
 const { checkPermission } = require('../middleware/permission');
+const checkModule = require('../middleware/checkModule');
 
 // Apply authentication to all report routes
 router.use(authenticate);
@@ -22,11 +23,11 @@ router.get('/stocks/value', checkPermission('report:view'), reportController.get
 router.get('/stocks/low-stock', checkPermission('report:view'), reportController.getLowStock);
 router.get('/stocks/transfers', checkPermission('report:view'), reportController.getStockTransfers);
 router.get('/stocks/summary', checkPermission('report:view'), reportController.getStockSummary);
-router.get('/stocks/insights', checkPermission('report:view'), reportController.getInventoryInsights);
+router.get('/stocks/insights', checkPermission('report:view'), checkModule('dashboard_kpi_live'), reportController.getInventoryInsights);
 router.get('/stocks/expiring', checkPermission('report:view'), reportController.getExpiringProducts);
 
 // Financial Reports
-router.get('/finance/profit-loss', checkPermission('report:view'), reportController.getProfitLoss);
+router.get('/finance/profit-loss', checkPermission('report:view'), checkModule('accounting_advanced'), reportController.getProfitLoss);
 router.get('/finance/tax', checkPermission('report:view'), reportController.getTaxReport);
 router.get('/finance/capital-balance', checkPermission('report:view'), reportController.getCapitalBalance);
 router.get('/finance/cheques', checkPermission('report:view'), reportController.getChequeSummary);
@@ -39,7 +40,7 @@ router.get('/customers/history', checkPermission('report:view'), reportControlle
 router.get('/customers/loyalty', checkPermission('report:view'), reportController.getLoyaltyReport);
 
 // Purchase Reports
-router.get('/purchase/supplier-performance', checkPermission('report:view'), reportController.getSupplierPerformance);
+router.get('/purchase/supplier-performance', checkPermission('report:view'), checkModule('dashboard_kpi_live'), reportController.getSupplierPerformance);
 
 // Dashboard
 router.get('/dashboard/summary', reportController.getDashboardSummary);

@@ -4,7 +4,10 @@ const accountController = require('../controllers/accountController');
 const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/permission');
 
+const checkModule = require('../middleware/checkModule');
+
 router.use(auth);
+router.use(checkModule('accounting_ledger'));
 
 router.get('/', checkPermission('finance:view'), accountController.getAllAccounts);
 router.post('/', checkPermission('finance:manage'), accountController.createAccount);
