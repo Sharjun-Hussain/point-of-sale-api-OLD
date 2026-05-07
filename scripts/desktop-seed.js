@@ -193,7 +193,7 @@ async function seed() {
                 price: 15000, 
                 max_users: 2, 
                 max_branches: 1, 
-                features: ['pos_billing', 'inventory_basic', 'inventory_po', 'staff_management', 'barcode_customization', 'reports_basic', 'dashboard_kpi_live', 'dashboard_health'] 
+                features: ['pos_billing', 'inventory_basic', 'inventory_po', 'barcode_customization', 'reports_basic', 'dashboard_kpi_live', 'dashboard_health'] 
             },
             { 
                 name: 'Professional', 
