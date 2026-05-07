@@ -122,6 +122,14 @@ const createEmployee = async (req, res, next) => {
                 if (typeof role_ids === 'string') {
                     try { role_ids = JSON.parse(role_ids); } catch (e) { role_ids = role_ids.split(',').filter(Boolean); }
                 }
+
+                // Security Check: Prevent assigning Super Admin to employees
+                const requestedRoles = await Role.findAll({ where: { id: role_ids } });
+                if (requestedRoles.some(r => r.name === 'Super Admin')) {
+                    await t.rollback();
+                    return errorResponse(res, 'Security Violation: Cannot assign Super Admin role to staff members', 403);
+                }
+
                 await user.setRoles(role_ids, { transaction: t });
             }
         }
@@ -261,6 +269,14 @@ const updateEmployee = async (req, res, next) => {
                     if (typeof role_ids === 'string') {
                         try { parsedRoles = JSON.parse(role_ids); } catch (e) { parsedRoles = role_ids.split(',').filter(Boolean); }
                     }
+
+                    // Security Check: Prevent assigning Super Admin to employees
+                    const requestedRoles = await Role.findAll({ where: { id: parsedRoles } });
+                    if (requestedRoles.some(r => r.name === 'Super Admin')) {
+                        await t.rollback();
+                        return errorResponse(res, 'Security Violation: Cannot assign Super Admin role to staff members', 403);
+                    }
+
                     await employee.user.setRoles(parsedRoles, { transaction: t });
                 }
             } else {
@@ -316,6 +332,14 @@ const updateEmployee = async (req, res, next) => {
                     if (typeof role_ids === 'string') {
                         try { parsedRoles = JSON.parse(role_ids); } catch (e) { parsedRoles = role_ids.split(',').filter(Boolean); }
                     }
+
+                    // Security Check: Prevent assigning Super Admin to employees
+                    const requestedRoles = await Role.findAll({ where: { id: parsedRoles } });
+                    if (requestedRoles.some(r => r.name === 'Super Admin')) {
+                        await t.rollback();
+                        return errorResponse(res, 'Security Violation: Cannot assign Super Admin role to staff members', 403);
+                    }
+
                     await employee.user.setRoles(parsedRoles, { transaction: t });
                 }
             }
