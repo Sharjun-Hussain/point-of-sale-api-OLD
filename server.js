@@ -248,8 +248,13 @@ const startServer = async () => {
             // 3. Auto-Sync and Seed for Desktop Mode (in background)
             if (process.env.APP_PLATFORM === 'DESKTOP' || process.env.ELECTRON_RUNNING === 'true') {
                 logger.info('🖥️  Desktop mode: Initializing database tables...');
-                await db.sequelize.sync({ alter: false });
-                logger.info('✅ Database tables initialized.');
+                try {
+                    await db.sequelize.sync({ alter: false });
+                    logger.info('✅ Database tables initialized.');
+                } catch (syncError) {
+                    logger.warn(`⚠️ Non-fatal Database Sync Error: ${syncError.message}`);
+                    logger.warn('⚠️ Proceeding with existing database schema...');
+                }
 
                 const userCount = await db.User.count();
                 if (userCount === 0) {

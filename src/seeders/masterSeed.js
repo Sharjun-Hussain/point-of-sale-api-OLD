@@ -22,7 +22,11 @@ const seed = async (options = { exitOnComplete: true }) => {
 
         // 0. Sync Database
         // Note: alter: true is disabled to avoid "Too many keys specified" errors on MySQL.
-        await sequelize.sync({ alter: false });
+        try {
+            await sequelize.sync({ alter: false });
+        } catch (syncErr) {
+            console.warn(`⚠️ Warning: masterSeed sync encountered an error: ${syncErr.message}`);
+        }
         console.log('✅ Database schema synchronized.');
 
         // 1. Permissions

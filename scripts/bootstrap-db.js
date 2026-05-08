@@ -41,7 +41,12 @@ async function bootstrap() {
         // 1. Sync Base Models
         // Note: alter: true is disabled here to avoid "Too many keys specified" errors on some systems.
         // Schema changes should be handled via migrations for production stability.
-        await db.sequelize.sync({ alter: false });
+        try {
+            await db.sequelize.sync({ alter: false });
+            console.log('✅ Base models synchronized.');
+        } catch (syncErr) {
+            console.warn(`⚠️ Warning: Base models sync encountered an error (likely Max Keys): ${syncErr.message}`);
+        }
 
         // 2. Explicitly sync Join Tables
         // BelongsToMany associations sometimes skip custom columns (like is_primary) 
