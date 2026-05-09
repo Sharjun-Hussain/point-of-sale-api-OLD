@@ -27,6 +27,7 @@ router.post('/onboarding/complete', orgController.updateOnboardingStatus);
 router.post('/onboarding/policy', orgController.updateOnboardingPolicy); // For current org
 
 // Admin Routes for specific Organization ID
+router.patch('/:id/reset-admin-password', isMaster, checkPermission('org:edit'), orgController.resetAdminPassword);
 router.get('/:id/full-details', isMaster, checkPermission('org:view'), orgController.getOrganizationFullDetails);
 router.get('/:id', isMaster, checkPermission('org:view'), orgController.getOrganizationById);
 router.patch('/:id', isMaster, upload.single('logo'), checkPermission('org:edit'), orgController.updateOrganizationById);

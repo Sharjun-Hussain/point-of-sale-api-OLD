@@ -1048,6 +1048,64 @@ const extendOrganizationTrial = async (req, res, next) => {
 };
 
 
+const resetAdminPassword = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { password } = req.body;
+
+        logger.info(`[DEBUG] Resetting admin password for organization ${id}`);
+
+        if (!password) {
+            return errorResponse(res, 'New password is required', 400);
+        }
+
+        // Strict Super Admin Check
+        const isSuperAdmin = req.user.roles.some(role => role.name === 'Super Admin');
+        if (!isSuperAdmin) return errorResponse(res, 'Unauthorized: Super Admin only', 403);
+
+        const organization = await Organization.findByPk(id);
+        if (!organization) return errorResponse(res, 'Organization not found', 404);
+
+        // Find the primary Organization Admin
+        const adminRole = await Role.findOne({ where: { name: 'Organization Admin' } });
+        if (!adminRole) return errorResponse(res, 'System Error: Organization Admin role not found', 500);
+
+        const adminUser = await User.findOne({
+            where: { organization_id: id },
+            include: [{
+                model: Role,
+                as: 'roles',
+                where: { id: adminRole.id }
+            }],
+            order: [['created_at', 'ASC']] // Target the first one created
+        });
+
+        if (!adminUser) {
+            return errorResponse(res, 'No Organization Admin found for this business profile', 404);
+        }
+
+        const hashedPassword = await hashPassword(password);
+        await adminUser.update({ password: hashedPassword });
+
+        // Audit Logging
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logCustom(
+            id,
+            req.user.id,
+            'ADMIN_PASSWORD_RESET',
+            `Super Admin reset password for ${adminUser.name} (${adminUser.email})`,
+            ipAddress,
+            userAgent,
+            { target_user_id: adminUser.id }
+        );
+
+        return successResponse(res, null, `Administrative password for ${adminUser.name} has been reset successfully.`);
+    } catch (error) {
+        next(error);
+    }
+};
+
+
 module.exports = {
     getOrganization, getAllOrganizations, updateOrganization, createOrganization,
     getOrganizationById, updateOrganizationById, toggleOrganizationStatus, getSubscriptionHistory,
@@ -1055,6 +1113,7 @@ module.exports = {
     getAllBranches, getActiveBranchesList, getBranchById, createBranch, updateBranch, toggleBranchStatus,
     getSuperAdminStats, toggleShopifyIntegration, toggleWhatsAppIntegration, toggleLoyaltyIntegration, toggleBackupFeature,
     getOnboardingStatus, updateOnboardingStatus, updateOnboardingPolicy,
-    updateOrganizationPlan, updateOrganizationModules, extendOrganizationTrial
+    updateOrganizationPlan, updateOrganizationModules, extendOrganizationTrial,
+    resetAdminPassword
 };
 
