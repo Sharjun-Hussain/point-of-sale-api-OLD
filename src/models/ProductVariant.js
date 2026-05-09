@@ -19,13 +19,11 @@ module.exports = (sequelize, DataTypes) => {
         },
         sku: {
             type: DataTypes.STRING,
-            allowNull: true,
-            unique: true
+            allowNull: true
         },
         barcode: {
             type: DataTypes.STRING,
-            allowNull: true,
-            unique: true
+            allowNull: true
         },
         price: {
             type: DataTypes.DECIMAL(15, 2),
@@ -78,7 +76,19 @@ module.exports = (sequelize, DataTypes) => {
         }
     }, {
         tableName: 'product_variants',
-        underscored: true
+        underscored: true,
+        indexes: [
+            {
+                name: 'product_variants_org_sku_unique_idx',
+                unique: true,
+                fields: ['organization_id', 'sku']
+            },
+            {
+                name: 'product_variants_org_barcode_unique_idx',
+                unique: true,
+                fields: ['organization_id', 'barcode']
+            }
+        ]
     });
 
     ProductVariant.associate = (models) => {

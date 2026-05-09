@@ -23,8 +23,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         po_number: {
             type: DataTypes.STRING,
-            allowNull: false,
-            unique: true
+            allowNull: false
         },
         order_date: {
             type: DataTypes.DATE,
@@ -44,7 +43,14 @@ module.exports = (sequelize, DataTypes) => {
         }
     }, {
         tableName: 'purchase_orders',
-        underscored: true
+        underscored: true,
+        indexes: [
+            {
+                name: 'purchase_orders_org_number_unique_idx',
+                unique: true,
+                fields: ['organization_id', 'po_number']
+            }
+        ]
     });
 
     PurchaseOrder.associate = (models) => {

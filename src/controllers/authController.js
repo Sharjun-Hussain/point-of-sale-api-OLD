@@ -139,7 +139,8 @@ const login = async (req, res, next) => {
                     business_mode: user.organization.business_mode
                 } : null,
                 roles: user.roles,
-                branches: allBranches
+                branches: allBranches,
+                terms_accepted: user.terms_accepted
             },
             auth_token: accessToken,
             refresh_token: refreshTokenStr
@@ -312,7 +313,8 @@ const me = async (req, res) => {
                 business_mode: user.organization.business_mode
             } : null,
             roles: user.roles,
-            branches: allBranches
+            branches: allBranches,
+            terms_accepted: user.terms_accepted
         }
     }, 'User profile fetched');
 };

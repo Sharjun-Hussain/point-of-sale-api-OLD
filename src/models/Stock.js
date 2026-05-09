@@ -30,8 +30,9 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true,
         indexes: [
             {
+                name: 'stocks_branch_prod_var_unique_idx',
                 unique: true,
-                fields: ['branch_id', 'product_id', 'product_variant_id']
+                fields: ['organization_id', 'branch_id', 'product_id', 'product_variant_id']
             }
         ]
     });

@@ -7,8 +7,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         name: {
             type: DataTypes.STRING,
-            allowNull: false,
-            unique: true
+            allowNull: false
         },
         description: {
             type: DataTypes.STRING,
@@ -24,7 +23,14 @@ module.exports = (sequelize, DataTypes) => {
         }
     }, {
         tableName: 'roles',
-        underscored: true
+        underscored: true,
+        indexes: [
+            {
+                name: 'roles_org_name_unique_idx',
+                unique: true,
+                fields: ['organization_id', 'name']
+            }
+        ]
     });
 
     Role.associate = (models) => {

@@ -27,8 +27,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         grn_number: {
             type: DataTypes.STRING,
-            allowNull: false,
-            unique: true
+            allowNull: false
         },
         received_date: {
             type: DataTypes.DATE,
@@ -56,7 +55,14 @@ module.exports = (sequelize, DataTypes) => {
         }
     }, {
         tableName: 'grns',
-        underscored: true
+        underscored: true,
+        indexes: [
+            {
+                name: 'grns_org_number_unique_idx',
+                unique: true,
+                fields: ['organization_id', 'grn_number']
+            }
+        ]
     });
 
     GRN.associate = (models) => {

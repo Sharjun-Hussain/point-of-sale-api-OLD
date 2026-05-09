@@ -34,6 +34,7 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true,
         indexes: [
             {
+                name: 'accounts_org_code_unique_idx',
                 unique: true,
                 fields: ['organization_id', 'code']
             }

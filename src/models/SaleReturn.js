@@ -31,8 +31,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         return_number: {
             type: DataTypes.STRING,
-            allowNull: false,
-            unique: true
+            allowNull: false
         },
         return_date: {
             type: DataTypes.DATE,
@@ -60,7 +59,14 @@ module.exports = (sequelize, DataTypes) => {
         }
     }, {
         tableName: 'sale_returns',
-        underscored: true
+        underscored: true,
+        indexes: [
+            {
+                name: 'sale_returns_org_number_unique_idx',
+                unique: true,
+                fields: ['organization_id', 'return_number']
+            }
+        ]
     });
 
     SaleReturn.associate = (models) => {

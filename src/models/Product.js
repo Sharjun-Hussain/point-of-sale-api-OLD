@@ -21,8 +21,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         code: {
             type: DataTypes.STRING,
-            allowNull: false,
-            unique: true
+            allowNull: false
         },
         description: {
             type: DataTypes.TEXT,
@@ -30,13 +29,11 @@ module.exports = (sequelize, DataTypes) => {
         },
         sku: {
             type: DataTypes.STRING,
-            allowNull: true,
-            unique: true
+            allowNull: true
         },
         barcode: {
             type: DataTypes.STRING,
-            allowNull: true,
-            unique: true
+            allowNull: true
         },
         main_category_id: {
             type: DataTypes.UUID,
@@ -88,7 +85,24 @@ module.exports = (sequelize, DataTypes) => {
         }
     }, {
         tableName: 'products',
-        underscored: true
+        underscored: true,
+        indexes: [
+            {
+                name: 'products_org_code_unique_idx',
+                unique: true,
+                fields: ['organization_id', 'code']
+            },
+            {
+                name: 'products_org_sku_unique_idx',
+                unique: true,
+                fields: ['organization_id', 'sku']
+            },
+            {
+                name: 'products_org_barcode_unique_idx',
+                unique: true,
+                fields: ['organization_id', 'barcode']
+            }
+        ]
     });
 
     Product.associate = (models) => {

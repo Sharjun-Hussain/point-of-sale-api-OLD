@@ -13,5 +13,6 @@ router.post('/', checkPermission('user:create'), upload.single('profile_image'),
 router.put('/:id', checkPermission('user:edit'), upload.single('profile_image'), userController.updateUser);
 router.patch('/:id/toggle-status', checkPermission('user:edit'), userController.toggleUserStatus);
 router.post('/:id/resend-welcome-email', checkPermission('user:edit'), userController.resendWelcomeEmail);
+router.post('/accept-terms', userController.acceptTerms);
 
 module.exports = router;

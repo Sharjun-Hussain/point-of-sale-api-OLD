@@ -11,8 +11,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         slug: {
             type: DataTypes.STRING,
-            allowNull: true,
-            unique: true
+            allowNull: true
         },
         description: {
             type: DataTypes.STRING,
@@ -49,7 +48,14 @@ module.exports = (sequelize, DataTypes) => {
         }
     }, {
         tableName: 'containers',
-        underscored: true
+        underscored: true,
+        indexes: [
+            {
+                name: 'containers_org_slug_unique_idx',
+                unique: true,
+                fields: ['organization_id', 'slug']
+            }
+        ]
     });
 
     Container.associate = (models) => {

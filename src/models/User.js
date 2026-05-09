@@ -44,6 +44,14 @@ module.exports = (sequelize, DataTypes) => {
         reset_password_expires: {
             type: DataTypes.DATE,
             allowNull: true
+        },
+        terms_accepted: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
+        },
+        terms_accepted_at: {
+            type: DataTypes.DATE,
+            allowNull: true
         }
     }, {
         tableName: 'users',

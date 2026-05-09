@@ -81,6 +81,12 @@ const getAllProducts = async (req, res, next) => {
                 { model: MeasurementUnit, as: 'measurement' },
                 { model: Container, as: 'container' },
                 {
+                    model: Stock,
+                    as: 'stocks',
+                    attributes: ['quantity', 'branch_id'],
+                    required: false
+                },
+                {
                     model: ProductVariant,
                     as: 'variants',
                     include: [
@@ -88,6 +94,12 @@ const getAllProducts = async (req, res, next) => {
                             model: AttributeValue,
                             as: 'attribute_values',
                             include: [{ model: Attribute, as: 'attribute' }]
+                        },
+                        {
+                            model: Stock,
+                            as: 'stocks',
+                            attributes: ['quantity', 'branch_id'],
+                            required: false
                         }
                     ]
                 },

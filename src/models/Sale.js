@@ -31,8 +31,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         invoice_number: {
             type: DataTypes.STRING,
-            allowNull: false,
-            unique: true
+            allowNull: false
         },
         sale_date: {
             type: DataTypes.DATE,
@@ -92,7 +91,14 @@ module.exports = (sequelize, DataTypes) => {
         }
     }, {
         tableName: 'sales',
-        underscored: true
+        underscored: true,
+        indexes: [
+            {
+                name: 'sales_org_invoice_unique_idx',
+                unique: true,
+                fields: ['organization_id', 'invoice_number']
+            }
+        ]
     });
 
     Sale.associate = (models) => {

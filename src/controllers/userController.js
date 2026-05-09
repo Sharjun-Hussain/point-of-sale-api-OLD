@@ -329,6 +329,34 @@ const resendWelcomeEmail = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const acceptTerms = async (req, res, next) => {
+    try {
+        const user = await User.findByPk(req.user.id);
+        if (!user) return errorResponse(res, 'User not found', 404);
+
+        user.terms_accepted = true;
+        user.terms_accepted_at = new Date();
+        await user.save();
+
+        // Log terms acceptance
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logCustom(
+            user.organization_id,
+            user.id,
+            'TERMS_ACCEPTED',
+            `User ${user.name} accepted Terms & Conditions`,
+            ipAddress,
+            userAgent,
+            { accepted_at: user.terms_accepted_at }
+        );
+
+        return successResponse(res, { 
+            terms_accepted: user.terms_accepted, 
+            terms_accepted_at: user.terms_accepted_at 
+        }, 'Terms & Conditions accepted successfully');
+    } catch (error) { next(error); }
+};
+
 module.exports = {
-    getAllUsers, createUser, updateUser, toggleUserStatus, getActiveSellers, resendWelcomeEmail
+    getAllUsers, createUser, updateUser, toggleUserStatus, getActiveSellers, resendWelcomeEmail, acceptTerms
 };

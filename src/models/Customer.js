@@ -11,8 +11,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         email: {
             type: DataTypes.STRING,
-            allowNull: true,
-            unique: true
+            allowNull: true
         },
         phone: {
             type: DataTypes.STRING,
@@ -44,7 +43,19 @@ module.exports = (sequelize, DataTypes) => {
         }
     }, {
         tableName: 'customers',
-        underscored: true
+        underscored: true,
+        indexes: [
+            {
+                name: 'customers_org_email_unique_idx',
+                unique: true,
+                fields: ['organization_id', 'email']
+            },
+            {
+                name: 'customers_org_phone_unique_idx',
+                unique: true,
+                fields: ['organization_id', 'phone']
+            }
+        ]
     });
 
     Customer.associate = (models) => {

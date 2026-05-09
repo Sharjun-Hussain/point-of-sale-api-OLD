@@ -15,8 +15,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         reference_number: {
             type: DataTypes.STRING,
-            allowNull: false,
-            unique: true
+            allowNull: false
         },
         opening_date: {
             type: DataTypes.DATE,
@@ -40,7 +39,14 @@ module.exports = (sequelize, DataTypes) => {
         }
     }, {
         tableName: 'stock_openings',
-        underscored: true
+        underscored: true,
+        indexes: [
+            {
+                name: 'stock_openings_org_ref_unique_idx',
+                unique: true,
+                fields: ['organization_id', 'reference_number']
+            }
+        ]
     });
 
     StockOpening.associate = (models) => {
