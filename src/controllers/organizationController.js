@@ -1053,8 +1053,6 @@ const resetAdminPassword = async (req, res, next) => {
         const { id } = req.params;
         const { password } = req.body;
 
-        logger.info(`[DEBUG] Resetting admin password for organization ${id}`);
-
         if (!password) {
             return errorResponse(res, 'New password is required', 400);
         }
