@@ -1886,7 +1886,7 @@ const reportController = {
                 },
                 agingDistribution,
                 topPerformers
-            }, 'Inventory insights fetched successfully');
+            }, 'Stock reports fetched successfully');
         } catch (error) { next(error); }
     },
 
