@@ -141,7 +141,16 @@ const getCustomerById = async (req, res, next) => {
 const createCustomer = async (req, res, next) => {
     try {
         const organization_id = req.user.organization_id;
-        const customer = await Customer.create({ ...req.body, organization_id });
+        
+        // Convert empty strings to null to avoid unique constraint issues
+        const customerData = {
+            ...req.body,
+            organization_id,
+            email: req.body.email === "" ? null : req.body.email,
+            phone: req.body.phone === "" ? null : req.body.phone
+        };
+
+        const customer = await Customer.create(customerData);
 
         // Log customer creation
         const { ipAddress, userAgent } = auditService.getRequestContext(req);
@@ -167,7 +176,15 @@ const updateCustomer = async (req, res, next) => {
         if (!customer) return errorResponse(res, 'Customer not found', 404);
 
         const oldValues = { name: customer.name, email: customer.email, phone: customer.phone };
-        await customer.update(req.body);
+        
+        // Convert empty strings to null to avoid unique constraint issues
+        const updateData = {
+            ...req.body,
+            email: req.body.email === "" ? null : req.body.email,
+            phone: req.body.phone === "" ? null : req.body.phone
+        };
+
+        await customer.update(updateData);
 
         // Log customer update
         const { ipAddress, userAgent } = auditService.getRequestContext(req);
