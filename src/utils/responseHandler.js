@@ -48,7 +48,8 @@ const paginatedResponse = (res, data, pagination, message = 'Success') => {
                 limit: pagination.limit,
                 total: pagination.total,
                 pages: Math.ceil(pagination.total / pagination.limit)
-            }
+            },
+            ...pagination // This will include stats or other extra fields if present in pagination object
         }
     });
 };

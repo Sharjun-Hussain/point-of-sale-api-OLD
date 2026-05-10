@@ -2,7 +2,8 @@ const db = require('../models');
 const {
     Sale, SaleItem, Product, ProductVariant, Customer, User,
     Stock, Branch, Supplier, PurchaseOrder, Expense, Organization,
-    SupplierPayment, SupplierPaymentMethod, ExpensePaymentMethod, SaleReturnPayment
+    SupplierPayment, SupplierPaymentMethod, ExpensePaymentMethod, SaleReturnPayment,
+    SaleReturn, SaleReturnItem
 } = db;
 const { Op, Sequelize } = require('sequelize');
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
@@ -569,8 +570,9 @@ const reportController = {
     // 9. Sales Return History & Report Data
     getSalesReturnHistory: async (req, res, next) => {
         try {
-            const { start_date, end_date, branch_id, user_id } = req.query;
+            const { start_date, end_date, branch_id, user_id, page, size } = req.query;
             const organization_id = req.user.organization_id;
+            const { limit, offset } = getPagination(page, size);
 
             const whereClause = { organization_id };
 
@@ -591,29 +593,33 @@ const reportController = {
                 };
             }
 
-            const returns = await db.SaleReturn.findAll({
+            const { count, rows: returns } = await SaleReturn.findAndCountAll({
                 where: whereClause,
                 include: [
-                    { model: db.Customer, as: 'customer', attributes: ['name'] },
-                    { model: db.Sale, as: 'sale', attributes: ['invoice_number'] },
-                    { model: db.User, as: 'cashier', attributes: ['name'] },
+                    { model: Customer, as: 'customer', attributes: ['name'] },
+                    { model: Sale, as: 'sale', attributes: ['invoice_number'] },
+                    { model: User, as: 'cashier', attributes: ['name'] },
                     {
-                        model: db.SaleReturnItem,
+                        model: SaleReturnItem,
                         as: 'items',
-                        include: [{ model: db.Product, as: 'product', attributes: ['name'] }]
+                        include: [{ model: Product, as: 'product', attributes: ['name'] }]
                     }
                 ],
-                order: [['return_date', 'DESC']]
+                order: [['return_date', 'DESC']],
+                limit,
+                offset
             });
 
             // Calculate Metrics for Report
-            const totalReturns = returns.length;
+            const totalReturns = count;
             const totalReturnAmount = returns.reduce((sum, r) => sum + parseFloat(r.total_amount || 0), 0);
             const totalRefundAmount = returns.reduce((sum, r) => sum + parseFloat(r.refund_amount || 0), 0);
             const uniqueCustomers = new Set(returns.map(r => r.customer_id)).size;
 
-            return successResponse(res, {
-                data: returns,
+            return paginatedResponse(res, returns, {
+                total: count,
+                page: parseInt(page) || 1,
+                limit,
                 stats: {
                     totalReturns,
                     totalReturnAmount,
