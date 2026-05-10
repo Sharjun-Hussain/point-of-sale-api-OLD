@@ -58,7 +58,7 @@ async function initializeStock(product_id, variant_id, quantity, cost_price, sel
  */
 const getAllProducts = async (req, res, next) => {
     try {
-        const { page, size, name, category_id } = req.query;
+        const { page, size, name, category_id, sort_by, order: sort_order } = req.query;
         const { limit, offset } = getPagination(page, size);
 
         const where = { organization_id: req.user.organization_id };
@@ -110,7 +110,7 @@ const getAllProducts = async (req, res, next) => {
                 }
             ],
             distinct: true,
-            order: [['created_at', 'DESC']]
+            order: [[sort_by || 'created_at', sort_order || 'DESC']]
         });
 
         return paginatedResponse(res, products.rows, {
