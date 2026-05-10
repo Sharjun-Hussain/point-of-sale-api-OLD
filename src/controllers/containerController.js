@@ -252,6 +252,17 @@ const toggleStatus = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const deleteContainer = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const organization_id = req.user.organization_id;
+        const container = await Container.findOne({ where: { id, organization_id } });
+        if (!container) return resError(res, 'Container not found', 404);
+        await container.destroy();
+        return resSuccess(res, null, 'Container deleted');
+    } catch (error) { next(error); }
+};
+
 module.exports = {
-    getAllContainers, getActiveContainersList, getContainerById, getFormData, createContainer, updateContainer, toggleStatus
+    getAllContainers, getActiveContainersList, getContainerById, getFormData, createContainer, updateContainer, toggleStatus, deleteContainer
 };

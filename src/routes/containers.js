@@ -12,6 +12,7 @@ router.get('/:id', checkPermission('unit:view'), containerController.getContaine
 router.post('/', checkPermission('unit:create'), containerController.createContainer);
 router.put('/:id', checkPermission('unit:edit'), containerController.updateContainer);
 router.patch('/:id', checkPermission('unit:edit'), containerController.updateContainer);
+router.delete('/:id', checkPermission('unit:delete'), containerController.deleteContainer);
 
 
 router.patch('/:id/activate', checkPermission('unit:edit'), (req, res, next) => {
