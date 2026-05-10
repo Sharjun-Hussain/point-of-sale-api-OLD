@@ -32,6 +32,7 @@ router.get('/:id/full-details', isMaster, checkPermission('org:view'), orgContro
 router.get('/:id', isMaster, checkPermission('org:view'), orgController.getOrganizationById);
 router.put('/:id', isMaster, upload.single('logo'), checkPermission('org:edit'), orgController.updateOrganizationById);
 router.patch('/:id', isMaster, upload.single('logo'), checkPermission('org:edit'), orgController.updateOrganizationById); // Alias for compatibility
+router.post('/:id', isMaster, upload.single('logo'), checkPermission('org:edit'), orgController.updateOrganizationById); // Alias for multipart/form-data method override
 router.patch('/:id/shopify', isMaster, checkPermission('org:edit'), orgController.toggleShopifyIntegration);
 router.patch('/:id/whatsapp', isMaster, checkPermission('org:edit'), orgController.toggleWhatsAppIntegration);
 router.patch('/:id/loyalty', isMaster, checkPermission('org:edit'), orgController.toggleLoyaltyIntegration);
