@@ -38,7 +38,7 @@ const login = async (req, res, next) => {
                 {
                     model: Organization,
                     as: 'organization',
-                    attributes: ['id', 'name', 'logo', 'business_type', 'business_mode']
+                    attributes: ['id', 'name', 'logo', 'business_type', 'business_mode', 'is_active', 'subscription_status', 'subscription_expiry_date', 'is_master']
                 }
             ]
         });
@@ -58,6 +58,19 @@ const login = async (req, res, next) => {
 
         if (!user.is_active) {
             return errorResponse(res, 'Account is deactivated', 403);
+        }
+
+        if (user.organization && !user.organization.is_master) {
+            if (!user.organization.is_active) {
+                return errorResponse(res, 'Organization account is deactivated', 403);
+            }
+
+            const isExpiredStatus = user.organization.subscription_status === 'Expired';
+            const isPastExpiryDate = user.organization.subscription_expiry_date && new Date() > new Date(user.organization.subscription_expiry_date);
+
+            if (isExpiredStatus || isPastExpiryDate) {
+                return errorResponse(res, 'Organization subscription has expired. Please contact support.', 403);
+            }
         }
 
         // Check password
