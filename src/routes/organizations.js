@@ -30,7 +30,7 @@ router.post('/onboarding/policy', orgController.updateOnboardingPolicy); // For 
 router.patch('/:id/reset-admin-password', isMaster, checkPermission('org:edit'), orgController.resetAdminPassword);
 router.get('/:id/full-details', isMaster, checkPermission('org:view'), orgController.getOrganizationFullDetails);
 router.get('/:id', isMaster, checkPermission('org:view'), orgController.getOrganizationById);
-router.patch('/:id', isMaster, upload.single('logo'), checkPermission('org:edit'), orgController.updateOrganizationById);
+router.put('/:id', isMaster, upload.single('logo'), checkPermission('org:edit'), orgController.updateOrganizationById);
 router.patch('/:id/shopify', isMaster, checkPermission('org:edit'), orgController.toggleShopifyIntegration);
 router.patch('/:id/whatsapp', isMaster, checkPermission('org:edit'), orgController.toggleWhatsAppIntegration);
 router.patch('/:id/loyalty', isMaster, checkPermission('org:edit'), orgController.toggleLoyaltyIntegration);

@@ -10,6 +10,7 @@ router.use(protect);
 router.post('/', checkPermission('production:create'), recipeController.createRecipe);
 router.get('/', checkPermission('production:view'), recipeController.getRecipes);
 router.get('/:id', checkPermission('production:view'), recipeController.getRecipeById);
+router.put('/:id', checkPermission('production:edit'), recipeController.updateRecipe);
 router.patch('/:id', checkPermission('production:edit'), recipeController.updateRecipe);
 router.delete('/:id', checkPermission('production:delete'), recipeController.deleteRecipe);
 

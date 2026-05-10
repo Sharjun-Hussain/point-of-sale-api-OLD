@@ -33,7 +33,8 @@ router.patch('/:id/:action', checkPermission('product:edit'), productController.
 
 // Variant CRUD
 router.post('/:id/variants', checkPermission('product_variant:create'), upload.array('images[]', 10), productController.createVariant);
-router.post('/:id/variants/:variantId', checkPermission('product_variant:edit'), upload.array('images[]', 10), productController.updateVariant);
+router.put('/:id/variants/:variantId', checkPermission('product_variant:edit'), upload.array('images[]', 10), productController.updateVariant);
+router.post('/:id/variants/:variantId', checkPermission('product_variant:edit'), upload.array('images[]', 10), productController.updateVariant); // Alias for compatibility
 router.delete('/:id/variants/:variantId', checkPermission('product_variant:delete'), productController.deleteVariant);
 
 // Variant toggles
