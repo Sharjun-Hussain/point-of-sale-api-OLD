@@ -100,6 +100,30 @@ const toggleMainStatus = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const deleteMainCategory = async (req, res, next) => {
+    try {
+        const category = await MainCategory.findOne({
+            where: { id: req.params.id, organization_id: req.user.organization_id }
+        });
+        if (!category) return errorResponse(res, 'Main Category not found', 404);
+
+        // Log category deletion
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logDelete(
+            req.user.organization_id,
+            req.user.id,
+            'MainCategory',
+            category.id,
+            { name: category.name },
+            ipAddress,
+            userAgent
+        );
+
+        await category.destroy();
+        return successResponse(res, null, 'Main Category deleted successfully');
+    } catch (error) { next(error); }
+};
+
 // --- Sub Category ---
 const getAllSubCategories = async (req, res, next) => {
     try {
@@ -198,7 +222,31 @@ const toggleSubStatus = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const deleteSubCategory = async (req, res, next) => {
+    try {
+        const category = await SubCategory.findOne({
+            where: { id: req.params.id, organization_id: req.user.organization_id }
+        });
+        if (!category) return errorResponse(res, 'Sub Category not found', 404);
+
+        // Log subcategory deletion
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logDelete(
+            req.user.organization_id,
+            req.user.id,
+            'SubCategory',
+            category.id,
+            { name: category.name },
+            ipAddress,
+            userAgent
+        );
+
+        await category.destroy();
+        return successResponse(res, null, 'Sub Category deleted successfully');
+    } catch (error) { next(error); }
+};
+
 module.exports = {
-    getAllMainCategories, getActiveMainCategoriesList, createMainCategory, updateMainCategory, toggleMainStatus,
-    getAllSubCategories, getActiveSubCategoriesList, createSubCategory, updateSubCategory, toggleSubStatus
+    getAllMainCategories, getActiveMainCategoriesList, createMainCategory, updateMainCategory, toggleMainStatus, deleteMainCategory,
+    getAllSubCategories, getActiveSubCategoriesList, createSubCategory, updateSubCategory, toggleSubStatus, deleteSubCategory
 };

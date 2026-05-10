@@ -11,6 +11,7 @@ router.get('/active/list', categoryController.getActiveSubCategoriesList);
 router.get('/list', categoryController.getActiveSubCategoriesList);
 router.post('/', checkPermission('category:create'), categoryController.createSubCategory);
 router.put('/:id', checkPermission('category:edit'), categoryController.updateSubCategory);
+router.delete('/:id', checkPermission('category:delete'), categoryController.deleteSubCategory);
 
 router.patch('/:id/activate', checkPermission('category:edit'), (req, res, next) => {
     req.params.action = 'activate';
