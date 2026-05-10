@@ -31,6 +31,7 @@ router.patch('/:id/reset-admin-password', isMaster, checkPermission('org:edit'),
 router.get('/:id/full-details', isMaster, checkPermission('org:view'), orgController.getOrganizationFullDetails);
 router.get('/:id', isMaster, checkPermission('org:view'), orgController.getOrganizationById);
 router.put('/:id', isMaster, upload.single('logo'), checkPermission('org:edit'), orgController.updateOrganizationById);
+router.patch('/:id', isMaster, upload.single('logo'), checkPermission('org:edit'), orgController.updateOrganizationById); // Alias for compatibility
 router.patch('/:id/shopify', isMaster, checkPermission('org:edit'), orgController.toggleShopifyIntegration);
 router.patch('/:id/whatsapp', isMaster, checkPermission('org:edit'), orgController.toggleWhatsAppIntegration);
 router.patch('/:id/loyalty', isMaster, checkPermission('org:edit'), orgController.toggleLoyaltyIntegration);
