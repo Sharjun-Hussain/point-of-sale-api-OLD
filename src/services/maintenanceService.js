@@ -36,9 +36,9 @@ class MaintenanceService {
         `, { replacements: { dbName }, type: QueryTypes.SELECT });
 
         const summary = tables.reduce((acc, t) => {
-            acc.totalData  += Number(t.dataSize  || 0);
+            acc.totalData += Number(t.dataSize || 0);
             acc.totalIndex += Number(t.indexSize || 0);
-            acc.totalRows  += Number(t.rows      || 0);
+            acc.totalRows += Number(t.rows || 0);
             return acc;
         }, { totalData: 0, totalIndex: 0, totalRows: 0 });
 
@@ -83,9 +83,9 @@ class MaintenanceService {
      * Get deep system health including DB diagnostics and Redis stats.
      */
     async getSystemHealth() {
-        const uptime      = process.uptime();
-        const mem         = process.memoryUsage();
-        let dbStatus      = 'healthy';
+        const uptime = process.uptime();
+        const mem = process.memoryUsage();
+        let dbStatus = 'healthy';
         let dbDiagnostics = {};
 
         try {
@@ -115,13 +115,13 @@ class MaintenanceService {
             );
 
             dbDiagnostics = {
-                threadsConnected : Number(statMap.Threads_connected || 0),
-                slowQueries      : Number(statMap.Slow_queries      || 0),
-                totalQueries     : Number(statMap.Questions         || 0),
-                dbUptime         : Number(statMap.Uptime            || 0),
-                bytesReceived    : Number(statMap.Bytes_received    || 0),
-                bytesSent        : Number(statMap.Bytes_sent        || 0),
-                version          : versionRow?.version || 'Unknown'
+                threadsConnected: Number(statMap.Threads_connected || 0),
+                slowQueries: Number(statMap.Slow_queries || 0),
+                totalQueries: Number(statMap.Questions || 0),
+                dbUptime: Number(statMap.Uptime || 0),
+                bytesReceived: Number(statMap.Bytes_received || 0),
+                bytesSent: Number(statMap.Bytes_sent || 0),
+                version: versionRow?.version || 'Unknown'
             };
         } catch (e) {
             dbStatus = 'unstable';
@@ -167,17 +167,17 @@ class MaintenanceService {
         const cacheStats = await redisService.getStats();
 
         return {
-            status    : dbStatus,
-            uptime    : `${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m`,
+            status: dbStatus,
+            uptime: `${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m`,
             nodeVersion: process.version,
             memory: {
-                heapUsed : `${Math.round(mem.heapUsed / 1024 / 1024)} MB`,
+                heapUsed: `${Math.round(mem.heapUsed / 1024 / 1024)} MB`,
                 heapTotal: `${Math.round(mem.heapTotal / 1024 / 1024)} MB`,
-                rss      : `${Math.round(mem.rss / 1024 / 1024)} MB`
+                rss: `${Math.round(mem.rss / 1024 / 1024)} MB`
             },
             system: systemMetrics,
-            db    : dbDiagnostics,
-            cache : cacheStats
+            db: dbDiagnostics,
+            cache: cacheStats
         };
     }
 
@@ -187,10 +187,10 @@ class MaintenanceService {
     async clearAppCache() {
         const before = await redisService.getStats();
         await redisService.flush();
-        const after  = await redisService.getStats();
+        const after = await redisService.getStats();
         return {
-            success : true,
-            message : 'Redis cache flushed successfully.',
+            success: true,
+            message: 'Redis cache flushed successfully.',
             before,
             after
         };
@@ -201,18 +201,18 @@ class MaintenanceService {
      */
     async recordSystemMetrics() {
         if (!redisService.isConnected) return;
-        
+
         try {
             const health = await this.getSystemHealth();
-            
+
             // Get previous counters to calculate rate
             const lastStatsRaw = await redisService.client.get('pos:telemetry:last_counters');
             const lastStats = lastStatsRaw ? JSON.parse(lastStatsRaw) : null;
-            
+
             // Get current HTTP counters from Redis
             const httpRequests = parseInt(await redisService.client.get('pos:traffic:requests') || 0);
-            const httpBytesIn  = parseInt(await redisService.client.get('pos:traffic:bytes_in') || 0);
-            
+            const httpBytesIn = parseInt(await redisService.client.get('pos:traffic:bytes_in') || 0);
+
             const currentCounters = {
                 timestamp: new Date().getTime(),
                 httpRequests,
@@ -223,16 +223,16 @@ class MaintenanceService {
 
             // Calculate throughput (Rate per 30s)
             let httpReqRate = 0;
-            let httpInRate  = 0;
-            let dbInRate    = 0;
-            let dbOutRate   = 0;
+            let httpInRate = 0;
+            let dbInRate = 0;
+            let dbOutRate = 0;
 
             if (lastStats) {
                 // We use Math.max(0, ...) to handle counter resets
                 httpReqRate = Math.max(0, currentCounters.httpRequests - lastStats.httpRequests);
-                httpInRate  = Math.max(0, currentCounters.httpBytesIn  - lastStats.httpBytesIn);
-                dbInRate    = Math.max(0, currentCounters.dbBytesIn    - lastStats.dbBytesIn);
-                dbOutRate   = Math.max(0, currentCounters.dbBytesOut   - lastStats.dbBytesOut);
+                httpInRate = Math.max(0, currentCounters.httpBytesIn - lastStats.httpBytesIn);
+                dbInRate = Math.max(0, currentCounters.dbBytesIn - lastStats.dbBytesIn);
+                dbOutRate = Math.max(0, currentCounters.dbBytesOut - lastStats.dbBytesOut);
             }
 
             const point = {
@@ -256,10 +256,10 @@ class MaintenanceService {
             const pipeline = redisService.client.pipeline();
             pipeline.lpush(listKey, JSON.stringify(point));
             pipeline.ltrim(listKey, 0, 1439); // Keep last 24 hours (1440 points)
-            
+
             // Update last counters for next calculation
             pipeline.set('pos:telemetry:last_counters', JSON.stringify(currentCounters));
-            
+
             await pipeline.exec();
         } catch (err) {
             logger.error(`Telemetry Record Error: ${err.message}`);
@@ -388,7 +388,7 @@ class MaintenanceService {
         // Pre-process the SQL file for compatibility
         try {
             let content = fs.readFileSync(filepath, 'utf8');
-            
+
             // 1. Remove DEFINER clauses which cause "Access Denied" or "User does not exist" on VPS
             // Matches: /*!50013 DEFINER=`root`@`localhost`*/ or DEFINER=`root`@`localhost`
             content = content.replace(/\/\*!50013 DEFINER=[^*]+\*\//g, '');
@@ -397,7 +397,7 @@ class MaintenanceService {
             // 2. Fix Collation issues (MySQL 8 uses utf8mb4_0900_ai_ci which MariaDB/MySQL 5.7 don't support)
             // Replace with utf8mb4_general_ci for maximum compatibility
             content = content.replace(/utf8mb4_0900_ai_ci/g, 'utf8mb4_general_ci');
-            
+
             fs.writeFileSync(filepath, content);
         } catch (err) {
             logger.warn(`SQL Pre-processing Warning: ${err.message}`);
@@ -445,6 +445,8 @@ class MaintenanceService {
                         if (successCount === 0 && errorCount > 0) {
                             return reject(new Error(`Restoration failed. Errors: ${importantErrors.slice(0, 3).join('; ')}`));
                         }
+                        // Restore super admin credentials after import
+                        await this._restoreSuperAdmin().catch(e => logger.warn(`Super admin restore warning: ${e.message}`));
                         return resolve({ success: true, message: `Structural restoration finalized. ${successCount} statements executed.` });
                     } catch (fallbackErr) {
                         logger.error(`Native Restoration Fallback Failed: ${fallbackErr.message}`);
@@ -452,9 +454,37 @@ class MaintenanceService {
                         return reject(new Error(`Structural restoration failed: ${cleanError}`));
                     }
                 }
+                // Shell import succeeded - restore super admin credentials
+                await this._restoreSuperAdmin().catch(e => logger.warn(`Super admin restore warning: ${e.message}`));
                 resolve({ success: true, message: 'Structural restoration finalized.' });
             });
         });
+    }
+
+    /**
+     * Re-applies VPS super admin credentials after a database import.
+     * Prevents the import from overwriting the production admin password with a dev hash.
+     */
+    async _restoreSuperAdmin() {
+        try {
+            const bcrypt = require('bcryptjs');
+            const { User } = require('../models');
+            const adminEmail = process.env.SUPER_ADMIN_EMAIL || 'mrjoon005@gmail.com';
+            const adminPassword = process.env.SUPER_ADMIN_PASSWORD || 'Inzeedo@99';
+
+            const user = await User.findOne({ where: { email: adminEmail } });
+            if (!user) {
+                logger.warn(`Super admin restore: user ${adminEmail} not found in restored database.`);
+                return;
+            }
+
+            const hash = await bcrypt.hash(adminPassword, 10);
+            await user.update({ password: hash, status: 'active' });
+            logger.info(`Super admin credentials restored for: ${adminEmail}`);
+        } catch (err) {
+            logger.error(`Super admin restore failed: ${err.message}`);
+            throw err;
+        }
     }
 
     /**
