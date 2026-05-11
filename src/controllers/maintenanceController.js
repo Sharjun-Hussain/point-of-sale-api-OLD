@@ -109,7 +109,17 @@ class MaintenanceController {
                 if (err) logger.error(`Upload Cleanup Error: ${err.message}`);
             });
 
-            return successResponse(res, result, 'Structural restoration finalized.');
+            // Send the success response FIRST before restarting
+            res.status(200).json({ success: true, data: result, message: 'Structural restoration finalized. Backend is restarting to apply changes...' });
+
+            // Gracefully restart the backend after 3 seconds so PM2/nodemon can pick it back up.
+            // This is necessary because Sequelize caches model state that becomes stale after a full DB restore.
+            logger.info('Database import successful. Scheduling graceful backend restart in 3 seconds...');
+            setTimeout(() => {
+                logger.info('Executing graceful restart post-import.');
+                process.exit(0);
+            }, 3000);
+
         } catch (error) { next(error); }
     }
 }
