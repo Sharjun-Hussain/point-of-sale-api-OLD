@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const maintenanceController = require('../controllers/maintenanceController');
 const authenticate = require('../middleware/auth');
-const { checkPermission } = require('../middleware/permission');
+const { checkPermission, checkAnyPermission } = require('../middleware/permission');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -56,12 +56,12 @@ router.post('/clear-cache', checkPermission('system:maintenance'), maintenanceCo
  * @route GET /api/v1/maintenance/db/export
  * @desc Generate a full MySQL dump (Super Admin Only)
  */
-router.get('/db/export', checkPermission('system:maintenance'), maintenanceController.exportDatabase);
+router.get('/db/export', checkAnyPermission(['system:maintenance', 'settings:import:update']), maintenanceController.exportDatabase);
 
 /**
  * @route POST /api/v1/maintenance/db/import
  * @desc Restore database from a SQL snapshot (Super Admin Only)
  */
-router.post('/db/import', checkPermission('system:maintenance'), upload.single('sql'), maintenanceController.importDatabase);
+router.post('/db/import', checkAnyPermission(['system:maintenance', 'settings:import:update']), upload.single('sql'), maintenanceController.importDatabase);
 
 module.exports = router;
