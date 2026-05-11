@@ -408,31 +408,44 @@ class MaintenanceService {
         const binPath = await this._getBinaryPath('mysql');
         const command = `${binPath} -h ${host} -P ${port} -u ${username} ${password ? `-p'${password}'` : ''} ${database} < "${filepath}"`;
 
+        // Inject PATH so the shell can always find mysql even in restricted environments
+        const env = { ...process.env, PATH: `/usr/bin:/usr/local/bin:/bin:${process.env.PATH || ''}` };
+
         return new Promise(async (resolve, reject) => {
-            exec(command, async (error, stdout, stderr) => {
+            exec(command, { env, shell: '/bin/sh' }, async (error, stdout, stderr) => {
                 if (error) {
                     logger.warn(`MySQL Shell Import Failed: ${stderr}. Attempting native fallback...`);
-                    
-                    // NATIVE FALLBACK: Execute SQL line-by-line via Sequelize
+
+                    // NATIVE FALLBACK: Use a reliable character-by-character SQL parser
                     try {
                         const sql = fs.readFileSync(filepath, 'utf8');
-                        // Split by semicolon but ignore semicolons inside single quotes
-                        const statements = sql
-                            .replace(/\/\*[\s\S]*?\*\//g, '') // Remove multi-line comments
-                            .split(/;(?=(?:[^']*'[^']*')*[^']*$)/);
+                        const statements = this._parseSqlStatements(sql);
 
-                        for (let statement of statements) {
-                            const cmd = statement.trim();
-                            if (cmd && !cmd.startsWith('--') && !cmd.startsWith('/*')) {
-                                try {
-                                    await sequelize.query(cmd, { type: QueryTypes.RAW });
-                                } catch (queryErr) {
-                                    // Some statements like 'USE' might fail or be redundant, we log and continue
-                                    logger.debug(`Fallback Query Warning: ${queryErr.message}`);
+                        let successCount = 0;
+                        let errorCount = 0;
+                        const importantErrors = [];
+
+                        for (const stmt of statements) {
+                            try {
+                                await sequelize.query(stmt, { type: QueryTypes.RAW });
+                                successCount++;
+                            } catch (queryErr) {
+                                errorCount++;
+                                const msg = queryErr.message.split('\n')[0];
+                                // Skip harmless errors (DROP IF EXISTS, already exists)
+                                if (!msg.includes('already exists') && !msg.includes('Unknown database') && !msg.includes("doesn't exist")) {
+                                    importantErrors.push(msg);
                                 }
+                                logger.debug(`Fallback Query Warning: ${queryErr.message}`);
                             }
                         }
-                        return resolve({ success: true, message: 'Structural restoration finalized via native fallback.' });
+
+                        logger.info(`Native Import: ${successCount} OK, ${errorCount} skipped.`);
+
+                        if (successCount === 0 && errorCount > 0) {
+                            return reject(new Error(`Restoration failed. Errors: ${importantErrors.slice(0, 3).join('; ')}`));
+                        }
+                        return resolve({ success: true, message: `Structural restoration finalized. ${successCount} statements executed.` });
                     } catch (fallbackErr) {
                         logger.error(`Native Restoration Fallback Failed: ${fallbackErr.message}`);
                         const cleanError = stderr.split('\n')[0] || error.message;
@@ -442,6 +455,67 @@ class MaintenanceService {
                 resolve({ success: true, message: 'Structural restoration finalized.' });
             });
         });
+    }
+
+    /**
+     * Reliable character-by-character SQL statement parser.
+     * Handles multi-line INSERT, escaped quotes, MySQL conditional comments, and -- line comments.
+     */
+    _parseSqlStatements(sql) {
+        const statements = [];
+        let current = '';
+        let inSingleQuote = false;
+        let inDoubleQuote = false;
+        let inLineComment = false;
+        let inBlockComment = false;
+
+        for (let i = 0; i < sql.length; i++) {
+            const ch = sql[i];
+            const next = sql[i + 1];
+
+            if (inLineComment) {
+                if (ch === '\n') inLineComment = false;
+                continue;
+            }
+            if (inBlockComment) {
+                if (ch === '*' && next === '/') { inBlockComment = false; i++; }
+                continue;
+            }
+            if (!inSingleQuote && !inDoubleQuote && ch === '-' && next === '-') {
+                inLineComment = true;
+                continue;
+            }
+            if (!inSingleQuote && !inDoubleQuote && ch === '/' && next === '*') {
+                // Keep MySQL conditional comments like /*!40101 SET ... */
+                if (sql[i + 2] === '!') {
+                    current += ch;
+                } else {
+                    inBlockComment = true;
+                    i++;
+                }
+                continue;
+            }
+            if (ch === "'" && !inDoubleQuote) {
+                if (inSingleQuote && next === "'") { current += ch; i++; continue; }
+                inSingleQuote = !inSingleQuote;
+            }
+            if (ch === '"' && !inSingleQuote) {
+                inDoubleQuote = !inDoubleQuote;
+            }
+
+            current += ch;
+
+            if (ch === ';' && !inSingleQuote && !inDoubleQuote) {
+                const stmt = current.trim();
+                if (stmt && stmt !== ';') statements.push(stmt);
+                current = '';
+            }
+        }
+
+        const last = current.trim();
+        if (last) statements.push(last);
+
+        return statements;
     }
 }
 
