@@ -282,6 +282,18 @@ class MaintenanceService {
     }
 
     /**
+     * Helper to find the absolute path of a system binary.
+     * Prevents "command not found" errors in restricted VPS environments.
+     */
+    async _getBinaryPath(name) {
+        const paths = [`/usr/bin/${name}`, `/usr/local/bin/${name}`, `/bin/${name}`];
+        for (const p of paths) {
+            if (fs.existsSync(p)) return p;
+        }
+        return name; // Fallback to name and hope it's in PATH
+    }
+
+    /**
      * Generate a full SQL dump using mysqldump.
      * Returns the full path to the temporary snapshot.
      */
@@ -291,13 +303,15 @@ class MaintenanceService {
         const uploadDir = process.env.UPLOAD_PATH || path.join(__dirname, '../../uploads');
         const filepath = path.join(uploadDir, filename);
         
+        const binPath = await this._getBinaryPath('mysqldump');
+        
         // Ensure directory exists
         if (!fs.existsSync(uploadDir)) {
             fs.mkdirSync(uploadDir, { recursive: true });
         }
 
         // Build mysqldump command
-        const command = `mysqldump -h ${host} -P ${port} -u ${username} ${password ? `-p'${password}'` : ''} ${database} > "${filepath}"`;
+        const command = `${binPath} -h ${host} -P ${port} -u ${username} ${password ? `-p'${password}'` : ''} ${database} > "${filepath}"`;
 
         return new Promise((resolve, reject) => {
             exec(command, (error, stdout, stderr) => {
@@ -337,7 +351,8 @@ class MaintenanceService {
         }
 
         const { database, username, password, host, port } = sequelize.config;
-        const command = `mysql -h ${host} -P ${port} -u ${username} ${password ? `-p'${password}'` : ''} ${database} < "${filepath}"`;
+        const binPath = await this._getBinaryPath('mysql');
+        const command = `${binPath} -h ${host} -P ${port} -u ${username} ${password ? `-p'${password}'` : ''} ${database} < "${filepath}"`;
 
         return new Promise((resolve, reject) => {
             exec(command, (error, stdout, stderr) => {
