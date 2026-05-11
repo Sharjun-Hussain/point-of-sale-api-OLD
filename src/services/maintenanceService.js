@@ -294,34 +294,88 @@ class MaintenanceService {
     }
 
     /**
-     * Generate a full SQL dump using mysqldump.
-     * Returns the full path to the temporary snapshot.
+     * Generate a full SQL dump.
+     * Tries mysqldump first; if unavailable, falls back to a pure Node.js/Sequelize export.
      */
     async exportSql() {
         const { database, username, password, host, port } = sequelize.config;
         const filename = `db_backup_${Date.now()}.sql`;
         const uploadDir = process.env.UPLOAD_PATH || path.join(__dirname, '../../uploads');
         const filepath = path.join(uploadDir, filename);
-        
-        const binPath = await this._getBinaryPath('mysqldump');
-        
+
         // Ensure directory exists
         if (!fs.existsSync(uploadDir)) {
             fs.mkdirSync(uploadDir, { recursive: true });
         }
 
-        // Build mysqldump command
+        const binPath = await this._getBinaryPath('mysqldump');
         const command = `${binPath} -h ${host} -P ${port} -u ${username} ${password ? `-p'${password}'` : ''} ${database} > "${filepath}"`;
 
         return new Promise((resolve, reject) => {
-            exec(command, (error, stdout, stderr) => {
+            exec(command, async (error, stdout, stderr) => {
                 if (error) {
-                    logger.error(`MySQL Export Error: ${error.message} - ${stderr}`);
-                    return reject(new Error('Structural export failed. Verify that mysqldump is installed and accessible in the system path.'));
+                    logger.warn(`mysqldump failed: ${stderr}. Attempting native Node.js export fallback...`);
+                    try {
+                        await this._nativeExportSql(filepath, database);
+                        return resolve({ filepath, filename });
+                    } catch (fallbackErr) {
+                        logger.error(`Native Export Fallback Failed: ${fallbackErr.message}`);
+                        return reject(new Error('Structural export failed. Unable to generate backup via mysqldump or native fallback.'));
+                    }
                 }
                 resolve({ filepath, filename });
             });
         });
+    }
+
+    /**
+     * Native Node.js SQL export fallback using Sequelize.
+     * Used when mysqldump is not accessible in the shell environment.
+     */
+    async _nativeExportSql(filepath, database) {
+        const lines = [];
+        lines.push(`-- Inzeedo POS Native Backup`);
+        lines.push(`-- Generated: ${new Date().toISOString()}`);
+        lines.push(`-- Database: ${database}`);
+        lines.push(`SET FOREIGN_KEY_CHECKS=0;`);
+        lines.push(`SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';`);
+        lines.push(``);
+
+        // Get all tables
+        const tables = await sequelize.query(
+            `SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = :db AND TABLE_TYPE = 'BASE TABLE'`,
+            { replacements: { db: database }, type: QueryTypes.SELECT }
+        );
+
+        for (const row of tables) {
+            const table = row.TABLE_NAME || row.table_name;
+
+            // Get CREATE TABLE statement
+            const [createRow] = await sequelize.query(`SHOW CREATE TABLE \`${table}\``, { type: QueryTypes.SELECT });
+            const createSql = createRow['Create Table'];
+            lines.push(`DROP TABLE IF EXISTS \`${table}\`;`);
+            lines.push(`${createSql};`);
+            lines.push(``);
+
+            // Get all rows
+            const rows = await sequelize.query(`SELECT * FROM \`${table}\``, { type: QueryTypes.SELECT });
+            if (rows.length > 0) {
+                for (const dataRow of rows) {
+                    const cols = Object.keys(dataRow).map(c => `\`${c}\``).join(', ');
+                    const vals = Object.values(dataRow).map(v => {
+                        if (v === null) return 'NULL';
+                        if (typeof v === 'number') return v;
+                        if (v instanceof Date) return `'${v.toISOString().slice(0, 19).replace('T', ' ')}'`;
+                        return `'${String(v).replace(/'/g, "''").replace(/\\/g, '\\\\')}'`;
+                    }).join(', ');
+                    lines.push(`INSERT INTO \`${table}\` (${cols}) VALUES (${vals});`);
+                }
+                lines.push(``);
+            }
+        }
+
+        lines.push(`SET FOREIGN_KEY_CHECKS=1;`);
+        fs.writeFileSync(filepath, lines.join('\n'), 'utf8');
     }
 
     /**
