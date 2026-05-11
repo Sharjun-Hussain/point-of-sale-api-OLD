@@ -76,6 +76,12 @@ module.exports = (sequelize, DataTypes) => {
             otherKey: 'branch_id'
         });
         User.belongsTo(models.Employee, { as: 'managerProfile', foreignKey: 'id', targetKey: 'user_id', constraints: false });
+        User.belongsToMany(models.Sale, {
+            through: models.SaleEmployee,
+            as: 'sales',
+            foreignKey: 'user_id',
+            otherKey: 'sale_id'
+        });
     };
 
     return User;
