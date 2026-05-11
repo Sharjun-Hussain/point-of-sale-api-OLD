@@ -286,9 +286,15 @@ const updateLogo = async (req, res, next) => {
             if (!organization) return errorResponse(res, 'Organization not found', 404);
 
             // Delete old logo if exists
-            if (organization.logo) {
+            if (organization.logo && typeof organization.logo === 'string') {
                 const oldPath = path.join(__dirname, '../../', organization.logo);
-                if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+                try {
+                    if (fs.existsSync(oldPath) && fs.lstatSync(oldPath).isFile()) {
+                        fs.unlinkSync(oldPath);
+                    }
+                } catch (unlinkErr) {
+                    console.error("Failed to delete old logo:", unlinkErr);
+                }
             }
 
             const logoPath = `uploads/logos/${req.file.filename}`;
