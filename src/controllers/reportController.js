@@ -1011,13 +1011,14 @@ const reportController = {
             });
 
             // Calculate Global Stats for the top cards (only if first page or specifically requested)
-            // In a real high-perf app, these would be cached or retrieved via a separate optimized query
-            const totalItems = await db.Stock.count({ where: { organization_id: req.user.organization_id } });
-            const totalQty = await db.Stock.sum('quantity', { where: { organization_id: req.user.organization_id } });
+            const statsWhere = { organization_id };
+            if (branch_id && branch_id !== 'all') statsWhere.branch_id = branch_id;
+
+            const totalItems = await db.Stock.count({ where: statsWhere });
+            const totalQty = await db.Stock.sum('quantity', { where: statsWhere });
             
-            // Logic for low/out matches the frontend behavior
             const allStocks = await db.Stock.findAll({ 
-                where: { organization_id: req.user.organization_id }, 
+                where: statsWhere, 
                 attributes: ['quantity'],
                 include: [{ model: db.ProductVariant, as: 'variant', attributes: ['low_stock_threshold'] }]
             });
