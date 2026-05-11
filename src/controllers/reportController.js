@@ -1797,7 +1797,7 @@ const reportController = {
                 where: stockWhere,
                 include: [
                     { model: db.Product, as: 'product', attributes: ['name'] },
-                    { model: db.ProductVariant, as: 'variant', attributes: ['name', 'cost_price', 'sales_price'] }
+                    { model: db.ProductVariant, as: 'variant', attributes: ['name', 'cost_price', 'price'] }
                 ]
             });
 
@@ -1816,7 +1816,7 @@ const reportController = {
                 const ageInDays = Math.floor((now - new Date(s.updated_at)) / (1000 * 60 * 60 * 24));
                 const qty = Number(s.quantity);
                 const cost = Number(s.variant?.cost_price || 0);
-                const price = Number(s.variant?.sales_price || 0);
+                const price = Number(s.variant?.price || 0);
 
                 totalStockValue += (qty * cost);
                 totalPotentialRevenue += (qty * price);
@@ -1831,20 +1831,23 @@ const reportController = {
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+            const saleWhere = { 
+                organization_id, 
+                status: 'completed',
+                created_at: { [Op.gte]: thirtyDaysAgo }
+            };
+            if (branch_id && branch_id !== 'all') saleWhere.branch_id = branch_id;
+
             const saleItems = await db.SaleItem.findAll({
                 include: [
                     { 
                         model: db.Sale, 
                         as: 'sale', 
-                        where: { 
-                            organization_id, 
-                            status: 'completed',
-                            created_at: { [Op.gte]: thirtyDaysAgo }
-                        },
+                        where: saleWhere,
                         attributes: []
                     },
                     { model: db.ProductVariant, as: 'variant', attributes: ['cost_price', 'name'] },
-                    { model: db.Product, as: 'product', attributes: ['name'] }
+                    { model: db.Product, as: 'product', attributes: ['name', 'image'] }
                 ]
             });
 
@@ -1855,6 +1858,7 @@ const reportController = {
                 if (!performanceByVariant[vid]) {
                     performanceByVariant[vid] = {
                         name: `${item.product?.name} (${item.variant?.name})`,
+                        image: item.product?.image,
                         soldQty: 0,
                         revenue: 0,
                         cogs: 0,
