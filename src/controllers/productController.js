@@ -579,13 +579,6 @@ const getActiveProductsList = async (req, res, next) => {
                 { model: MainCategory, as: 'main_category', attributes: ['id', 'name'] },
                 { model: Brand, as: 'brand', attributes: ['id', 'name'] },
                 {
-                    model: Stock,
-                    as: 'stocks',
-                    attributes: ['quantity', 'branch_id'],
-                    where: branch_id ? { branch_id } : {},
-                    required: false
-                },
-                {
                     model: ProductVariant,
                     as: 'variants',
                     where: { is_active: true, organization_id: req.user.organization_id },
@@ -601,7 +594,6 @@ const getActiveProductsList = async (req, res, next) => {
                             model: Stock,
                             as: 'stocks',
                             attributes: ['quantity', 'branch_id'],
-                            where: branch_id ? { branch_id } : {},
                             required: false
                         }
                     ]
@@ -609,7 +601,28 @@ const getActiveProductsList = async (req, res, next) => {
             ],
             order: [['name', 'ASC']]
         });
-        return successResponse(res, products, 'Active products fetched');
+
+        // Map through and calculate stock_quantity dynamically
+        const mappedProducts = products.map(product => {
+            const p = product.toJSON();
+            if (p.variants) {
+                p.variants = p.variants.map(variant => {
+                    let calculatedStock = 0;
+                    if (variant.stocks && variant.stocks.length > 0) {
+                        if (branch_id && branch_id !== 'all') {
+                            const branchStock = variant.stocks.find(s => String(s.branch_id) === String(branch_id));
+                            calculatedStock = branchStock ? parseFloat(branchStock.quantity) : 0;
+                        } else {
+                            calculatedStock = variant.stocks.reduce((acc, s) => acc + parseFloat(s.quantity), 0);
+                        }
+                    }
+                    return { ...variant, stock_quantity: calculatedStock };
+                });
+            }
+            return p;
+        });
+
+        return successResponse(res, mappedProducts, 'Active products fetched');
     } catch (error) {
         next(error);
     }
