@@ -288,16 +288,22 @@ class MaintenanceService {
     async exportSql() {
         const { database, username, password, host, port } = sequelize.config;
         const filename = `db_backup_${Date.now()}.sql`;
-        const filepath = path.join(process.env.UPLOAD_PATH || 'uploads/', filename);
+        const uploadDir = process.env.UPLOAD_PATH || path.join(__dirname, '../../uploads');
+        const filepath = path.join(uploadDir, filename);
         
+        // Ensure directory exists
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+
         // Build mysqldump command
-        const command = `mysqldump -h ${host} -P ${port} -u ${username} ${password ? `-p${password}` : ''} ${database} > ${filepath}`;
+        const command = `mysqldump -h ${host} -P ${port} -u ${username} ${password ? `-p'${password}'` : ''} ${database} > "${filepath}"`;
 
         return new Promise((resolve, reject) => {
             exec(command, (error, stdout, stderr) => {
                 if (error) {
-                    logger.error(`MySQL Export Error: ${error.message}`);
-                    return reject(new Error('Structural export failed. Check system logs.'));
+                    logger.error(`MySQL Export Error: ${error.message} - ${stderr}`);
+                    return reject(new Error('Structural export failed. Verify that mysqldump is installed and accessible in the system path.'));
                 }
                 resolve({ filepath, filename });
             });
@@ -311,13 +317,13 @@ class MaintenanceService {
         if (!fs.existsSync(filepath)) throw new Error('Source snapshot not found.');
 
         const { database, username, password, host, port } = sequelize.config;
-        const command = `mysql -h ${host} -P ${port} -u ${username} ${password ? `-p${password}` : ''} ${database} < ${filepath}`;
+        const command = `mysql -h ${host} -P ${port} -u ${username} ${password ? `-p'${password}'` : ''} ${database} < "${filepath}"`;
 
         return new Promise((resolve, reject) => {
             exec(command, (error, stdout, stderr) => {
                 if (error) {
-                    logger.error(`MySQL Import Error: ${error.message}`);
-                    return reject(new Error('Structural restoration failed. Invalid SQL basis.'));
+                    logger.error(`MySQL Import Error: ${error.message} - ${stderr}`);
+                    return reject(new Error('Structural restoration failed. Verify that the mysql client is installed and the SQL file is valid.'));
                 }
                 resolve({ success: true, message: 'Structural restoration finalized.' });
             });
