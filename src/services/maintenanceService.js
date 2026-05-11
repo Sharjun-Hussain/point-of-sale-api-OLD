@@ -312,9 +312,29 @@ class MaintenanceService {
 
     /**
      * Restore database from a provided SQL file using mysql command.
+     * Includes pre-processing to handle localhost -> VPS compatibility (DEFINER and Collation).
      */
     async importSql(filepath) {
         if (!fs.existsSync(filepath)) throw new Error('Source snapshot not found.');
+
+        // Pre-process the SQL file for compatibility
+        try {
+            let content = fs.readFileSync(filepath, 'utf8');
+            
+            // 1. Remove DEFINER clauses which cause "Access Denied" or "User does not exist" on VPS
+            // Matches: /*!50013 DEFINER=`root`@`localhost`*/ or DEFINER=`root`@`localhost`
+            content = content.replace(/\/\*!50013 DEFINER=[^*]+\*\//g, '');
+            content = content.replace(/DEFINER=`[^`]+`@`[^`]+`/g, '');
+
+            // 2. Fix Collation issues (MySQL 8 uses utf8mb4_0900_ai_ci which MariaDB/MySQL 5.7 don't support)
+            // Replace with utf8mb4_general_ci for maximum compatibility
+            content = content.replace(/utf8mb4_0900_ai_ci/g, 'utf8mb4_general_ci');
+            
+            fs.writeFileSync(filepath, content);
+        } catch (err) {
+            logger.warn(`SQL Pre-processing Warning: ${err.message}`);
+            // Continue anyway, it might work without pre-processing
+        }
 
         const { database, username, password, host, port } = sequelize.config;
         const command = `mysql -h ${host} -P ${port} -u ${username} ${password ? `-p'${password}'` : ''} ${database} < "${filepath}"`;
@@ -322,8 +342,9 @@ class MaintenanceService {
         return new Promise((resolve, reject) => {
             exec(command, (error, stdout, stderr) => {
                 if (error) {
+                    const cleanError = stderr.split('\n')[0] || error.message;
                     logger.error(`MySQL Import Error: ${error.message} - ${stderr}`);
-                    return reject(new Error('Structural restoration failed. Verify that the mysql client is installed and the SQL file is valid.'));
+                    return reject(new Error(`Structural restoration failed: ${cleanError}`));
                 }
                 resolve({ success: true, message: 'Structural restoration finalized.' });
             });
