@@ -25,11 +25,14 @@ const errorHandler = (err, req, res, next) => {
     // Handle Sequelize unique constraint errors
     if (err.name === 'SequelizeUniqueConstraintError') {
         statusCode = 409;
-        message = 'Duplicate Entry';
-        errors = err.errors.map(e => ({
-            field: e.path,
-            message: `${e.path} already exists`
-        }));
+        const emailFields = ['email', 'owner_email', 'branch_email'];
+        const isEmailConflict = err.errors && err.errors.some(e => emailFields.some(f => e.path && e.path.includes(f)));
+        if (isEmailConflict) {
+            message = 'Invalid Email. Please use a different email address.';
+        } else {
+            message = 'This entry already exists. Please use a different value.';
+        }
+        errors = null;
     }
 
     // Handle Sequelize foreign key constraint errors

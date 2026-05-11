@@ -77,7 +77,7 @@ const createUser = async (req, res, next) => {
         }
 
         const existingUser = await User.findOne({ where: { email } });
-        if (existingUser) return errorResponse(res, 'Email already exists', 409);
+        if (existingUser) return errorResponse(res, 'Invalid Email. Please use a different email address.', 409);
 
         const hashedPassword = await hashPassword(password);
 

@@ -42,6 +42,22 @@ const createOrganization = async (req, res, next) => {
             logoPath = req.file.path.replace(/\\/g, '/');
         }
 
+        // Pre-check: owner email must be globally unique across all users
+        if (owner_email) {
+            const existingOwner = await User.findOne({ where: { email: owner_email } });
+            if (existingOwner) {
+                return errorResponse(res, 'Invalid Email. Please use a different email address for the owner account.', 409);
+            }
+        }
+
+        // Pre-check: organization business email must be globally unique
+        if (email) {
+            const existingOrg = await Organization.findOne({ where: { email } });
+            if (existingOrg) {
+                return errorResponse(res, 'Invalid Business Email. Please use a different business email address.', 409);
+            }
+        }
+
         // 1. Create Organization with Smart Subscription Setup
         const subscriptionStatus = req.body.subscription_status || 'Trial';
         let subscriptionTier = req.body.subscription_tier || 'Essential';
