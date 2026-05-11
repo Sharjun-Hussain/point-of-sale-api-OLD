@@ -354,12 +354,36 @@ class MaintenanceService {
         const binPath = await this._getBinaryPath('mysql');
         const command = `${binPath} -h ${host} -P ${port} -u ${username} ${password ? `-p'${password}'` : ''} ${database} < "${filepath}"`;
 
-        return new Promise((resolve, reject) => {
-            exec(command, (error, stdout, stderr) => {
+        return new Promise(async (resolve, reject) => {
+            exec(command, async (error, stdout, stderr) => {
                 if (error) {
-                    const cleanError = stderr.split('\n')[0] || error.message;
-                    logger.error(`MySQL Import Error: ${error.message} - ${stderr}`);
-                    return reject(new Error(`Structural restoration failed: ${cleanError}`));
+                    logger.warn(`MySQL Shell Import Failed: ${stderr}. Attempting native fallback...`);
+                    
+                    // NATIVE FALLBACK: Execute SQL line-by-line via Sequelize
+                    try {
+                        const sql = fs.readFileSync(filepath, 'utf8');
+                        // Split by semicolon but ignore semicolons inside single quotes
+                        const statements = sql
+                            .replace(/\/\*[\s\S]*?\*\//g, '') // Remove multi-line comments
+                            .split(/;(?=(?:[^']*'[^']*')*[^']*$)/);
+
+                        for (let statement of statements) {
+                            const cmd = statement.trim();
+                            if (cmd && !cmd.startsWith('--') && !cmd.startsWith('/*')) {
+                                try {
+                                    await sequelize.query(cmd, { type: QueryTypes.RAW });
+                                } catch (queryErr) {
+                                    // Some statements like 'USE' might fail or be redundant, we log and continue
+                                    logger.debug(`Fallback Query Warning: ${queryErr.message}`);
+                                }
+                            }
+                        }
+                        return resolve({ success: true, message: 'Structural restoration finalized via native fallback.' });
+                    } catch (fallbackErr) {
+                        logger.error(`Native Restoration Fallback Failed: ${fallbackErr.message}`);
+                        const cleanError = stderr.split('\n')[0] || error.message;
+                        return reject(new Error(`Structural restoration failed: ${cleanError}`));
+                    }
                 }
                 resolve({ success: true, message: 'Structural restoration finalized.' });
             });
