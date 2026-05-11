@@ -951,18 +951,15 @@ const reportController = {
 
             const { limit, offset } = getPagination(page, size);
 
-            const where = {};
+            const where = { organization_id };
             if (branch_id && branch_id !== 'all') where.branch_id = branch_id;
 
-            const productWhere = {};
-            if (main_category_id && main_category_id !== 'all') productWhere.main_category_id = main_category_id;
-            if (sub_category_id && sub_category_id !== 'all') productWhere.sub_category_id = sub_category_id;
-            
             if (search) {
-                productWhere[Op.or] = [
-                    { name: { [Op.like]: `%${search}%` } },
-                    { code: { [Op.like]: `%${search}%` } },
-                    { '$variant.sku$': { [Op.like]: `%${search}%` } }
+                where[Op.or] = [
+                    { '$product.name$': { [Op.like]: `%${search}%` } },
+                    { '$product.code$': { [Op.like]: `%${search}%` } },
+                    { '$variant.sku$': { [Op.like]: `%${search}%` } },
+                    { '$variant.name$': { [Op.like]: `%${search}%` } }
                 ];
             }
 
@@ -978,13 +975,17 @@ const reportController = {
                 where.quantity = { [Op.gt]: Sequelize.col('variant.low_stock_threshold') };
             }
 
+            const productWhere = {};
+            if (main_category_id && main_category_id !== 'all') productWhere.main_category_id = main_category_id;
+            if (sub_category_id && sub_category_id !== 'all') productWhere.sub_category_id = sub_category_id;
+
             const stocks = await db.Stock.findAndCountAll({
                 where,
                 include: [
                     {
                         model: db.Product,
                         as: 'product',
-                        where: productWhere,
+                        where: Object.keys(productWhere).length > 0 ? productWhere : undefined,
                         attributes: ['name', 'code'],
                         include: [
                             { model: db.MainCategory, as: 'main_category', attributes: ['name'] },
@@ -999,7 +1000,6 @@ const reportController = {
                     {
                         model: db.Branch,
                         as: 'branch',
-                        where: { organization_id },
                         attributes: ['name']
                     }
                 ],
