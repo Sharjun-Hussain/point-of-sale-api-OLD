@@ -2044,6 +2044,333 @@ const reportController = {
         } catch (error) {
             next(error);
         }
+    },
+
+    // 26. Advanced Stock Transactions (Image 1)
+    getStockTransactions: async (req, res, next) => {
+        try {
+            const { 
+                start_date, end_date, 
+                product_id, brand_id, main_category_id, 
+                user_id, transaction_type 
+            } = req.query;
+            const organization_id = req.user.organization_id;
+
+            const where = { organization_id };
+            if (start_date && end_date) {
+                where.created_at = { [Op.between]: [new Date(start_date + 'T00:00:00'), new Date(end_date + 'T23:59:59')] };
+            }
+            if (product_id && product_id !== 'all') where.product_id = product_id;
+            if (user_id && user_id !== 'all') where.user_id = user_id;
+            if (transaction_type && transaction_type !== 'all') where.type = transaction_type;
+
+            const productWhere = {};
+            if (brand_id && brand_id !== 'all') productWhere.brand_id = brand_id;
+            if (main_category_id && main_category_id !== 'all') productWhere.main_category_id = main_category_id;
+
+            const adjustments = await db.StockAdjustment.findAll({
+                where,
+                include: [
+                    { 
+                        model: db.Product, as: 'product', 
+                        where: Object.keys(productWhere).length > 0 ? productWhere : undefined,
+                        attributes: ['name', 'code', 'brand_id', 'main_category_id'],
+                        include: [
+                            { model: db.Brand, as: 'brand', attributes: ['name'] },
+                            { model: db.MainCategory, as: 'main_category', attributes: ['name'] }
+                        ]
+                    },
+                    { model: db.ProductVariant, as: 'variant', attributes: ['name', 'sku', 'price', 'cost_price'] },
+                    { model: db.User, as: 'adjusted_by_user', attributes: ['name'] },
+                    { model: db.Branch, as: 'branch', attributes: ['name'] }
+                ],
+                order: [['created_at', 'DESC']]
+            });
+
+            const result = adjustments.map(adj => ({
+                id: adj.id,
+                date: adj.created_at,
+                item_code: adj.variant?.sku || adj.product?.code,
+                item_name: adj.product?.name + (adj.variant?.name ? ` (${adj.variant.name})` : ''),
+                sale_price: Number(adj.variant?.price || 0),
+                cost_price: Number(adj.variant?.cost_price || 0),
+                quantity: Number(adj.quantity),
+                type: adj.type,
+                reason: adj.reason,
+                user: adj.adjusted_by_user?.name,
+                branch: adj.branch?.name,
+                category: adj.product?.main_category?.name,
+                brand: adj.product?.brand?.name,
+                batch_number: adj.batch_number // If available
+            }));
+
+            return successResponse(res, result, 'Stock transactions fetched successfully');
+        } catch (error) { next(error); }
+    },
+
+    // 27. Advanced Stock Report — Summary / Batches / Expire
+    getAdvancedStockReport: async (req, res, next) => {
+        try {
+            const {
+                report_type = 'summary',   // 'summary' | 'batches' | 'expire'
+                start_date, end_date,
+                product_id, supplier_id, main_category_id, brand_id,
+                stock_from, stock_to
+            } = req.query;
+            const organization_id = req.user.organization_id;
+
+            // ── Product-level filters (always scoped to this org) ──────────────
+            const productWhere = { organization_id };
+            if (product_id        && product_id        !== 'all') productWhere.id               = product_id;
+            if (brand_id          && brand_id          !== 'all') productWhere.brand_id          = brand_id;
+            if (main_category_id  && main_category_id  !== 'all') productWhere.main_category_id  = main_category_id;
+            if (supplier_id       && supplier_id       !== 'all') productWhere.supplier_id       = supplier_id;
+
+            // Shared product include — required:true = INNER JOIN so filters apply
+            const productInclude = {
+                model: db.Product, as: 'product',
+                where: productWhere,
+                required: true,
+                attributes: ['id', 'name', 'code'],
+                include: [
+                    { model: db.Brand,        as: 'brand',         attributes: ['name'], required: false },
+                    { model: db.MainCategory, as: 'main_category', attributes: ['name'], required: false },
+                    { model: db.Supplier,     as: 'supplier',      attributes: ['name'], required: false }
+                ]
+            };
+
+            const sfNum = parseFloat(stock_from);
+            const stNum = parseFloat(stock_to);
+
+            // ── BATCHES / EXPIRE ───────────────────────────────────────────────
+            if (report_type === 'batches' || report_type === 'expire') {
+                const batchWhere = { organization_id };
+
+                if (report_type === 'expire') {
+                    if (start_date && end_date) {
+                        batchWhere.expiry_date = {
+                            [Op.between]: [
+                                new Date(start_date + 'T00:00:00'),
+                                new Date(end_date   + 'T23:59:59')
+                            ]
+                        };
+                    } else {
+                        // Default: show items expiring within the next 90 days (+ already expired)
+                        const ninetyDaysOut = new Date();
+                        ninetyDaysOut.setDate(ninetyDaysOut.getDate() + 90);
+                        ninetyDaysOut.setHours(23, 59, 59, 999);
+                        batchWhere.expiry_date = { [Op.lte]: ninetyDaysOut };
+                    }
+                }
+
+                if (!isNaN(sfNum) && !isNaN(stNum)) {
+                    batchWhere.quantity = { [Op.between]: [sfNum, stNum] };
+                }
+
+                const batches = await db.ProductBatch.findAll({
+                    where: batchWhere,
+                    include: [
+                        productInclude,
+                        {
+                            model: db.ProductVariant, as: 'variant',
+                            attributes: ['name', 'sku', 'price', 'cost_price'],
+                            required: false
+                        },
+                        {
+                            model: db.Branch, as: 'branch',
+                            attributes: ['name'],
+                            required: false
+                        }
+                    ],
+                    order: report_type === 'expire'
+                        ? [['expiry_date', 'ASC']]
+                        : [['created_at', 'DESC']]
+                });
+
+                const result = batches.map(b => {
+                    const salePrice = Number(b.selling_price  || b.variant?.price      || 0);
+                    const costPrice = Number(b.cost_price     || b.variant?.cost_price || 0);
+                    const qty       = Number(b.quantity       || 0);
+                    return {
+                        id:          b.id,
+                        item_code:   b.variant?.sku    || b.product?.code  || null,
+                        item_name:   (b.product?.name  || '') + (b.variant?.name ? ` (${b.variant.name})` : ''),
+                        sale_price:  salePrice,
+                        cost_price:  costPrice,
+                        quantity:    qty,
+                        batch_no:    b.batch_number    || null,
+                        expiry_date: b.expiry_date     || null,
+                        supplier:    b.product?.supplier?.name      || null,
+                        category:    b.product?.main_category?.name || null,
+                        brand:       b.product?.brand?.name         || null,
+                        branch:      b.branch?.name                 || null,
+                        total_value: qty * salePrice,
+                        net_value:   qty * costPrice
+                    };
+                });
+
+                return successResponse(res, result, `Stock ${report_type} report fetched successfully`);
+            }
+
+            // ── SUMMARY (current stock levels) ────────────────────────────────
+            const stockWhere = { organization_id };
+            if (!isNaN(sfNum) && !isNaN(stNum)) {
+                stockWhere.quantity = { [Op.between]: [sfNum, stNum] };
+            }
+
+            const stocks = await db.Stock.findAll({
+                where: stockWhere,
+                include: [
+                    productInclude,
+                    {
+                        model: db.ProductVariant, as: 'variant',
+                        attributes: ['name', 'sku', 'price', 'cost_price'],
+                        required: false
+                    },
+                    {
+                        model: db.Branch, as: 'branch',
+                        attributes: ['name'],
+                        required: false
+                    }
+                ],
+                order: [['updated_at', 'DESC']]
+            });
+
+            const result = stocks.map(s => {
+                const salePrice = Number(s.variant?.price      || 0);
+                const costPrice = Number(s.variant?.cost_price || 0);
+                const qty       = Number(s.quantity            || 0);
+                return {
+                    id:          s.id,
+                    item_code:   s.variant?.sku   || s.product?.code  || null,
+                    item_name:   (s.product?.name || '') + (s.variant?.name ? ` (${s.variant.name})` : ''),
+                    sale_price:  salePrice,
+                    cost_price:  costPrice,
+                    quantity:    qty,
+                    batch_no:    null,
+                    expiry_date: null,
+                    supplier:    s.product?.supplier?.name      || null,
+                    category:    s.product?.main_category?.name || null,
+                    brand:       s.product?.brand?.name         || null,
+                    branch:      s.branch?.name                 || null,
+                    total_value: qty * salePrice,
+                    net_value:   qty * costPrice
+                };
+            });
+
+            return successResponse(res, result, 'Stock summary report fetched successfully');
+
+        } catch (error) { next(error); }
+    },
+
+
+    // 28. Advanced Sales Report (Image 3)
+    getAdvancedSalesReport: async (req, res, next) => {
+        try {
+            const { 
+                report_type, // 'summary', 'items', 'refund', 'cancel', 'invoices', 'invoices-cancel'
+                start_date, end_date,
+                product_id, supplier_id, brand_id, customer_id, main_category_id, user_id,
+                payment_cash, payment_card, payment_credit,
+                invoice_from, invoice_to
+            } = req.query;
+            const organization_id = req.user.organization_id;
+
+            const saleWhere = { organization_id };
+            if (start_date && end_date) {
+                saleWhere.created_at = { [Op.between]: [new Date(start_date + 'T00:00:00'), new Date(end_date + 'T23:59:59')] };
+            }
+            if (customer_id && customer_id !== 'all') saleWhere.customer_id = customer_id;
+            if (user_id && user_id !== 'all') saleWhere.user_id = user_id;
+            
+            // Status based on report_type
+            if (report_type === 'refund') saleWhere.status = 'refunded';
+            else if (report_type === 'cancel') saleWhere.status = 'cancelled';
+            else saleWhere.status = 'completed';
+
+            // Payment Types
+            const paymentMethods = [];
+            if (payment_cash === 'true') paymentMethods.push('Cash');
+            if (payment_card === 'true') paymentMethods.push('Card');
+            if (payment_credit === 'true') saleWhere.payment_status = { [Op.in]: ['unpaid', 'partially_paid'] };
+
+            const productWhere = {};
+            if (product_id && product_id !== 'all') productWhere.id = product_id;
+            if (brand_id && brand_id !== 'all') productWhere.brand_id = brand_id;
+            if (main_category_id && main_category_id !== 'all') productWhere.main_category_id = main_category_id;
+            if (supplier_id && supplier_id !== 'all') productWhere.supplier_id = supplier_id;
+
+            if (report_type === 'items' || report_type === 'summary') {
+                const saleItems = await db.SaleItem.findAll({
+                    include: [
+                        { 
+                            model: db.Sale, as: 'sale', 
+                            where: saleWhere,
+                            include: [
+                                { model: db.Customer, as: 'customer', attributes: ['name'] },
+                                { model: db.User, as: 'cashier', attributes: ['name'] },
+                                { model: db.SalePayment, as: 'payments' }
+                            ]
+                        },
+                        { 
+                            model: db.Product, as: 'product', 
+                            where: Object.keys(productWhere).length > 0 ? productWhere : undefined,
+                            include: [
+                                { model: db.Brand, as: 'brand', attributes: ['name'] },
+                                { model: db.MainCategory, as: 'main_category', attributes: ['name'] },
+                                { model: db.Supplier, as: 'supplier', attributes: ['name'] }
+                            ]
+                        },
+                        { model: db.ProductVariant, as: 'variant', attributes: ['name', 'sku', 'cost_price'] }
+                    ]
+                });
+
+                const result = saleItems.map(item => ({
+                    id: item.id,
+                    invoice_no: item.sale?.invoice_number,
+                    date: item.sale?.created_at,
+                    item_code: item.variant?.sku || item.product?.code,
+                    item_name: item.product?.name + (item.variant?.name ? ` (${item.variant.name})` : ''),
+                    unit_price: Number(item.unit_price),
+                    quantity: Number(item.quantity),
+                    discount: Number(item.discount_amount || 0),
+                    total: Number(item.total_amount),
+                    cost_price: Number(item.variant?.cost_price || 0),
+                    category: item.product?.main_category?.name,
+                    brand: item.product?.brand?.name,
+                    supplier: item.product?.supplier?.name,
+                    customer: item.sale?.customer?.name || 'Walk-in',
+                    cashier: item.sale?.cashier?.name,
+                    netsale: Number(item.total_amount) // Simplification
+                }));
+
+                return successResponse(res, result, 'Advanced sales report (items) fetched');
+            } else {
+                // Invoice level
+                const sales = await db.Sale.findAll({
+                    where: saleWhere,
+                    include: [
+                        { model: db.Customer, as: 'customer', attributes: ['name'] },
+                        { model: db.User, as: 'cashier', attributes: ['name'] },
+                        { model: db.SalePayment, as: 'payments' }
+                    ]
+                });
+
+                const result = sales.map(s => ({
+                    id: s.id,
+                    invoice_no: s.invoice_number,
+                    date: s.created_at,
+                    customer: s.customer?.name || 'Walk-in',
+                    total: Number(s.payable_amount),
+                    discount: Number(s.discount_amount),
+                    cashier: s.cashier?.name,
+                    payment_status: s.payment_status,
+                    paid_amount: Number(s.paid_amount)
+                }));
+
+                return successResponse(res, result, 'Advanced sales report (invoices) fetched');
+            }
+        } catch (error) { next(error); }
     }
 };
 

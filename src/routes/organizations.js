@@ -45,6 +45,7 @@ router.patch('/:id/status/:action', isMaster, checkPermission('org:edit'), orgCo
 router.patch('/:id/status', isMaster, checkPermission('org:edit'), orgController.toggleOrganizationStatus);
 router.patch('/:id/:action', isMaster, checkPermission('org:edit'), orgController.toggleOrganizationStatus); // Alias for frontend compatibility
 router.post('/:id/onboarding/policy', isMaster, checkPermission('org:edit'), orgController.updateOnboardingPolicy);
+router.post('/:id/reset-data', isMaster, checkPermission('org:edit'), orgController.resetOrganizationData);
 
 
 module.exports = router;

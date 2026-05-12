@@ -55,4 +55,9 @@ router.get('/manufacturing/summary', checkPermission('report:view'), reportContr
 router.get('/manufacturing/raw-material-usage', checkPermission('report:view'), reportController.getRawMaterialUsage);
 router.get('/manufacturing/distribution', checkPermission('report:view'), reportController.getDistributionReport);
 
+// Advanced Reports (temporarily disabled — re-enable when ready)
+// router.get('/advanced/transactions', checkPermission('report:view'), reportController.getStockTransactions);
+// router.get('/advanced/stocks', checkPermission('report:view'), reportController.getAdvancedStockReport);
+// router.get('/advanced/sales', checkPermission('report:view'), reportController.getAdvancedSalesReport);
+
 module.exports = router;

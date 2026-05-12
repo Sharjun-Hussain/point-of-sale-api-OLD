@@ -1598,6 +1598,7 @@ const importProducts = async (req, res, next) => {
                         barcode: p.barcode || p.code || product.barcode,
                         price: parseFloat(p.selling_price || 0),
                         cost_price: parseFloat(p.cost_price || 0),
+                        mrp_price: parseFloat(p.mrp_price || 0),
                         wholesale_price: parseFloat(p.wholesale_price || 0),
                         low_stock_threshold: parseFloat(p.low_stock_threshold || 10),
                         stock_quantity: 0,
@@ -1612,6 +1613,7 @@ const importProducts = async (req, res, next) => {
                     await variant.update({
                         price: p.selling_price !== undefined ? parseFloat(p.selling_price) : variant.price,
                         cost_price: p.cost_price !== undefined ? parseFloat(p.cost_price) : variant.cost_price,
+                        mrp_price: p.mrp_price !== undefined ? parseFloat(p.mrp_price) : variant.mrp_price,
                         wholesale_price: p.wholesale_price !== undefined ? parseFloat(p.wholesale_price) : variant.wholesale_price,
                         low_stock_threshold: p.low_stock_threshold !== undefined ? parseFloat(p.low_stock_threshold) : variant.low_stock_threshold,
                         barcode: p.barcode || variant.barcode
@@ -1650,9 +1652,12 @@ const importProducts = async (req, res, next) => {
                             branch_id,
                             product_id: product.id,
                             product_variant_id: variant.id,
+                            batch_number: p.batch_number || null,
+                            expiry_date: p.expiry_date ? new Date(p.expiry_date) : null,
                             quantity: stockQty,
                             cost_price: parseFloat(p.cost_price || 0),
                             selling_price: parseFloat(p.selling_price || 0),
+                            mrp_price: parseFloat(p.mrp_price || 0),
                             wholesale_price: parseFloat(p.wholesale_price || 0),
                             purchase_date: new Date(),
                             is_active: true,
