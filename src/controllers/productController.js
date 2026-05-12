@@ -1,4 +1,4 @@
-const { Product, ProductVariant, MainCategory, SubCategory, Brand, Unit, MeasurementUnit, Container, Stock, Branch, ProductBatch, StockOpening, Attribute, AttributeValue, VariantAttributeValue, Supplier, Account, Transaction, Organization, sequelize } = require('../models');
+const { Product, ProductVariant, MainCategory, SubCategory, Brand, Unit, MeasurementUnit, Container, Stock, Branch, ProductBatch, StockOpening, Attribute, AttributeValue, VariantAttributeValue, Supplier, Account, Transaction, Organization, PurchaseOrder, PurchaseOrderItem, sequelize } = require('../models');
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
 const { Op } = require('sequelize');
@@ -8,7 +8,7 @@ const logger = require('../utils/logger');
 /**
  * Helper to initialize stock for a product/variant
  */
-async function initializeStock(product_id, variant_id, quantity, cost_price, selling_price, wholesale_price, sku, branch_id, user_id, organization_id, t) {
+async function initializeStock(product_id, variant_id, quantity, cost_price, selling_price, wholesale_price, mrp_price, sku, branch_id, user_id, organization_id, t) {
     let active_branch_id = branch_id;
     
     if (!active_branch_id) {
@@ -37,6 +37,7 @@ async function initializeStock(product_id, variant_id, quantity, cost_price, sel
             product_variant_id: variant_id,
             quantity: parseFloat(quantity),
             cost_price: parseFloat(cost_price) || 0,
+            mrp_price: parseFloat(mrp_price) || 0,
             selling_price: parseFloat(selling_price) || 0,
             wholesale_price: parseFloat(wholesale_price) || 0,
             purchase_date: new Date(),
@@ -56,6 +57,81 @@ async function initializeStock(product_id, variant_id, quantity, cost_price, sel
 /**
  * Product Controller
  */
+/**
+ * Find a product or variant by exact barcode
+ * Used for the "Product Insight" feature
+ */
+const getProductByBarcode = async (req, res, next) => {
+    try {
+        const { barcode } = req.params;
+        const organization_id = req.user.organization_id;
+
+        // 1. Search in Variants first (most specific)
+        let variant = await ProductVariant.findOne({
+            where: { barcode, organization_id },
+            include: [
+                { model: Product, as: 'product', include: [
+                    { model: MainCategory, as: 'main_category' },
+                    { model: Brand, as: 'brand' }
+                ]},
+                {
+                    model: AttributeValue,
+                    as: 'attribute_values',
+                    include: [{ model: Attribute, as: 'attribute' }]
+                },
+                { model: ProductBatch, as: 'batches', where: { is_active: true }, required: false },
+                { model: Stock, as: 'stocks', include: [{ model: Branch, as: 'branch' }] }
+            ]
+        });
+
+        let product = null;
+        if (variant) {
+            product = variant.product;
+        } else {
+            // 2. Search in Products if not found in variants
+            product = await Product.findOne({
+                where: { barcode, organization_id },
+                include: [
+                    { model: MainCategory, as: 'main_category' },
+                    { model: Brand, as: 'brand' },
+                    { model: ProductVariant, as: 'variants', include: [
+                        { model: ProductBatch, as: 'batches', where: { is_active: true }, required: false },
+                        { model: Stock, as: 'stocks', include: [{ model: Branch, as: 'branch' }] }
+                    ]}
+                ]
+            });
+        }
+
+        if (!variant && !product) {
+            return errorResponse(res, 'No product found with this barcode', 404);
+        }
+
+        // 3. Fetch Purchase History (Recent 5 items)
+        const target_product_id = product ? product.id : variant.product_id;
+        const purchaseHistory = await PurchaseOrderItem.findAll({
+            where: { 
+                product_id: target_product_id,
+                organization_id 
+            },
+            include: [{
+                model: PurchaseOrder,
+                as: 'purchase_order',
+                include: [{ model: Supplier, as: 'supplier' }]
+            }],
+            order: [['created_at', 'DESC']],
+            limit: 5
+        });
+
+        return successResponse(res, {
+            type: variant ? 'variant' : 'product',
+            data: variant || product,
+            purchaseHistory
+        }, 'Product insight fetched successfully');
+    } catch (error) {
+        next(error);
+    }
+};
+
 const getAllProducts = async (req, res, next) => {
     try {
         const { page, size, name, category_id, sort_by, order: sort_order } = req.query;
@@ -220,13 +296,13 @@ const createProduct = async (req, res, next) => {
 
                 // --- STOCK: Initialize Stock if provided ---
                 if (parseFloat(v.stock_quantity) > 0) {
-                    await initializeStock(product.id, variant.id, v.stock_quantity, v.cost_price, v.price, v.wholesale_price, v.sku, req.body.branch_id || req.user.branch_id, req.user.id, organization_id, t);
+                    await initializeStock(product.id, variant.id, v.stock_quantity, v.cost_price, v.price, v.wholesale_price, v.mrp_price, v.sku, req.body.branch_id || req.user.branch_id, req.user.id, organization_id, t);
                 }
             }
         } else if (!is_variant) {
             // Create a DEFAULT variant if not using complex variants
             const { 
-                price, wholesale_price, cost_price, sku, barcode, stock_quantity, low_stock_threshold 
+                price, wholesale_price, cost_price, mrp_price, sku, barcode, stock_quantity, low_stock_threshold 
             } = req.body;
 
             const variant = await ProductVariant.create({
@@ -235,6 +311,7 @@ const createProduct = async (req, res, next) => {
                 sku: sku || `${product.code || product.id}-DEF`,
                 barcode: barcode === '' ? null : barcode,
                 price: parseFloat(price) || 0,
+                mrp_price: parseFloat(mrp_price) || 0,
                 wholesale_price: parseFloat(wholesale_price) || 0,
                 cost_price: parseFloat(cost_price) || 0,
                 stock_quantity: parseFloat(stock_quantity) || 0,
@@ -245,7 +322,7 @@ const createProduct = async (req, res, next) => {
 
             // --- STOCK: Initialize Stock for Default Variant ---
             if (parseFloat(stock_quantity) > 0) {
-                await initializeStock(product.id, variant.id, stock_quantity, cost_price, price, wholesale_price, variant.sku, req.body.branch_id || req.user.branch_id, req.user.id, organization_id, t);
+                await initializeStock(product.id, variant.id, stock_quantity, cost_price, price, wholesale_price, mrp_price, variant.sku, req.body.branch_id || req.user.branch_id, req.user.id, organization_id, t);
             }
         }
 
@@ -447,14 +524,14 @@ const updateProduct = async (req, res, next) => {
                     }, { transaction: t });
 
                     if (parseFloat(variantData.stock_quantity) > 0) {
-                        await initializeStock(id, variant.id, variantData.stock_quantity, variantData.cost_price, variantData.price, variantData.wholesale_price, variant.sku, req.body.branch_id || req.user.branch_id, req.user.id, organization_id, t);
+                        await initializeStock(id, variant.id, variantData.stock_quantity, variantData.cost_price, variantData.price, variantData.wholesale_price, variantData.mrp_price, variant.sku, req.body.branch_id || req.user.branch_id, req.user.id, organization_id, t);
                     }
                 }
             }
         } else if (!is_variant) {
             // Update the DEFAULT variant
             const { 
-                price, wholesale_price, cost_price, sku: variant_sku, barcode: variant_barcode, stock_quantity 
+                price, wholesale_price, cost_price, mrp_price, sku: variant_sku, barcode: variant_barcode, stock_quantity 
             } = req.body;
 
             let defaultVariant = await ProductVariant.findOne({
@@ -470,6 +547,7 @@ const updateProduct = async (req, res, next) => {
                     sku: variant_sku || `${product.code || product.id}-DEF`,
                     barcode: variant_barcode === '' ? null : variant_barcode,
                     price: parseFloat(price) || 0,
+                    mrp_price: parseFloat(mrp_price) || 0,
                     wholesale_price: parseFloat(wholesale_price) || 0,
                     cost_price: parseFloat(cost_price) || 0,
                     is_default: true,
@@ -478,6 +556,7 @@ const updateProduct = async (req, res, next) => {
             } else {
                 await defaultVariant.update({
                     price: price !== undefined ? parseFloat(price) : defaultVariant.price,
+                    mrp_price: mrp_price !== undefined ? parseFloat(mrp_price) : defaultVariant.mrp_price,
                     wholesale_price: wholesale_price !== undefined ? parseFloat(wholesale_price) : defaultVariant.wholesale_price,
                     cost_price: cost_price !== undefined ? parseFloat(cost_price) : defaultVariant.cost_price,
                     sku: variant_sku || defaultVariant.sku,
@@ -487,7 +566,7 @@ const updateProduct = async (req, res, next) => {
 
             // Handle stock initialization if provided in update (only if positive)
             if (parseFloat(stock_quantity) > 0) {
-                await initializeStock(id, defaultVariant.id, stock_quantity, cost_price || defaultVariant.cost_price, price || defaultVariant.price, wholesale_price || defaultVariant.wholesale_price, defaultVariant.sku, req.body.branch_id || req.user.branch_id, req.user.id, organization_id, t);
+                await initializeStock(id, defaultVariant.id, stock_quantity, cost_price || defaultVariant.cost_price, price || defaultVariant.price, wholesale_price || defaultVariant.wholesale_price, mrp_price || defaultVariant.mrp_price, defaultVariant.sku, req.body.branch_id || req.user.branch_id, req.user.id, organization_id, t);
             }
         }
 
@@ -583,7 +662,7 @@ const getActiveProductsList = async (req, res, next) => {
                     as: 'variants',
                     where: { is_active: true, organization_id: req.user.organization_id },
                     required: false,
-                    attributes: ['id', 'product_id', 'name', 'sku', 'barcode', 'price', 'wholesale_price', 'cost_price', 'stock_quantity'],
+                    attributes: ['id', 'product_id', 'name', 'sku', 'barcode', 'price', 'wholesale_price', 'cost_price', 'mrp_price', 'stock_quantity'],
                     include: [
                         {
                             model: AttributeValue,
@@ -704,7 +783,7 @@ const createVariant = async (req, res, next) => {
             name, sku, code, barcode, price, cost_price, stock_quantity,
             low_stock_threshold, description,
             is_active, is_default, imei_number, warranty_period,
-            wholesale_price,
+            wholesale_price, mrp_price,
             attributes
         } = req.body;
 
@@ -737,7 +816,8 @@ const createVariant = async (req, res, next) => {
             is_default: is_default === 'true' || is_default === true || is_default === '1',
             image: imagePath,
             imei_number, warranty_period,
-            wholesale_price: wholesale_price || 0
+            wholesale_price: wholesale_price || 0,
+            mrp_price: mrp_price || 0
         }, { transaction: t });
 
         // Handle Dynamic Attributes
@@ -1666,7 +1746,8 @@ module.exports = {
     importProducts,
     exportProducts,
     deleteVariant,
-    getVariantBatches
+    getVariantBatches,
+    getProductByBarcode
 };
 
 /**

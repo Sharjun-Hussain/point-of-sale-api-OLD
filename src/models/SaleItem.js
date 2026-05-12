@@ -25,6 +25,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.DECIMAL(15, 2),
             allowNull: false
         },
+        mrp_price: {
+            type: DataTypes.DECIMAL(15, 2),
+            defaultValue: 0.00
+        },
         discount_amount: {
             type: DataTypes.DECIMAL(15, 2),
             defaultValue: 0.00

@@ -278,6 +278,7 @@ const createSale = async (req, res, next) => {
             }
 
             let unit_price = 0;
+            let mrp_price = 0;
             const is_wholesale = payload_is_wholesale === true || payload_is_wholesale === 1 || payload_is_wholesale === 'true';
             let active_variant_id = product_variant_id;
             let active_batch_id = product_batch_id;
@@ -290,6 +291,7 @@ const createSale = async (req, res, next) => {
                 });
                 if (batch) {
                     unit_price = parseFloat((is_wholesale ? batch.wholesale_price : batch.selling_price) || 0);
+                    mrp_price = parseFloat(batch.mrp_price || 0);
                     if (!active_variant_id) active_variant_id = batch.product_variant_id;
                 }
             }
@@ -306,6 +308,7 @@ const createSale = async (req, res, next) => {
                         return errorResponse(res, `Variant not found: ${active_variant_id}`, 400);
                     }
                     unit_price = parseFloat((is_wholesale ? variant.wholesale_price : variant.price) || 0);
+                    if (mrp_price === 0) mrp_price = parseFloat(variant.mrp_price || 0);
                 } else {
                     // Fallback to default variant if no variant specified
                     const defaultVariant = await ProductVariant.findOne({
@@ -314,6 +317,7 @@ const createSale = async (req, res, next) => {
                     });
                     if (defaultVariant) {
                         unit_price = parseFloat((is_wholesale ? defaultVariant.wholesale_price : defaultVariant.price) || 0);
+                        if (mrp_price === 0) mrp_price = parseFloat(defaultVariant.mrp_price || 0);
                         active_variant_id = defaultVariant.id;
                     } else {
                         // Last resort: product level
@@ -339,6 +343,7 @@ const createSale = async (req, res, next) => {
                 product_batch_id: active_batch_id,
                 quantity,
                 unit_price,
+                mrp_price,
                 discount_amount: item_discount,
                 tax_amount: item_tax,
                 total_amount: taxable_amount + item_tax 
