@@ -85,7 +85,7 @@ const updateRole = async (req, res, next) => {
              return errorResponse(res, `Critical Security Violation: The ${role.name} role is immutable to non-system entities.`, 403);
         }
 
-        const { name, description, permission_ids } = req.body;
+        const { name, description, permissions: permission_ids } = req.body;
         
         // Prevent renaming to Super Admin
         if (name === 'Super Admin' && role.name !== 'Super Admin' && !isSuperAdmin) {
