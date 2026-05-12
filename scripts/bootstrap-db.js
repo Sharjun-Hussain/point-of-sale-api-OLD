@@ -265,7 +265,8 @@ async function bootstrap() {
         // Filter out restricted permissions for Org Admin
         const restrictedPerms = [
             'org:create', 'org:delete', 'org:edit', 'org:view',
-            'system:audit_log'
+            'system:audit_log',
+            'settings:import:update'  // Database Management: Super Admin only
         ];
         const orgAdminPerms = allPerms.filter(p => !restrictedPerms.includes(p.name));
         await orgAdminRole.setPermissions(orgAdminPerms);
