@@ -85,12 +85,20 @@ const createOrganization = async (req, res, next) => {
         let billingCycle = req.body.billing_cycle || 'Monthly';
         let notes = req.body.notes || 'Initial setup';
 
-        // Auto-configure trial period
+        // Auto-configure trial period or smart expiry
         if (subscriptionStatus === 'Trial') {
             const trialExpiry = new Date();
             trialExpiry.setDate(trialExpiry.getDate() + trialDays);
             subscriptionExpiryDate = trialExpiry;
             notes = `${trialDays}-day free trial`;
+        } else if (subscriptionStatus === 'Active' && !subscriptionExpiryDate) {
+            const now = new Date();
+            if (billingCycle === 'Monthly') now.setMonth(now.getMonth() + 1);
+            else if (billingCycle === '6 Months') now.setMonth(now.getMonth() + 6);
+            else if (billingCycle === 'Yearly') now.setFullYear(now.getFullYear() + 1);
+            else if (billingCycle === 'Lifetime') now.setFullYear(now.getFullYear() + 100);
+            subscriptionExpiryDate = now;
+            notes = `Initial ${billingCycle} subscription`;
         }
 
         const organization = await Organization.create({
