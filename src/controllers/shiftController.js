@@ -24,6 +24,24 @@ const openShift = async (req, res, next) => {
             return errorResponse(res, 'A branch must be selected to open a shift.', 400);
         }
 
+        // Validate that the branch exists and belongs to the organization
+        const branch = await Branch.findOne({ 
+            where: { id: targetBranchId, organization_id } 
+        });
+
+        if (!branch) {
+            // If the provided branch_id is invalid (stale session), try to find a valid one for this organization
+            const validBranch = await Branch.findOne({ 
+                where: { organization_id, status: 'active' } 
+            });
+
+            if (validBranch) {
+                targetBranchId = validBranch.id;
+            } else {
+                return errorResponse(res, 'The selected branch is invalid or no longer exists.', 400);
+            }
+        }
+
         // Check if there is an existing open shift for this user
         const existingShift = await Shift.findOne({
             where: { user_id, status: 'open' }
