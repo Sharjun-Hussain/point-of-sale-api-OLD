@@ -2459,30 +2459,60 @@ const reportController = {
                 order: [[{ model: db.Sale, as: 'sale' }, 'created_at', 'DESC']]
             });
 
-            const result = saleItems.map(item => {
+            const groupedResult = [];
+            const groupMap = new Map();
+
+            for (const item of saleItems) {
+                const invoiceNum = item.sale?.invoice_number || 'N/A';
+                const batchNum = item.batch?.batch_number || 'N/A';
+                const key = `${invoiceNum}_${batchNum}`;
+
                 const qty = parseFloat(item.quantity);
                 const cost = parseFloat(item.batch?.cost_price || item.variant?.cost_price || 0);
-                const price = parseFloat(item.unit_price);
                 const totalSale = parseFloat(item.total_amount);
                 const totalCost = qty * cost;
 
+                if (!groupMap.has(key)) {
+                    const g = {
+                        id: item.id,
+                        date: item.sale?.created_at,
+                        invoice: invoiceNum,
+                        branch: item.sale?.branch?.name,
+                        products: new Set(),
+                        categories: new Set(),
+                        suppliers: new Set(),
+                        batch: batchNum,
+                        quantity: 0,
+                        total_cost: 0,
+                        total_sale: 0,
+                        profit: 0
+                    };
+                    groupMap.set(key, g);
+                    groupedResult.push(g);
+                }
+
+                const g = groupMap.get(key);
+                if (item.product?.name) g.products.add(item.product.name);
+                if (item.product?.main_category?.name) g.categories.add(item.product.main_category.name);
+                if (item.product?.supplier?.name) g.suppliers.add(item.product.supplier.name);
+                
+                g.quantity += qty;
+                g.total_cost += totalCost;
+                g.total_sale += totalSale;
+                g.profit += (totalSale - totalCost);
+            }
+
+            const result = groupedResult.map(g => {
+                const productsArr = Array.from(g.products);
                 return {
-                    id: item.id,
-                    date: item.sale?.created_at,
-                    invoice: item.sale?.invoice_number,
-                    branch: item.sale?.branch?.name,
-                    product: item.product?.name,
-                    variant: item.variant?.name || 'Standard',
-                    sku: item.variant?.sku || item.product?.code,
-                    category: item.product?.main_category?.name,
-                    supplier: item.product?.supplier?.name,
-                    batch: item.batch?.batch_number || 'N/A',
-                    quantity: qty,
-                    unit_cost: cost,
-                    unit_price: price,
-                    total_cost: totalCost,
-                    total_sale: totalSale,
-                    profit: totalSale - totalCost
+                    ...g,
+                    product: productsArr.length > 2 ? `${productsArr.slice(0, 2).join(', ')} (+${productsArr.length - 2})` : productsArr.join(', '),
+                    variant: productsArr.length > 1 ? 'Multiple Products' : 'Standard',
+                    sku: productsArr.length > 1 ? 'Multiple' : 'N/A',
+                    category: Array.from(g.categories).join(', '),
+                    supplier: Array.from(g.suppliers).join(', '),
+                    unit_cost: g.quantity > 0 ? g.total_cost / g.quantity : 0,
+                    unit_price: g.quantity > 0 ? g.total_sale / g.quantity : 0
                 };
             });
 

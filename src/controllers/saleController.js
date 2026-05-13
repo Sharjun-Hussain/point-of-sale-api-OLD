@@ -486,11 +486,16 @@ const createSale = async (req, res, next) => {
         }
 
         // --- 5. CREATE ITEMS & PAYMENTS ---
-        for (const pItem of processedItems) {
-            await SaleItem.create({
-                sale_id: sale.id,
-                ...pItem
-            }, { transaction: t });
+        // If not completed, create items as they are. 
+        // If completed, we'll create them during the stock update loop (Step 8) to link actual batches.
+        if (sale.status !== 'completed') {
+            for (const pItem of processedItems) {
+                await SaleItem.create({
+                    sale_id: sale.id,
+                    organization_id,
+                    ...pItem
+                }, { transaction: t });
+            }
         }
 
         for (const pmt of processedPayments) {
@@ -578,6 +583,8 @@ const createSale = async (req, res, next) => {
 
                 // B. Update Batches
                 let qtyToDeduct = parseFloat(pItem.quantity);
+                const originalQuantity = qtyToDeduct;
+                const deductions = [];
 
                 // If a specific batch is provided, deduct from it first
                 if (pItem.product_batch_id) {
@@ -590,6 +597,7 @@ const createSale = async (req, res, next) => {
                         const deduction = Math.min(available, qtyToDeduct);
                         await specificBatch.decrement('quantity', { by: deduction, transaction: t });
                         qtyToDeduct -= deduction;
+                        deductions.push({ batch_id: pItem.product_batch_id, quantity: deduction });
                     }
                 }
 
@@ -602,7 +610,6 @@ const createSale = async (req, res, next) => {
                             product_id: pItem.product_id,
                             product_variant_id: pItem.product_variant_id || null,
                             quantity: { [Op.gt]: 0 },
-                            // Exclude the batch we already deducted from if it was specified
                             ...(pItem.product_batch_id ? { id: { [Op.ne]: pItem.product_batch_id } } : {})
                         },
                         order: [
@@ -620,12 +627,29 @@ const createSale = async (req, res, next) => {
 
                         await batch.decrement('quantity', { by: deduction, transaction: t });
                         qtyToDeduct -= deduction;
+                        deductions.push({ batch_id: batch.id, quantity: deduction });
                     }
                 }
 
-                // Note: If qtyToDeduct > 0 here, it means we sold more than we have in batches.
-                // We allow this to happen (Global Stock goes negative) without blocking the sale,
-                // as cleaning up messy batch data is separate from blocking operations.
+                // If still qtyToDeduct > 0 (oversale), record with the original batch (if any) or NULL
+                if (qtyToDeduct > 0) {
+                    deductions.push({ batch_id: pItem.product_batch_id || null, quantity: qtyToDeduct });
+                }
+
+                // Now create SaleItem records for each deduction (splits items by batch for audit)
+                for (const d of deductions) {
+                    const ratio = originalQuantity > 0 ? d.quantity / originalQuantity : 1;
+                    await SaleItem.create({
+                        sale_id: sale.id,
+                        organization_id,
+                        ...pItem,
+                        product_batch_id: d.batch_id,
+                        quantity: d.quantity,
+                        discount_amount: Number((pItem.discount_amount * ratio).toFixed(2)),
+                        tax_amount: Number((pItem.tax_amount * ratio).toFixed(2)),
+                        total_amount: Number((pItem.total_amount * ratio).toFixed(2))
+                    }, { transaction: t });
+                }
             }
         }
 
