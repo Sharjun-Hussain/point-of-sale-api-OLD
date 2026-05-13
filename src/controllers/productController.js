@@ -145,7 +145,14 @@ const getAllProducts = async (req, res, next) => {
         const where = { organization_id: req.user.organization_id };
         logger.info(`[Debug] getAllProducts: org=${where.organization_id}, is_variant=${is_variant}`);
         if (name) {
-            where.name = { [Op.like]: `%${name}%` };
+            where[Op.or] = [
+                { name: { [Op.like]: `%${name}%` } },
+                { sku: { [Op.like]: `%${name}%` } },
+                { code: { [Op.like]: `%${name}%` } },
+                { barcode: { [Op.like]: `%${name}%` } },
+                { '$variants.sku$': { [Op.like]: `%${name}%` } },
+                { '$variants.barcode$': { [Op.like]: `%${name}%` } }
+            ];
         }
         if (category_id) {
             where.main_category_id = category_id;
@@ -201,6 +208,7 @@ const getAllProducts = async (req, res, next) => {
                 }
             ],
             distinct: true,
+            subQuery: false, // Fix for "Unknown column in WHERE" when searching associations with pagination
             order: [[sort_by || 'created_at', sort_order || 'DESC']]
         });
 

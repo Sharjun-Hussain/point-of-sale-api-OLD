@@ -71,20 +71,13 @@ const getAllStocks = async (req, res, next) => {
             }
         }
 
-        const productWhere = {};
         if (product_name) {
-            productWhere[Op.or] = [
-                { name: { [Op.like]: `%${product_name}%` } },
-                { code: { [Op.like]: `%${product_name}%` } },
-                { barcode: { [Op.like]: `%${product_name}%` } }
-            ];
-        }
-
-        const variantWhere = {};
-        if (sku) {
-            variantWhere[Op.or] = [
-                { sku: { [Op.like]: `%${sku}%` } },
-                { barcode: { [Op.like]: `%${sku}%` } }
+            where[Op.or] = [
+                { '$product.name$': { [Op.like]: `%${product_name}%` } },
+                { '$product.code$': { [Op.like]: `%${product_name}%` } },
+                { '$product.barcode$': { [Op.like]: `%${product_name}%` } },
+                { '$variant.sku$': { [Op.like]: `%${product_name}%` } },
+                { '$variant.barcode$': { [Op.like]: `%${product_name}%` } }
             ];
         }
 
@@ -92,19 +85,38 @@ const getAllStocks = async (req, res, next) => {
             where,
             limit,
             offset,
+            attributes: {
+                include: [
+                    [
+                        sequelize.literal(`(
+                            SELECT COUNT(*)
+                            FROM product_batches AS pb
+                            WHERE pb.product_id = Stock.product_id
+                              AND (
+                                (pb.product_variant_id IS NULL AND Stock.product_variant_id IS NULL)
+                                OR (pb.product_variant_id = Stock.product_variant_id)
+                              )
+                              AND pb.branch_id = Stock.branch_id
+                              AND pb.quantity > 0
+                              AND pb.organization_id = Stock.organization_id
+                        )`),
+                        'batch_count'
+                    ]
+                ]
+            },
             include: [
                 {
                     model: Product,
                     as: 'product',
-                    where: { ...productWhere, organization_id: req.user.organization_id },
+                    where: { organization_id: req.user.organization_id },
                     attributes: ['id', 'name', 'code', 'image']
                 },
                 {
                     model: ProductVariant,
                     as: 'variant',
-                    where: { ...variantWhere, organization_id: req.user.organization_id },
+                    where: { organization_id: req.user.organization_id },
                     attributes: ['id', 'name', 'sku', 'image'],
-                    required: (Object.keys(variantWhere).length > 0) ? true : false,
+                    required: false,
                     include: [
                         {
                             model: AttributeValue,
