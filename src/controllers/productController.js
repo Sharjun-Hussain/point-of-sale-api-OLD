@@ -1665,15 +1665,25 @@ const importProducts = async (req, res, next) => {
                 });
 
                 if (!variantCreated) {
-                    // Update existing variant fields if it already exists
-                    await variant.update({
-                        price: p.selling_price !== undefined ? parseFloat(p.selling_price) : variant.price,
-                        cost_price: p.cost_price !== undefined ? parseFloat(p.cost_price) : variant.cost_price,
-                        mrp_price: p.mrp_price !== undefined ? parseFloat(p.mrp_price) : variant.mrp_price,
-                        wholesale_price: p.wholesale_price !== undefined ? parseFloat(p.wholesale_price) : variant.wholesale_price,
-                        low_stock_threshold: p.low_stock_threshold !== undefined ? parseFloat(p.low_stock_threshold) : variant.low_stock_threshold,
-                        barcode: p.barcode || variant.barcode
-                    }, { transaction: t });
+                    // Only update variant fields if the sheet provides a non-zero value and we don't have one yet
+                    // or if we explicitly want the sheet to override (standard behavior is to keep existing if already set)
+                    const updates = {};
+                    if (p.selling_price !== undefined && parseFloat(p.selling_price) > 0 && (variant.price === 0 || !variant.price)) {
+                        updates.price = parseFloat(p.selling_price);
+                    }
+                    if (p.cost_price !== undefined && parseFloat(p.cost_price) > 0 && (variant.cost_price === 0 || !variant.cost_price)) {
+                        updates.cost_price = parseFloat(p.cost_price);
+                    }
+                    if (p.wholesale_price !== undefined && parseFloat(p.wholesale_price) > 0 && (variant.wholesale_price === 0 || !variant.wholesale_price)) {
+                        updates.wholesale_price = parseFloat(p.wholesale_price);
+                    }
+                    if (p.barcode && !variant.barcode) {
+                        updates.barcode = p.barcode;
+                    }
+                    
+                    if (Object.keys(updates).length > 0) {
+                        await variant.update(updates, { transaction: t });
+                    }
                 }
 
                 // 7. Handle Initial Stock if provided
