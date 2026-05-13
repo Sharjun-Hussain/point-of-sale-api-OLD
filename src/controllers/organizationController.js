@@ -212,7 +212,7 @@ const updateOrganization = async (req, res, next) => {
         const hasUpdatePermission = userPermissions.includes('settings:business:update') || userPermissions.includes('system:settings');
 
         if (!isSuperAdmin && !hasUpdatePermission) {
-             return errorResponse(res, 'Security Violation: You do not have permission to synchronize business identity.', 403);
+            return errorResponse(res, 'Security Violation: You do not have permission to synchronize business identity.', 403);
         }
 
         const organization = await Organization.findByPk(req.user.organization_id);
@@ -220,10 +220,10 @@ const updateOrganization = async (req, res, next) => {
 
         // Capture previous state for audit log basis
         const oldValues = organization.toJSON();
-        
+
         // Filter req.body to only include valid Organization fields to avoid polluting the model
         const allowedFields = [
-            'name', 'email', 'phone', 'address', 'tax_id', 'website', 
+            'name', 'email', 'phone', 'address', 'tax_id', 'website',
             'business_type', 'business_mode', 'city', 'state', 'zip_code', 'logo'
         ];
         const updateData = Object.keys(req.body)
@@ -285,8 +285,8 @@ const getOrganizationFullDetails = async (req, res, next) => {
                 include: [
                     { model: Branch, as: 'branches', limit: 5 },
                     { model: BusinessPlan, as: 'plan' },
-                    { 
-                        model: SubscriptionHistory, 
+                    {
+                        model: SubscriptionHistory,
                         as: 'subscription_histories',
                         limit: 10,
                         order: [['created_at', 'DESC']]
@@ -348,12 +348,12 @@ const updateOrganizationById = async (req, res, next) => {
         if (updateData.subscription_status === 'Active' && !updateData.subscription_expiry_date) {
             const now = new Date();
             const cycle = updateData.billing_cycle || organization.billing_cycle || 'Monthly';
-            
+
             if (cycle === 'Monthly') now.setMonth(now.getMonth() + 1);
             else if (cycle === '6 Months') now.setMonth(now.getMonth() + 6);
             else if (cycle === 'Yearly') now.setFullYear(now.getFullYear() + 1);
             else if (cycle === 'Lifetime') now.setFullYear(now.getFullYear() + 100);
-            
+
             updateData.subscription_expiry_date = now;
         }
 
@@ -495,15 +495,15 @@ const getAllBranches = async (req, res, next) => {
         // Map the results to flatten the manager info
         const branchData = branches.rows.map(branch => {
             const branchJson = branch.toJSON();
-            
+
             // Priority 1: Use explicitly linked manager_id
             let manager = branchJson.manager;
-            
+
             // Priority 2: Fallback to dynamic lookup based on designation
             if (!manager && branchJson.employees) {
-                manager = branchJson.employees.find(emp => 
+                manager = branchJson.employees.find(emp =>
                     emp.designation && (
-                        emp.designation.toLowerCase().includes('manager') || 
+                        emp.designation.toLowerCase().includes('manager') ||
                         emp.designation.toLowerCase().includes('in-charge') ||
                         emp.designation.toLowerCase().includes('founder')
                     )
@@ -565,7 +565,7 @@ const createBranch = async (req, res, next) => {
             const organization = await Organization.findByPk(branchData.organization_id, {
                 include: [{ model: BusinessPlan, as: 'plan' }]
             });
-            
+
             if (organization) {
                 const tier = organization.subscription_tier;
                 if (tier === 'Essential') {
@@ -575,7 +575,7 @@ const createBranch = async (req, res, next) => {
                 if (organization.plan) {
                     const currentBranchesCount = await Branch.count({ where: { organization_id: branchData.organization_id, is_active: true } });
                     const maxBranches = organization.plan.max_branches;
-                    
+
                     if (maxBranches !== -1 && currentBranchesCount >= maxBranches) {
                         return errorResponse(res, `Branch Limit Reached: Your current plan '${organization.plan.name}' allows only ${maxBranches} branches. Please upgrade your plan for multi-location support.`, 403);
                     }
@@ -622,7 +622,7 @@ const getBranchById = async (req, res, next) => {
             whereClause.organization_id = req.user.organization_id;
         }
 
-        const branch = await Branch.findOne({ 
+        const branch = await Branch.findOne({
             where: whereClause,
             include: [{
                 model: Employee,
@@ -779,7 +779,7 @@ const toggleBackupFeature = async (req, res, next) => {
 
         const currentStatus = organization.backup_enabled;
         organization.backup_enabled = !currentStatus;
-        
+
         // If enabling for the first time, set some defaults
         if (organization.backup_enabled && !organization.backup_email) {
             organization.backup_email = organization.email;
@@ -808,7 +808,7 @@ const toggleBackupFeature = async (req, res, next) => {
 const getOnboardingStatus = async (req, res, next) => {
     try {
         const orgId = req.user.organization_id;
-        
+
         if (!orgId) {
             // Default for Super Admins or users without an organization
             return successResponse(res, {
@@ -898,12 +898,12 @@ const updateOrganizationPlan = async (req, res, next) => {
         if (!expiryDate && subscription_status === 'Active') {
             const now = new Date();
             const cycle = billing_cycle || organization.billing_cycle || 'Monthly';
-            
+
             if (cycle === 'Monthly') now.setMonth(now.getMonth() + 1);
             else if (cycle === '6 Months') now.setMonth(now.getMonth() + 6);
             else if (cycle === 'Yearly') now.setFullYear(now.getFullYear() + 1);
             else if (cycle === 'Lifetime') now.setFullYear(now.getFullYear() + 100);
-            
+
             expiryDate = now;
         }
 
@@ -1038,9 +1038,9 @@ const extendOrganizationTrial = async (req, res, next) => {
         );
 
         await transaction.commit();
-        return successResponse(res, { 
-            new_expiry_date: baseDate, 
-            days_extended: parseInt(days) 
+        return successResponse(res, {
+            new_expiry_date: baseDate,
+            days_extended: parseInt(days)
         }, `Trial extended by ${days} day(s) successfully`);
     } catch (error) {
         await transaction.rollback();
@@ -1118,33 +1118,56 @@ const resetOrganizationData = async (req, res, next) => {
         const organization = await Organization.findByPk(organizationId);
         if (!organization) return errorResponse(res, 'Organization not found', 404);
 
-        // List of models to clear, ordered to respect foreign key constraints if possible, 
-        // though CASCADE handles most. We only delete things directly owned by organization_id.
+        // List of models to clear, ordered logically (though FOREIGN_KEY_CHECKS=0 helps)
         const modelsToClear = [
-            'SaleItem', 'Sale', 'PurchaseOrderItem', 'PurchaseOrder', 
-            'GRNItem', 'GRN', 'StockAdjustmentItem', 'StockAdjustment',
-            'StockTransferItem', 'StockTransfer', 'ProductionOrderItem', 'ProductionOrder',
-            'RecipeItem', 'Recipe', 'Expense', 'Payment', 'CashDrawerSession',
-            'ProductBatch', 'ProductBranch', 'Product', 'Category', 'Supplier', 'Customer',
-            'Employee', 'Department', 'Designation'
+            // 1. Transactions & Operations
+            'SaleReturnItem', 'SaleReturn', 'SaleReturnPayment',
+            'PurchaseReturnItem', 'PurchaseReturn',
+            'StockAdjustmentItem', 'StockAdjustment',
+            'StockTransferItem', 'StockTransfer',
+            'StockOpening', 'Wastage',
+            'SaleItem', 'Sale', 'SalePayment', 'SaleEmployee',
+            'PurchaseOrderItem', 'PurchaseOrder',
+            'GRNItem', 'GRN',
+            'ProductionOrderItem', 'ProductionOrder',
+            'RecipeItem', 'Recipe',
+            'Transaction', 'Expense', 'Payment', 'SupplierPayment', 'Cheque', 'Account',
+            'CashDrawerSession', 'Shift', 'ShiftTransaction',
+
+            // 2. Inventory & Products
+            'Stock', 'ProductBatch', 'ProductVariant', 'ProductAttribute', 'ProductSupplier',
+            'VariantAttributeValue', 'Product',
+            'Category', 'SubCategory', 'MainCategory', 'Brand', 'Unit', 'MeasurementUnit',
+            'Attribute', 'AttributeValue',
+
+            // 3. Partners & HR
+            'Supplier', 'Customer', 'Distributor',
+            'EmployeeBranch', 'Employee', 'Department', 'Designation',
+
+            // 4. Structure (Users are preserved, but their links to branches are cleared)
+            'Branch', 'UserBranch', 'Setting'
         ];
+
+        // Disable foreign key checks for the duration of the reset
+        await sequelize.query('SET FOREIGN_KEY_CHECKS = 0', { transaction });
 
         for (const modelName of modelsToClear) {
             const Model = db[modelName];
             if (Model) {
-                // Check if the model has organization_id attribute
+                // IMPORTANT: Only delete if the model has organization_id column in its definition
+                // to avoid Sequelize generating invalid queries.
                 if (Model.rawAttributes && Model.rawAttributes.organization_id) {
                     await Model.destroy({
                         where: { organization_id: organizationId },
-                        transaction
+                        transaction,
+                        force: true // Skip paranoid soft deletes if enabled
                     });
-                } else {
-                    // If it doesn't have organization_id, it should be deleted via cascade from parent
-                    // or it's a model that we don't want to delete directly without org context.
-                    console.log(`Skipping direct deletion for ${modelName} - no organization_id column.`);
                 }
             }
         }
+
+        // Re-enable foreign key checks
+        await sequelize.query('SET FOREIGN_KEY_CHECKS = 1', { transaction });
 
         // Audit Logging
         const { ipAddress, userAgent } = auditService.getRequestContext(req);
@@ -1152,15 +1175,21 @@ const resetOrganizationData = async (req, res, next) => {
             organizationId,
             req.user.id,
             'ORGANIZATION_DATA_RESET',
-            `Super Admin performed a full data reset for organization: ${organization.name}`,
+            `Super Admin performed a full institutional data reset for organization: ${organization.name}. Users preserved, all operational data wiped.`,
             ipAddress,
             userAgent,
             { organization_id: organizationId }
         );
 
         await transaction.commit();
-        return successResponse(res, null, 'Organization data has been successfully reset. Users and core configuration preserved.');
+        return successResponse(res, null, 'Organization data has been successfully reset. Operational history, inventory, and masters cleared.');
     } catch (error) {
+        // Ensure foreign key checks are re-enabled even on failure
+        try {
+            await sequelize.query('SET FOREIGN_KEY_CHECKS = 1', { transaction });
+        } catch (e) {
+            console.error('Failed to re-enable foreign key checks during rollback', e);
+        }
         await transaction.rollback();
         next(error);
     }

@@ -8,7 +8,7 @@ const logger = require('../utils/logger');
 /**
  * Helper to initialize stock for a product/variant
  */
-async function initializeStock(product_id, variant_id, quantity, cost_price, selling_price, wholesale_price, mrp_price, sku, branch_id, user_id, organization_id, t) {
+async function initializeStock(product_id, variant_id, quantity, cost_price, selling_price, wholesale_price, mrp_price, sku, branch_id, user_id, organization_id, t, batch_number = null, expiry_date = null) {
     let active_branch_id = branch_id;
     
     if (!active_branch_id) {
@@ -30,11 +30,16 @@ async function initializeStock(product_id, variant_id, quantity, cost_price, sel
             total_value: parseFloat(quantity) * (parseFloat(cost_price) || 0)
         }, { transaction: t });
 
+        // Generate a standard batch number if none provided
+        const finalBatchNumber = batch_number || `BT-${dateStr}-${Math.floor(1000 + Math.random() * 9000)}`;
+
         await ProductBatch.create({
             organization_id,
             branch_id: active_branch_id,
             product_id,
             product_variant_id: variant_id,
+            batch_number: finalBatchNumber,
+            expiry_date: expiry_date ? new Date(expiry_date) : null,
             quantity: parseFloat(quantity),
             cost_price: parseFloat(cost_price) || 0,
             mrp_price: parseFloat(mrp_price) || 0,
@@ -134,15 +139,19 @@ const getProductByBarcode = async (req, res, next) => {
 
 const getAllProducts = async (req, res, next) => {
     try {
-        const { page, size, name, category_id, sort_by, order: sort_order } = req.query;
+        const { page, size, name, category_id, is_variant, sort_by, order: sort_order } = req.query;
         const { limit, offset } = getPagination(page, size);
 
         const where = { organization_id: req.user.organization_id };
+        logger.info(`[Debug] getAllProducts: org=${where.organization_id}, is_variant=${is_variant}`);
         if (name) {
             where.name = { [Op.like]: `%${name}%` };
         }
         if (category_id) {
             where.main_category_id = category_id;
+        }
+        if (is_variant !== undefined) {
+            where.is_variant = is_variant === 'true' || is_variant === '1';
         }
 
         const products = await Product.findAndCountAll({
@@ -175,6 +184,12 @@ const getAllProducts = async (req, res, next) => {
                             model: Stock,
                             as: 'stocks',
                             attributes: ['quantity', 'branch_id'],
+                            required: false
+                        },
+                        {
+                            model: ProductBatch,
+                            as: 'batches',
+                            where: { is_active: true },
                             required: false
                         }
                     ]
@@ -296,7 +311,22 @@ const createProduct = async (req, res, next) => {
 
                 // --- STOCK: Initialize Stock if provided ---
                 if (parseFloat(v.stock_quantity) > 0) {
-                    await initializeStock(product.id, variant.id, v.stock_quantity, v.cost_price, v.price, v.wholesale_price, v.mrp_price, v.sku, req.body.branch_id || req.user.branch_id, req.user.id, organization_id, t);
+                    await initializeStock(
+                        product.id, 
+                        variant.id, 
+                        v.stock_quantity, 
+                        v.cost_price, 
+                        v.price, 
+                        v.wholesale_price, 
+                        v.mrp_price, 
+                        v.sku, 
+                        req.body.branch_id || req.user.branch_id, 
+                        req.user.id, 
+                        organization_id, 
+                        t,
+                        v.batch_number,
+                        v.expiry_date
+                    );
                 }
             }
         } else if (!is_variant) {
@@ -322,7 +352,22 @@ const createProduct = async (req, res, next) => {
 
             // --- STOCK: Initialize Stock for Default Variant ---
             if (parseFloat(stock_quantity) > 0) {
-                await initializeStock(product.id, variant.id, stock_quantity, cost_price, price, wholesale_price, mrp_price, variant.sku, req.body.branch_id || req.user.branch_id, req.user.id, organization_id, t);
+                await initializeStock(
+                    product.id, 
+                    variant.id, 
+                    stock_quantity, 
+                    cost_price, 
+                    price, 
+                    wholesale_price, 
+                    mrp_price, 
+                    variant.sku, 
+                    req.body.branch_id || req.user.branch_id, 
+                    req.user.id, 
+                    organization_id, 
+                    t,
+                    req.body.batch_number,
+                    req.body.expiry_date
+                );
             }
         }
 
@@ -409,6 +454,17 @@ const getProductById = async (req, res, next) => {
                             model: AttributeValue,
                             as: 'attribute_values',
                             include: [{ model: Attribute, as: 'attribute' }]
+                        },
+                        {
+                            model: ProductBatch,
+                            as: 'batches',
+                            where: { is_active: true },
+                            required: false
+                        },
+                        {
+                            model: Stock,
+                            as: 'stocks',
+                            required: false
                         }
                     ]
                 }
@@ -1577,7 +1633,7 @@ const importProducts = async (req, res, next) => {
                         sku: p.sku || p.code,
                         barcode: p.barcode || p.code,
                         is_active: true,
-                        is_variant: true, // Enable variants support
+                        is_variant: false, // Default to single variant for flat imports
                         product_type: p.product_type || 'Finished Good'
                     },
                     transaction: t
@@ -1630,7 +1686,19 @@ const importProducts = async (req, res, next) => {
                     }
                     if (!branch_id) {
                         const firstBranch = await Branch.findOne({ where: { organization_id }, transaction: t });
-                        if (firstBranch) branch_id = firstBranch.id;
+                        if (firstBranch) {
+                            branch_id = firstBranch.id;
+                        } else {
+                            // Emergency fallback: Create a default branch if the organization was reset
+                            const newBranch = await Branch.create({
+                                organization_id,
+                                name: 'Main Branch',
+                                code: 'MAIN',
+                                is_active: true
+                            }, { transaction: t });
+                            branch_id = newBranch.id;
+                            logger.info(`[Import] Created emergency Main Branch for organization ${organization_id}`);
+                        }
                     }
 
                     if (branch_id) {
@@ -1647,12 +1715,16 @@ const importProducts = async (req, res, next) => {
                         }, { transaction: t });
 
                         // Create Batch
+                        // Generate a standard batch number if none provided
+                        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+                        const finalBatchNumber = p.batch_number || `BT-IMP-${dateStr}-${Math.floor(1000 + Math.random() * 9000)}`;
+
                         await ProductBatch.create({
                             organization_id,
                             branch_id,
                             product_id: product.id,
                             product_variant_id: variant.id,
-                            batch_number: p.batch_number || null,
+                            batch_number: finalBatchNumber,
                             expiry_date: p.expiry_date ? new Date(p.expiry_date) : null,
                             quantity: stockQty,
                             cost_price: parseFloat(p.cost_price || 0),
