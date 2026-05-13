@@ -60,5 +60,6 @@ router.get('/manufacturing/distribution', checkPermission('report:view'), report
 router.get('/advanced/transactions', checkPermission('report:view'), reportController.getStockTransactions);
 router.get('/advanced/stocks', checkPermission('report:view'), reportController.getAdvancedStockReport);
 router.get('/advanced/sales', checkPermission('report:view'), reportController.getAdvancedSalesReport);
+router.get('/advanced/batch-sales', checkPermission('report:view'), reportController.getBatchWiseSalesReport);
 
 module.exports = router;
