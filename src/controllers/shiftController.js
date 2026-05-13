@@ -20,6 +20,16 @@ const openShift = async (req, res, next) => {
             targetBranchId = req.user.branches[0].id;
         }
 
+        // Fallback: If still no branch, try to find the only active branch for this organization
+        if (!targetBranchId) {
+            const organizationBranches = await Branch.findAll({ 
+                where: { organization_id, is_active: true } 
+            });
+            if (organizationBranches.length === 1) {
+                targetBranchId = organizationBranches[0].id;
+            }
+        }
+
         if (!targetBranchId) {
             return errorResponse(res, 'A branch must be selected to open a shift.', 400);
         }
