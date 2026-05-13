@@ -1855,7 +1855,10 @@ async function getVariantBatches(req, res, next) {
 
         const batches = await ProductBatch.findAll({
             where: {
-                product_variant_id: variantId,
+                [Op.or]: [
+                    { product_variant_id: variantId },
+                    { product_id: variantId }
+                ],
                 organization_id: req.user.organization_id,
                 branch_id: branch_id || null,
                 quantity: { [Op.gt]: 0 },
