@@ -42,6 +42,14 @@ module.exports = (sequelize, DataTypes) => {
         Stock.belongsTo(models.Product, { as: 'product', foreignKey: 'product_id' });
         Stock.belongsTo(models.ProductVariant, { as: 'variant', foreignKey: 'product_variant_id' });
         Stock.belongsTo(models.Organization, { as: 'organization', foreignKey: 'organization_id' });
+        
+        // Multi-field join is hard in Sequelize, but we can associate on product_id 
+        // and filter by branch_id in the query if needed, or just use this for basic linking.
+        Stock.hasMany(models.ProductBatch, { 
+            as: 'batches', 
+            foreignKey: 'product_id', 
+            sourceKey: 'product_id' 
+        });
     };
 
     return Stock;

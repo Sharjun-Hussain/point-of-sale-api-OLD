@@ -23,11 +23,53 @@ const { checkLowStockAlert } = require('../utils/alertManager');
  */
 const getAllStocks = async (req, res, next) => {
     try {
-        const { page, size, branch_id, product_name, sku } = req.query;
+        const { page, size, branch_id, product_name, sku, batch_number, expiry_start, expiry_end } = req.query;
         const { limit, offset } = getPagination(page, size);
 
-        const where = {};
+        const where = { organization_id: req.user.organization_id };
         if (branch_id) where.branch_id = branch_id;
+
+        // Batch & Expiry Filters
+        const batchWhere = { organization_id: req.user.organization_id };
+        let hasBatchFilters = false;
+        if (batch_number) {
+            batchWhere.batch_number = { [Op.like]: `%${batch_number}%` };
+            hasBatchFilters = true;
+        }
+        if (expiry_start && expiry_end) {
+            batchWhere.expiry_date = {
+                [Op.between]: [
+                    new Date(expiry_start + 'T00:00:00'),
+                    new Date(expiry_end + 'T23:59:59')
+                ]
+            };
+            hasBatchFilters = true;
+        } else if (expiry_start) {
+            batchWhere.expiry_date = { [Op.gte]: new Date(expiry_start + 'T00:00:00') };
+            hasBatchFilters = true;
+        } else if (expiry_end) {
+            batchWhere.expiry_date = { [Op.lte]: new Date(expiry_end + 'T23:59:59') };
+            hasBatchFilters = true;
+        }
+
+        if (hasBatchFilters) {
+            if (branch_id) batchWhere.branch_id = branch_id;
+            const matchingBatches = await ProductBatch.findAll({
+                where: batchWhere,
+                attributes: ['product_id', 'product_variant_id', 'branch_id'],
+                raw: true
+            });
+
+            if (matchingBatches.length > 0) {
+                where[Op.or] = matchingBatches.map(b => ({
+                    product_id: b.product_id,
+                    product_variant_id: b.product_variant_id,
+                    branch_id: b.branch_id
+                }));
+            } else {
+                where.id = '00000000-0000-0000-0000-000000000000';
+            }
+        }
 
         const productWhere = {};
         if (product_name) {
@@ -47,7 +89,7 @@ const getAllStocks = async (req, res, next) => {
         }
 
         const stocks = await Stock.findAndCountAll({
-            where: { ...where, organization_id: req.user.organization_id },
+            where,
             limit,
             offset,
             include: [
@@ -62,7 +104,7 @@ const getAllStocks = async (req, res, next) => {
                     as: 'variant',
                     where: { ...variantWhere, organization_id: req.user.organization_id },
                     attributes: ['id', 'name', 'sku', 'image'],
-                    required: Object.keys(variantWhere).length > 0 ? true : false,
+                    required: (Object.keys(variantWhere).length > 0) ? true : false,
                     include: [
                         {
                             model: AttributeValue,

@@ -946,7 +946,12 @@ const reportController = {
                 page = 1, 
                 size = 20, 
                 search, 
-                status 
+                status,
+                batch_number,
+                expiry_start,
+                expiry_end,
+                received_start,
+                received_end
             } = req.query;
 
             const { limit, offset } = getPagination(page, size);
@@ -958,8 +963,7 @@ const reportController = {
                 where[Op.or] = [
                     { '$product.name$': { [Op.like]: `%${search}%` } },
                     { '$product.code$': { [Op.like]: `%${search}%` } },
-                    { '$variant.sku$': { [Op.like]: `%${search}%` } },
-                    { '$variant.name$': { [Op.like]: `%${search}%` } }
+                    { '$variant.sku$': { [Op.like]: `%${search}%` } }
                 ];
             }
 
@@ -971,13 +975,32 @@ const reportController = {
                     { quantity: { [Op.gt]: 0 } },
                     { quantity: { [Op.lte]: Sequelize.col('variant.low_stock_threshold') } }
                 ];
-            } else if (status === 'healthy') {
-                where.quantity = { [Op.gt]: Sequelize.col('variant.low_stock_threshold') };
             }
 
             const productWhere = {};
             if (main_category_id && main_category_id !== 'all') productWhere.main_category_id = main_category_id;
             if (sub_category_id && sub_category_id !== 'all') productWhere.sub_category_id = sub_category_id;
+
+            // Batch filter logic
+            const batchFilterWhere = { organization_id };
+            if (batch_number) batchFilterWhere.batch_number = { [Op.like]: `%${batch_number}%` };
+            if (expiry_start && expiry_end) {
+                batchFilterWhere.expiry_date = { [Op.between]: [new Date(expiry_start + 'T00:00:00'), new Date(expiry_end + 'T23:59:59')] };
+            } else if (expiry_start) {
+                batchFilterWhere.expiry_date = { [Op.gte]: new Date(expiry_start + 'T00:00:00') };
+            } else if (expiry_end) {
+                batchFilterWhere.expiry_date = { [Op.lte]: new Date(expiry_end + 'T23:59:59') };
+            }
+
+            if (received_start && received_end) {
+                batchFilterWhere.purchase_date = { [Op.between]: [new Date(received_start + 'T00:00:00'), new Date(received_end + 'T23:59:59')] };
+            } else if (received_start) {
+                batchFilterWhere.purchase_date = { [Op.gte]: new Date(received_start + 'T00:00:00') };
+            } else if (received_end) {
+                batchFilterWhere.purchase_date = { [Op.lte]: new Date(received_end + 'T23:59:59') };
+            }
+
+            const hasBatchFilters = Object.keys(batchFilterWhere).length > 1;
 
             const stocks = await db.Stock.findAndCountAll({
                 where,
@@ -988,26 +1011,39 @@ const reportController = {
                         where: Object.keys(productWhere).length > 0 ? productWhere : undefined,
                         attributes: ['name', 'code'],
                         include: [
-                            { model: db.MainCategory, as: 'main_category', attributes: ['name'] },
-                            { model: db.SubCategory, as: 'sub_category', attributes: ['name'] }
+                            { model: db.MainCategory, as: 'main_category', attributes: ['name'] }
                         ]
                     },
                     { 
                         model: db.ProductVariant, 
                         as: 'variant', 
-                        attributes: ['name', 'sku', 'low_stock_threshold'] 
+                        attributes: ['name', 'sku', 'cost_price', 'price', 'low_stock_threshold'] 
                     },
                     {
                         model: db.Branch,
                         as: 'branch',
                         attributes: ['name']
+                    },
+                    {
+                        model: db.ProductBatch,
+                        as: 'batches',
+                        required: hasBatchFilters,
+                        attributes: ['batch_number', 'expiry_date', 'quantity', 'cost_price', 'selling_price', 'mrp_price'],
+                        where: {
+                            ...batchFilterWhere,
+                            // Crucial: Only return batches for THIS specific stock row's branch/variant
+                            branch_id: { [Op.eq]: Sequelize.col('Stock.branch_id') },
+                            [Op.and]: [
+                                Sequelize.literal('`batches`.`product_variant_id` = `Stock`.`product_variant_id` OR (`batches`.`product_variant_id` IS NULL AND `Stock`.`product_variant_id` IS NULL)')
+                            ]
+                        }
                     }
                 ],
                 limit,
                 offset,
-                order: [['product', 'name', 'ASC']],
+                distinct: true,
                 subQuery: false,
-                distinct: true
+                order: [[{ model: db.Product, as: 'product' }, 'name', 'ASC']]
             });
 
             // Calculate Global Stats for the top cards (only if first page or specifically requested)
@@ -2115,7 +2151,8 @@ const reportController = {
                 report_type = 'summary',   // 'summary' | 'batches' | 'expire'
                 start_date, end_date,
                 product_id, supplier_id, main_category_id, brand_id,
-                stock_from, stock_to
+                stock_from, stock_to,
+                batch_number
             } = req.query;
             const organization_id = req.user.organization_id;
 
@@ -2165,6 +2202,10 @@ const reportController = {
 
                 if (!isNaN(sfNum) && !isNaN(stNum)) {
                     batchWhere.quantity = { [Op.between]: [sfNum, stNum] };
+                }
+
+                if (batch_number) {
+                    batchWhere.batch_number = { [Op.like]: `%${batch_number}%` };
                 }
 
                 const batches = await db.ProductBatch.findAll({
@@ -2370,6 +2411,97 @@ const reportController = {
 
                 return successResponse(res, result, 'Advanced sales report (invoices) fetched');
             }
+        } catch (error) { next(error); }
+    },
+    // 29. Batch-wise Daily Sales Audit
+    getBatchWiseSalesReport: async (req, res, next) => {
+        try {
+            const { start_date, end_date, branch_id, supplier_id, category_id } = req.query;
+            const organization_id = req.user.organization_id;
+
+            const saleWhere = { organization_id, status: 'completed' };
+            if (start_date && end_date) {
+                saleWhere.created_at = { [Op.between]: [new Date(start_date + 'T00:00:00'), new Date(end_date + 'T23:59:59')] };
+            }
+
+            const itemInclude = [
+                {
+                    model: db.Sale, as: 'sale',
+                    where: saleWhere,
+                    attributes: ['created_at', 'invoice_number'],
+                    include: [{ model: db.Branch, as: 'branch', attributes: ['name'] }]
+                },
+                {
+                    model: db.Product, as: 'product',
+                    attributes: ['name', 'code'],
+                    include: [
+                        { model: db.MainCategory, as: 'main_category', attributes: ['name'] },
+                        { model: db.Supplier, as: 'supplier', attributes: ['name'] }
+                    ]
+                },
+                { model: db.ProductVariant, as: 'variant', attributes: ['name', 'sku'] },
+                { model: db.ProductBatch, as: 'batch', attributes: ['batch_number', 'cost_price', 'selling_price'] }
+            ];
+
+            // Apply additional filters if needed
+            if (branch_id && branch_id !== 'all') saleWhere.branch_id = branch_id;
+            
+            const productWhere = {};
+            if (category_id && category_id !== 'all') productWhere.main_category_id = category_id;
+            if (supplier_id && supplier_id !== 'all') productWhere.supplier_id = supplier_id;
+            
+            if (Object.keys(productWhere).length > 0) {
+                itemInclude[1].where = productWhere;
+            }
+
+            const saleItems = await db.SaleItem.findAll({
+                include: itemInclude,
+                order: [[{ model: db.Sale, as: 'sale' }, 'created_at', 'DESC']]
+            });
+
+            const result = saleItems.map(item => {
+                const qty = parseFloat(item.quantity);
+                const cost = parseFloat(item.batch?.cost_price || item.variant?.cost_price || 0);
+                const price = parseFloat(item.unit_price);
+                const totalSale = parseFloat(item.total_amount);
+                const totalCost = qty * cost;
+
+                return {
+                    id: item.id,
+                    date: item.sale?.created_at,
+                    invoice: item.sale?.invoice_number,
+                    branch: item.sale?.branch?.name,
+                    product: item.product?.name,
+                    variant: item.variant?.name || 'Standard',
+                    sku: item.variant?.sku || item.product?.code,
+                    category: item.product?.main_category?.name,
+                    supplier: item.product?.supplier?.name,
+                    batch: item.batch?.batch_number || 'N/A',
+                    quantity: qty,
+                    unit_cost: cost,
+                    unit_price: price,
+                    total_cost: totalCost,
+                    total_sale: totalSale,
+                    profit: totalSale - totalCost
+                };
+            });
+
+            return successResponse(res, result, 'Batch-wise sales audit fetched');
+        } catch (error) { next(error); }
+    },
+    getUniqueBatches: async (req, res, next) => {
+        try {
+            const batches = await db.ProductBatch.findAll({
+                where: { organization_id: req.user.organization_id },
+                attributes: [[Sequelize.fn('DISTINCT', Sequelize.col('batch_number')), 'batch_number']],
+                order: [['batch_number', 'ASC']],
+                raw: true
+            });
+
+            return res.status(200).json({
+                status: 'success',
+                data: batches.map(b => b.batch_number)
+            });
         } catch (error) { next(error); }
     }
 };
