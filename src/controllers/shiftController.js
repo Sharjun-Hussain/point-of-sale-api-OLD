@@ -42,7 +42,7 @@ const openShift = async (req, res, next) => {
         if (!branch) {
             // If the provided branch_id is invalid (stale session), try to find a valid one for this organization
             const validBranch = await Branch.findOne({ 
-                where: { organization_id, status: 'active' } 
+                where: { organization_id, is_active: true } 
             });
 
             if (validBranch) {
