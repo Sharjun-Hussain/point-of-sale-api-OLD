@@ -1107,7 +1107,7 @@ const resetAdminPassword = async (req, res, next) => {
 const resetOrganizationData = async (req, res, next) => {
     const transaction = await sequelize.transaction();
     try {
-        const { organizationId } = req.params;
+        const { id: organizationId } = req.params;
         const { confirmation } = req.body;
 
         // Security check
