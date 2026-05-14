@@ -88,7 +88,7 @@ const getAllSales = async (req, res, next) => {
                             where: productFilterActive ? productWhere : undefined,
                             required: productFilterActive
                         },
-                        { model: ProductVariant, as: 'variant', attributes: ['name', 'image'] }
+                        { model: ProductVariant, as: 'variant', attributes: ['name', 'image', 'barcode', 'sku'] }
                     ]
                 },
                 { model: SalePayment, as: 'payments' }
@@ -129,7 +129,7 @@ const getSaleById = async (req, res, next) => {
                     as: 'items',
                     include: [
                         { model: Product, as: 'product', attributes: ['name', 'code'] },
-                        { model: ProductVariant, as: 'variant', attributes: ['name', 'sku'] }
+                        { model: ProductVariant, as: 'variant', attributes: ['name', 'sku', 'barcode'] }
                     ]
                 },
                 { model: SalePayment, as: 'payments' }
@@ -162,7 +162,8 @@ const createSale = async (req, res, next) => {
             cheque_details,
             is_wholesale: payload_is_wholesale,
             shift_id,
-            redeemed_points: payload_redeemed_points
+            redeemed_points: payload_redeemed_points,
+            payable_amount: payload_payable_amount
         } = req.body;
 
         const organization_id = req.user.organization_id;
@@ -262,6 +263,8 @@ const createSale = async (req, res, next) => {
         const processedItems = [];
 
         // Fetch all products/variants involved
+        console.log(`[Debug] createSale: Starting for Org=${organization_id}, User=${user_id}, Items Count=${items.length}`);
+        
         for (const item of items) {
             const { product_id, product_variant_id, product_batch_id, quantity: raw_quantity, discount_amount: claimed_discount } = item;
             const quantity = parseFloat(raw_quantity || 0);
@@ -273,9 +276,11 @@ const createSale = async (req, res, next) => {
                 transaction: t 
             });
             if (!product) {
+                console.error(`[Error] createSale: Product NOT FOUND. ID=${product_id}, Org=${organization_id}`);
                 await t.rollback();
-                return errorResponse(res, `Product not found: ${product_id}`, 400);
+                return errorResponse(res, `Product not found: ${product_id}. Ensure your POS is synced with the correct organization.`, 400);
             }
+            console.log(`[Debug] createSale: Found Product=${product.name} (ID=${product.id})`);
 
             let unit_price = 0;
             let mrp_price = 0;
@@ -404,25 +409,35 @@ const createSale = async (req, res, next) => {
         }
 
         // Rule: Guest/Walk-in must pay in full (SKIP for drafts)
-        if (payload_status !== 'draft' && !customer_id && total_paid < final_payable_amount) {
-            if ((final_payable_amount - total_paid) > 1.0) {
+        // We use the frontend's provided payable_amount if available to avoid tax/rounding mismatches
+        const effective_payable_amount = (parseFloat(payload_payable_amount) || final_payable_amount);
+
+        if (payload_status !== 'draft' && !customer_id && total_paid < effective_payable_amount) {
+            if ((effective_payable_amount - total_paid) > 1.0) {
+                console.warn(`[createSale] 400 Error: Guest must pay in full. Provided Total: ${payload_payable_amount}, Calculated: ${final_payable_amount}, Paid: ${total_paid}`);
                 await t.rollback();
-                return errorResponse(res, 'Walk-in (Guest) customers must pay in full.', 400);
+                return errorResponse(res, `Walk-in (Guest) customers must pay in full. Total: ${effective_payable_amount.toFixed(2)}, Paid: ${total_paid.toFixed(2)}, Missing: ${(effective_payable_amount - total_paid).toFixed(2)}`, 400);
             }
         }
 
         // Rule: Credit Limit Validation for Customers OR Distributors
-        if (payload_status !== 'draft' && (customer_id || distributor_id) && total_paid < final_payable_amount) {
-            const newCreditAmount = final_payable_amount - total_paid;
+        if (payload_status !== 'draft' && (customer_id || distributor_id) && total_paid < effective_payable_amount) {
+            const newCreditAmount = effective_payable_amount - total_paid;
             
             if (customer_id) {
                 const customer = await db.Customer.findByPk(customer_id, { transaction: t });
                 if (customer && customer.credit_limit > 0) {
                     const currentBalance = await accountingService.getCustomerBalance(organization_id, customer_id, t);
                     if ((currentBalance + newCreditAmount) > parseFloat(customer.credit_limit)) {
+                        console.warn(`[createSale] 400 Error: Credit limit exceeded for customer ${customer_id}. Balance: ${currentBalance}, Limit: ${customer.credit_limit}`);
                         await t.rollback();
                         return errorResponse(res, `Credit limit exceeded. Current Balance: ${currentBalance.toFixed(2)}, Limit: ${parseFloat(customer.credit_limit).toFixed(2)}`, 400);
                     }
+                } else if (customer && (!customer.credit_limit || customer.credit_limit <= 0)) {
+                   // If credit limit is 0, they MUST pay in full
+                   console.warn(`[createSale] 400 Error: Customer has no credit limit. Must pay in full. Expected: ${effective_payable_amount}, Paid: ${total_paid}`);
+                   await t.rollback();
+                   return errorResponse(res, `Customer has no credit limit enabled. Full payment required.`, 400);
                 }
             } else if (distributor_id) {
                 const distributor = await db.Distributor.findByPk(distributor_id, { transaction: t });
