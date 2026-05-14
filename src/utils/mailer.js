@@ -367,6 +367,74 @@ const sendPasswordChangeNotification = async (user, organizationId, isAdminActio
     }, organizationId);
 };
 
+/**
+ * Send a notification when a new module/addon is activated
+ */
+const sendAddonActivationEmail = async (organization, moduleNames) => {
+    const appName = process.env.APP_NAME || 'POS System';
+    const loginUrl = (process.env.FRONTEND_URL?.split(',')[2] || process.env.FRONTEND_URL?.split(',')[0] || 'http://localhost:3000').trim();
+
+    const subject = `🚀 Add-on Activated: New Capabilities for ${organization.name}`;
+    
+    const modulesHtml = moduleNames.map(m => `
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 12px 16px; border-radius: 12px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px;">
+            <div style="background: #16a34a; color: white; width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; flex-shrink: 0;">✓</div>
+            <span style="color: #166534; font-weight: 700; font-size: 14px;">${m}</span>
+        </div>
+    `).join('');
+
+    const html = `
+        <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 30px; border: 1px solid #f1f5f9; border-radius: 32px; background-color: #ffffff; color: #1e293b;">
+            <div style="text-align: center; margin-bottom: 32px;">
+                <div style="background: #f0fdf4; width: 64px; height: 64px; border-radius: 20px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 20px;">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                </div>
+                <h1 style="font-size: 24px; font-weight: 800; margin: 0; color: #0f172a; letter-spacing: -0.025em;">Expansion Complete!</h1>
+                <p style="color: #64748b; font-size: 14px; margin-top: 8px;">New administrative protocols have been initialized for your business.</p>
+            </div>
+
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 24px; padding: 32px; margin-bottom: 32px;">
+                <p style="margin-top: 0; font-size: 15px; line-height: 1.6; color: #334155;">
+                    Hello <strong>${organization.name}</strong>,
+                </p>
+                <p style="font-size: 15px; line-height: 1.6; color: #334155; margin-bottom: 24px;">
+                    Congratulations! Your requested system add-ons are now active. You can immediately access these features from your workstation dashboard:
+                </p>
+
+                <div style="margin-bottom: 24px;">
+                    ${modulesHtml}
+                </div>
+
+                <p style="font-size: 13px; color: #64748b; line-height: 1.6; margin-bottom: 0;">
+                    These capabilities have been seamlessly integrated into your existing environment. No restart or re-login is required to begin using them.
+                </p>
+            </div>
+
+            <div style="text-align: center; margin-bottom: 40px;">
+                <a href="${loginUrl}" style="display: inline-block; background-color: #16a34a; color: white; padding: 16px 40px; text-decoration: none; border-radius: 14px; font-weight: 700; font-size: 15px; letter-spacing: 0.01em; box-shadow: 0 10px 15px -3px rgba(22, 163, 74, 0.2);">Enter Workstation</a>
+            </div>
+
+            <div style="border-top: 1px solid #f1f5f9; padding-top: 30px; text-align: center;">
+                <p style="font-size: 12px; color: #94a3b8; line-height: 1.6;">
+                    Thank you for growing with ${appName}.<br>
+                    Need assistance with these new features? Contact our 24/7 technical support.
+                </p>
+            </div>
+            
+            <p style="font-size: 10px; color: #cbd5e1; text-align: center; margin-top: 24px; text-transform: uppercase; letter-spacing: 0.05em;">
+                Automated Transactional Notification • ${new Date().getFullYear()} ${appName}
+            </p>
+        </div>
+    `;
+
+    return sendEmailWithSettings({
+        to: organization.email,
+        subject,
+        html,
+        text: `Congratulations! New add-ons have been activated for ${organization.name}: ${moduleNames.join(', ')}. Access them at ${loginUrl}`
+    }, organization.id);
+};
+
 const sendEmail = (options) => sendEmailWithSettings(options, null);
 
 module.exports = {
@@ -374,5 +442,6 @@ module.exports = {
     sendEmailWithSettings,
     sendWelcomeEmail,
     sendPasswordChangeNotification,
+    sendAddonActivationEmail,
     verifyEmailConnection
 };

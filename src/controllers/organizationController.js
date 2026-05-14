@@ -7,6 +7,32 @@ const sequelize = require('../config/database');
 const auditService = require('../services/auditService');
 const mailer = require('../utils/mailer');
 
+const MODULE_NAMES = {
+    'inventory_transfers': 'Stock Transfers',
+    'barcode_customization': 'Barcode Customization',
+    'accounting_advanced': 'Advanced Accounting & Financial Reports',
+    'accounting_ledger_manual': 'Manual Journal Entries',
+    'accounting_ledger_customer': 'Customer Ledgers',
+    'accounting_ledger_supplier': 'Supplier Ledgers',
+    'reports_advanced': 'Intelligent Insights',
+    'multi_location': 'Multi-Branch Management',
+    'staff_management': 'Advanced Staff Management',
+    'invoice_customization': 'Report Layout Designer',
+    'pos_advanced': 'POS Advanced Features',
+    'pos_offline': 'POS Offline Mode',
+    'inventory_advanced': 'Advanced Inventory Controls',
+    'inventory_ledger': 'Inventory Ledger Tracking',
+    'inventory_po': 'Purchase Order Workflow',
+    'accounting_reconciliation': 'Bank Reconciliation',
+    'backup_manual': 'Manual Data Backup',
+    'data_export': 'Data Export Capabilities',
+    'dashboard_kpi_live': 'Live KPI Dashboard',
+    'dashboard_health': 'Business Health Monitor',
+    'dashboard_custom': 'Custom Dashboard Builder',
+    'pos_payments': 'Advanced Payment Gateways',
+    'production_view': 'Manufacturing & Production Orders'
+};
+
 // --- Organization ---
 
 const createOrganization = async (req, res, next) => {
@@ -986,6 +1012,26 @@ const updateOrganizationModules = async (req, res, next) => {
             userAgent,
             { is_admin_action: true, action: 'module_overrides' }
         );
+
+        // Detect newly enabled modules for notification
+        const newlyEnabled = [];
+        if (module_overrides && typeof module_overrides === 'object') {
+            for (const key in module_overrides) {
+                if (module_overrides[key] === true && (!oldOverrides || oldOverrides[key] !== true)) {
+                    newlyEnabled.push(MODULE_NAMES[key] || key);
+                }
+            }
+        }
+
+        // Send activation email if new modules were added
+        if (newlyEnabled.length > 0 && organization.email) {
+            try {
+                await mailer.sendAddonActivationEmail(organization, newlyEnabled);
+            } catch (mailError) {
+                console.error('[OrganizationController] Failed to send activation email:', mailError.message);
+                // We don't fail the request if email fails
+            }
+        }
 
         return successResponse(res, organization, 'Module overrides updated successfully');
     } catch (error) { next(error); }
