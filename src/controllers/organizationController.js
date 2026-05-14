@@ -5,6 +5,7 @@ const { getPagination } = require('../utils/pagination');
 const { hashPassword } = require('../utils/passwordHelper');
 const sequelize = require('../config/database');
 const auditService = require('../services/auditService');
+const mailer = require('../utils/mailer');
 
 // --- Organization ---
 
@@ -142,6 +143,13 @@ const createOrganization = async (req, res, next) => {
         await user.addBranch(branch, { transaction });
 
         await transaction.commit();
+
+        // Dispatch Welcome Email to the Shop Owner
+        try {
+            await mailer.sendWelcomeEmail(user, owner_password, organization.id);
+        } catch (mailError) {
+            console.error('[MAILER] Organization Owner Welcome Email Failure:', mailError);
+        }
 
         return successResponse(res, {
             organization,
