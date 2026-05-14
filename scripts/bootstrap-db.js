@@ -2,6 +2,7 @@ const db = require('../src/models');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { DataTypes } = require('sequelize');
+const seederService = require('../src/services/seederService');
 
 /**
  * MASTER BOOTSTRAP CONFIGURATION
@@ -377,35 +378,9 @@ async function bootstrap() {
         await adminUser.setBranches([branch]);
         console.log(`✅ Super Admin user [${MASTER_EMAIL}] ready.`);
 
-        // ── Charts of Accounts ────────────────────────────────────────────────
-        const accounts = [
-            { code: '1000', name: 'Cash on Hand', type: 'asset' },
-            { code: '1010', name: 'Bank Account', type: 'asset' },
-            { code: '1100', name: 'Accounts Receivable', type: 'asset' },
-            { code: '2100', name: 'Accounts Payable', type: 'liability' },
-            { code: '4000', name: 'Sales Revenue', type: 'revenue' },
-            { code: '5000', name: 'Cost of Goods Sold', type: 'expense' },
-            { code: '6000', name: 'General Expenses', type: 'expense' }
-        ];
-        for (const acc of accounts) {
-            await db.Account.findOrCreate({
-                where: { code: acc.code, organization_id: org.id },
-                defaults: { ...acc, organization_id: org.id, is_active: true }
-            });
-        }
-        console.log('✅ Charts of Accounts seeded.');
+        // ── Seed Essential Data ──────────────────────────────────────────────
+        await seederService.seedAllDefaults(org.id);
 
-        // ── Measurement Units ─────────────────────────────────────────────────
-        const mUnits = [
-            { name: 'Piece', short_name: 'pcs' },
-            { name: 'Kilogram', short_name: 'kg' },
-            { name: 'Gram', short_name: 'g' },
-            { name: 'Liter', short_name: 'l' }
-        ];
-        for (const u of mUnits) {
-            await db.MeasurementUnit.findOrCreate({ where: { short_name: u.short_name }, defaults: u });
-        }
-        console.log('✅ Measurement Units seeded.');
 
         console.log('\n╔══════════════════════════════════════╗');
         console.log('║  ✨ MASTER BOOTSTRAP SUCCESSFUL!      ║');
