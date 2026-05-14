@@ -496,6 +496,7 @@ const createSupplier = async (req, res, next) => {
         const data = { ...req.body };
         
         // Convert empty strings to null to prevent unique constraint issues
+        if (data.code === "") data.code = null;
         if (data.phone === "") data.phone = null;
         if (data.email === "") data.email = null;
         if (data.address === "") data.address = null;
@@ -514,6 +515,7 @@ const updateSupplier = async (req, res, next) => {
 
         const data = { ...req.body };
         // Convert empty strings to null
+        if (data.code === "") data.code = null;
         if (data.phone === "") data.phone = null;
         if (data.email === "") data.email = null;
         if (data.address === "") data.address = null;

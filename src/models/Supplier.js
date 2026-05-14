@@ -9,6 +9,11 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             allowNull: false
         },
+        code: {
+            type: DataTypes.STRING,
+            allowNull: true,
+            unique: true
+        },
         email: {
             type: DataTypes.STRING,
             allowNull: true
@@ -50,6 +55,11 @@ module.exports = (sequelize, DataTypes) => {
                 name: 'suppliers_org_phone_unique_idx',
                 unique: true,
                 fields: ['organization_id', 'phone']
+            },
+            {
+                name: 'suppliers_org_code_unique_idx',
+                unique: true,
+                fields: ['organization_id', 'code']
             }
         ]
     });

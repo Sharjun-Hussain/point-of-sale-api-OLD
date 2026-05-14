@@ -203,6 +203,11 @@ const getAllProducts = async (req, res, next) => {
                 },
                 {
                     model: Supplier,
+                    as: 'supplier',
+                    attributes: ['id', 'name', 'code']
+                },
+                {
+                    model: Supplier,
                     as: 'suppliers',
                     through: { attributes: [] }
                 }
