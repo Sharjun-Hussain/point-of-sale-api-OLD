@@ -493,7 +493,14 @@ const getSupplierById = async (req, res, next) => {
 const createSupplier = async (req, res, next) => {
     try {
         const organization_id = req.user.organization_id;
-        const supplier = await Supplier.create({ ...req.body, organization_id });
+        const data = { ...req.body };
+        
+        // Convert empty strings to null to prevent unique constraint issues
+        if (data.phone === "") data.phone = null;
+        if (data.email === "") data.email = null;
+        if (data.address === "") data.address = null;
+
+        const supplier = await Supplier.create({ ...data, organization_id });
         return successResponse(res, supplier, 'Supplier created successfully', 201);
     } catch (error) { next(error); }
 };
@@ -504,7 +511,14 @@ const updateSupplier = async (req, res, next) => {
             where: { id: req.params.id, organization_id: req.user.organization_id }
         });
         if (!supplier) return errorResponse(res, 'Supplier not found', 404);
-        await supplier.update(req.body);
+
+        const data = { ...req.body };
+        // Convert empty strings to null
+        if (data.phone === "") data.phone = null;
+        if (data.email === "") data.email = null;
+        if (data.address === "") data.address = null;
+
+        await supplier.update(data);
         return successResponse(res, supplier, 'Supplier updated successfully');
     } catch (error) { next(error); }
 };
