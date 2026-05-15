@@ -1,4 +1,4 @@
-const { Employee, User, Role, Organization, Branch, RefreshToken, SaleEmployee, PurchaseOrder, StockTransfer, sequelize } = require('../models');
+const { Employee, User, Role, Organization, Branch, RefreshToken, SaleEmployee, PurchaseOrder, StockTransfer, EmailVerification, sequelize } = require('../models');
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
 const { hashPassword } = require('../utils/passwordHelper');
@@ -90,6 +90,24 @@ const createEmployee = async (req, res, next) => {
         if (email) {
             const existingEmployee = await Employee.findOne({ where: { email, organization_id } });
             if (existingEmployee) return errorResponse(res, 'Employee with this email already exists', 409);
+
+            // Security Protocol: Email Verification Enforcement
+            // We require verification for all new staff email addresses
+            const verification = await EmailVerification.findOne({
+                where: { 
+                    email, 
+                    organization_id, 
+                    is_verified: true,
+                    expires_at: { [Op.gt]: new Date() }
+                }
+            });
+
+            if (!verification) {
+                return errorResponse(res, 'Security Violation: Email verification required or expired. Please verify the staff email address before enrollment.', 403);
+            }
+            
+            // We store verification in req for cleanup later
+            req._verification = verification;
         }
 
         // 2. Handle Login Account if requested
@@ -191,6 +209,11 @@ const createEmployee = async (req, res, next) => {
             } catch (mailError) {
                 console.error('Employee Welcome Email Dispatch Failed:', mailError);
             }
+        }
+
+        // Finalize: Consume the verification record
+        if (req._verification) {
+            await req._verification.destroy();
         }
 
         return successResponse(res, createdEmployee, 'Employee created successfully', 201);
