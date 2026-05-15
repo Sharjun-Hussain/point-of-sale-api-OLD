@@ -13,6 +13,7 @@ router.use(authenticate);
 // Business Profile Settings
 router.get('/business', checkAnyPermission(['settings:business:update', 'system:settings']), settingsController.getBusinessSettings);
 router.put('/business', updateOrganizationValidationRules, validate, checkPermission('settings:business:update'), orgController.updateOrganization);
+router.post('/hardware/sign', settingsController.signHardwareRequest);
 
 // Modular Settings
 router.get('/global', checkAnyPermission(['settings:general:update', 'system:settings']), settingsController.getGlobalSettings);

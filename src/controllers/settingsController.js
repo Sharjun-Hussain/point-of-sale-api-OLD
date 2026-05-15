@@ -3,6 +3,7 @@ const { successResponse, errorResponse } = require('../utils/responseHandler');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const auditService = require('../services/auditService');
 const { verifyEmailConnection } = require('../utils/mailer');
 const { encrypt, decrypt, isMasked, MASK } = require('../utils/security');
@@ -444,11 +445,51 @@ const testConnection = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+/**
+ * Sign QZ Tray Hardware Request
+ * Required for "Trusted" status in production.
+ */
+const signHardwareRequest = async (req, res, next) => {
+    try {
+        const { toSign } = req.body;
+        if (!toSign) return res.status(400).send('Nothing to sign');
+
+        // 1. Retrieve Private Key
+        // Priority: Environment Variable > Local File
+        let privateKey = process.env.QZ_PRIVATE_KEY;
+        
+        if (!privateKey) {
+            const keyPath = path.join(__dirname, '../../config/qz-private-key.pem');
+            if (fs.existsSync(keyPath)) {
+                privateKey = fs.readFileSync(keyPath, 'utf8');
+            }
+        }
+
+        if (!privateKey) {
+            console.error('[QZ Signing] Private key missing. Please set QZ_PRIVATE_KEY in .env');
+            return res.status(500).send('Hardware signing key not configured');
+        }
+
+        // 2. Generate Signature
+        // QZ Tray 2.1+ supports SHA512 (Recommended)
+        const sign = crypto.createSign('RSA-SHA512');
+        sign.update(toSign);
+        const signature = sign.sign(privateKey, 'base64');
+
+        // 3. Return raw signature string
+        return res.send(signature);
+    } catch (error) {
+        console.error('[QZ Signing] Error:', error);
+        next(error);
+    }
+};
+
 module.exports = {
     getBusinessSettings,
     getSettingsByCategory,
     updateSettingsByCategory,
     getGlobalSettings,
     updateLogo,
-    testConnection
+    testConnection,
+    signHardwareRequest
 };
