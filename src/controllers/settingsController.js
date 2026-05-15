@@ -459,14 +459,18 @@ const signHardwareRequest = async (req, res, next) => {
         let privateKey = process.env.QZ_PRIVATE_KEY;
         
         if (privateKey) {
-            // Fix escaped newlines if coming from .env
-            privateKey = privateKey.replace(/\\n/g, '\n');
+            // Fix escaped newlines and ensure the key has correct PEM boundaries
+            privateKey = privateKey.replace(/\\n/g, '\n').trim();
+            if (!privateKey.includes('-----BEGIN')) {
+                // If it's a raw base64 string, wrap it (though usually it should be PEM)
+                privateKey = `-----BEGIN PRIVATE KEY-----\n${privateKey}\n-----END PRIVATE KEY-----`;
+            }
         }
 
         if (!privateKey) {
             const keyPath = path.join(__dirname, '../../config/qz-private-key.pem');
             if (fs.existsSync(keyPath)) {
-                privateKey = fs.readFileSync(keyPath, 'utf8');
+                privateKey = fs.readFileSync(keyPath, 'utf8').trim();
             }
         }
 
@@ -476,8 +480,8 @@ const signHardwareRequest = async (req, res, next) => {
         }
 
         // 2. Generate Signature
-        // QZ Tray 2.1+ supports SHA512 (Recommended)
-        const sign = crypto.createSign('RSA-SHA512');
+        // Using SHA1 for maximum compatibility with all QZ Tray versions
+        const sign = crypto.createSign('RSA-SHA1');
         sign.update(toSign);
         const signature = sign.sign(privateKey, 'base64');
 
