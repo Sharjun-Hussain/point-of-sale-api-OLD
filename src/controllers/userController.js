@@ -1,4 +1,4 @@
-const { User, Role, Organization, Branch, Employee, BusinessPlan } = require('../models');
+const { User, Role, Organization, Branch, Employee, BusinessPlan, EmailVerification } = require('../models');
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
 const { hashPassword } = require('../utils/passwordHelper');
@@ -79,6 +79,20 @@ const createUser = async (req, res, next) => {
         const existingUser = await User.findOne({ where: { email } });
         if (existingUser) return errorResponse(res, 'Invalid Email. Please use a different email address.', 409);
 
+        // Security Protocol: Email Verification Enforcement
+        const verification = await EmailVerification.findOne({
+            where: { 
+                email, 
+                organization_id, 
+                is_verified: true,
+                expires_at: { [Op.gt]: new Date() } // Must be verified AND not expired
+            }
+        });
+
+        if (!verification) {
+            return errorResponse(res, 'Security Violation: Email verification required or expired. Please verify the target email address again before provisioning credentials.', 403);
+        }
+
         const hashedPassword = await hashPassword(password);
 
         // Auto-construct name if not provided
@@ -139,6 +153,9 @@ const createUser = async (req, res, next) => {
             console.error('Welcome Email Dispatch Failed:', mailError);
             // We don't block user creation if email fails, but we log it
         }
+
+        // Finalize: Consume the verification record so it cannot be reused
+        await verification.destroy();
 
         return successResponse(res, createdUser, 'User created successfully', 201);
     } catch (error) { next(error); }

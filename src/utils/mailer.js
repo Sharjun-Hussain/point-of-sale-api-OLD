@@ -437,11 +437,57 @@ const sendAddonActivationEmail = async (organization, moduleNames) => {
 
 const sendEmail = (options) => sendEmailWithSettings(options, null);
 
+/**
+ * Send a verification code email
+ */
+const sendVerificationEmail = async (email, code, organizationId) => {
+    const appName = process.env.APP_NAME || 'POS System';
+    const subject = `${code} is your ${appName} verification code`;
+    
+    const html = `
+        <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; max-width: 500px; margin: 0 auto; padding: 40px 30px; border: 1px solid #f1f5f9; border-radius: 32px; background-color: #ffffff; color: #1e293b; text-align: center;">
+            <div style="background: #f0fdf4; width: 64px; height: 64px; border-radius: 20px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 24px;">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            </div>
+            
+            <h1 style="font-size: 24px; font-weight: 800; margin: 0; color: #0f172a; letter-spacing: -0.025em;">Verify your email</h1>
+            <p style="color: #64748b; font-size: 14px; margin-top: 12px; line-height: 1.5;">
+                Enter the following code to confirm this email address for account provisioning.
+            </p>
+            
+            <div style="margin: 32px 0;">
+                <div style="background: #f8fafc; border: 2px dashed #e2e8f0; padding: 20px; border-radius: 20px; display: inline-block;">
+                    <span style="font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 36px; font-weight: 800; color: #16a34a; letter-spacing: 0.25em; margin-left: 0.25em;">${code}</span>
+                </div>
+            </div>
+            
+            <p style="font-size: 12px; color: #94a3b8; line-height: 1.6;">
+                This code will expire in 15 minutes.<br>
+                If you did not expect this, please ignore this email.
+            </p>
+            
+            <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 32px 0;" />
+            
+            <p style="font-size: 10px; color: #cbd5e1; text-transform: uppercase; letter-spacing: 0.05em; margin: 0;">
+                Security protocol enforced by ${appName}
+            </p>
+        </div>
+    `;
+
+    return sendEmailWithSettings({
+        to: email,
+        subject,
+        html,
+        text: `Your ${appName} verification code is: ${code}`
+    }, organizationId);
+};
+
 module.exports = {
     sendEmail,
     sendEmailWithSettings,
     sendWelcomeEmail,
     sendPasswordChangeNotification,
     sendAddonActivationEmail,
-    verifyEmailConnection
+    verifyEmailConnection,
+    sendVerificationEmail
 };
