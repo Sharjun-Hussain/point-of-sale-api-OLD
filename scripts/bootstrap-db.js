@@ -273,6 +273,71 @@ async function bootstrap() {
         await orgAdminRole.setPermissions(orgAdminPerms);
         console.log(`✅ Organization Admin role assigned ${orgAdminPerms.length} permissions.`);
 
+        // ── Manager Role ──────────────────────────────────────────────────────
+        const [managerRole] = await db.Role.findOrCreate({
+            where: { name: 'Manager' },
+            defaults: { id: crypto.randomUUID(), description: 'Full Operational Management' }
+        });
+        const managerRestricted = [...restrictedPerms, 'user:delete', 'role:edit', 'role:delete', 'system:settings'];
+        const managerPerms = allPerms.filter(p => !managerRestricted.includes(p.name));
+        await managerRole.setPermissions(managerPerms);
+        console.log(`✅ Manager role assigned ${managerPerms.length} permissions.`);
+
+        // ── Cashier Role ──────────────────────────────────────────────────────
+        const [cashierRole] = await db.Role.findOrCreate({
+            where: { name: 'Cashier' },
+            defaults: { id: crypto.randomUUID(), description: 'POS Operations and Front-desk' }
+        });
+        const cashierAllowed = [
+            'sale:view', 'sale:create', 'pos:access', 'shift:view', 'shift:create', 
+            'shift:manage', 'product:view', 'customer:view', 'customer:create',
+            'sale_return:create', 'dashboard:view'
+        ];
+        const cashierPerms = allPerms.filter(p => cashierAllowed.includes(p.name));
+        await cashierRole.setPermissions(cashierPerms);
+        console.log(`✅ Cashier role assigned ${cashierPerms.length} permissions.`);
+
+        // ── Accountant Role ───────────────────────────────────────────────────
+        const [accountantRole] = await db.Role.findOrCreate({
+            where: { name: 'Accountant' },
+            defaults: { id: crypto.randomUUID(), description: 'Financial Auditing and Bookkeeping' }
+        });
+        const accountantAllowed = [
+            'finance:view', 'finance:manage', 'account:manage', 'cheque:manage',
+            'expense:view', 'expense:create', 'expense:manage',
+            'report:view', 'report:financial', 'report:sales', 'report:inventory',
+            'sale:view', 'purchase:view', 'stock:view', 'dashboard:view'
+        ];
+        const accountantPerms = allPerms.filter(p => accountantAllowed.includes(p.name));
+        await accountantRole.setPermissions(accountantPerms);
+        console.log(`✅ Accountant role assigned ${accountantPerms.length} permissions.`);
+
+        // ── Shopify User Role ────────────────────────────────────────────────
+        const [shopifyRole] = await db.Role.findOrCreate({
+            where: { name: 'Shopify User' },
+            defaults: { id: crypto.randomUUID(), description: 'E-commerce Sync and Product Management' }
+        });
+        const shopifyAllowed = [
+            'product:view', 'product:create', 'product:edit', 'category:view', 
+            'category:manage', 'stock:view', 'sale:view', 'dashboard:view'
+        ];
+        const shopifyPerms = allPerms.filter(p => shopifyAllowed.includes(p.name));
+        await shopifyRole.setPermissions(shopifyPerms);
+        console.log(`✅ Shopify User role assigned ${shopifyPerms.length} permissions.`);
+
+        // ── WhatsApp CRM User Role ──────────────────────────────────────────
+        const [whatsappRole] = await db.Role.findOrCreate({
+            where: { name: 'WhatsApp CRM User' },
+            defaults: { id: crypto.randomUUID(), description: 'Customer Engagement and Marketing' }
+        });
+        const whatsappAllowed = [
+            'crm:view', 'crm:manage', 'customer:view', 'customer:edit', 
+            'sale:view', 'dashboard:view'
+        ];
+        const whatsappPerms = allPerms.filter(p => whatsappAllowed.includes(p.name));
+        await whatsappRole.setPermissions(whatsappPerms);
+        console.log(`✅ WhatsApp CRM User role assigned ${whatsappPerms.length} permissions.`);
+
         // ── Business Plans ────────────────────────────────────────────────────
         const plans = [
             {
