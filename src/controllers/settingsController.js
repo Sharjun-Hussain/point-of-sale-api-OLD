@@ -458,6 +458,11 @@ const signHardwareRequest = async (req, res, next) => {
         // Priority: Environment Variable > Local File
         let privateKey = process.env.QZ_PRIVATE_KEY;
         
+        if (privateKey) {
+            // Fix escaped newlines if coming from .env
+            privateKey = privateKey.replace(/\\n/g, '\n');
+        }
+
         if (!privateKey) {
             const keyPath = path.join(__dirname, '../../config/qz-private-key.pem');
             if (fs.existsSync(keyPath)) {
