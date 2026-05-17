@@ -151,7 +151,16 @@ const reportController = {
                 include: [
                     { model: Customer, as: 'customer', attributes: ['name'] },
                     { model: User, as: 'cashier', attributes: ['name'] },
-                    { model: db.SalePayment, as: 'payments' }
+                    { model: db.SalePayment, as: 'payments' },
+                    { 
+                        model: SaleItem, 
+                        as: 'items',
+                        include: [{
+                            model: ProductVariant,
+                            as: 'variant',
+                            attributes: ['cost_price', 'mrp_price', 'wholesale_price', 'price']
+                        }]
+                    }
                 ],
                 order: [['created_at', 'DESC']]
             });
@@ -199,21 +208,32 @@ const reportController = {
             }
 
             return successResponse(res, {
-                transactions: sales.map(s => ({
-                    id: s.invoice_number || s.id.substring(0, 8).toUpperCase(),
-                    date: s.created_at,
-                    customer: s.customer ? s.customer.name : 'Walk-in',
-                    total: Number(s.payable_amount), 
-                    subtotal: Number(s.total_amount),
-                    discount: Number(s.discount_amount),
-                    tax: Number(s.tax_amount),
-                    status: s.status,
-                    type: s.payment_method, // legacy field remains for simple list
-                    payment_status: s.payment_status, 
-                    paid_amount: Number(s.paid_amount),
-                    cashier: s.cashier ? s.cashier.name : 'Unknown',
-                    payments: s.payments // include detail
-                })),
+                transactions: sales.map(s => {
+                    const total_cost = s.items ? s.items.reduce((sum, item) => sum + (Number(item.variant?.cost_price || 0) * Number(item.quantity)), 0) : 0;
+                    const total_mrp = s.items ? s.items.reduce((sum, item) => sum + (Number(item.variant?.mrp_price || 0) * Number(item.quantity)), 0) : 0;
+                    const total_wholesale = s.items ? s.items.reduce((sum, item) => sum + (Number(item.variant?.wholesale_price || 0) * Number(item.quantity)), 0) : 0;
+                    const total_selling_base = s.items ? s.items.reduce((sum, item) => sum + (Number(item.variant?.price || 0) * Number(item.quantity)), 0) : 0;
+                    
+                    return {
+                        id: s.invoice_number || s.id.substring(0, 8).toUpperCase(),
+                        date: s.created_at,
+                        customer: s.customer ? s.customer.name : 'Walk-in',
+                        total: Number(s.payable_amount), 
+                        subtotal: Number(s.total_amount),
+                        discount: Number(s.discount_amount),
+                        tax: Number(s.tax_amount),
+                        status: s.status,
+                        type: s.payment_method, // legacy field remains for simple list
+                        payment_status: s.payment_status, 
+                        paid_amount: Number(s.paid_amount),
+                        cashier: s.cashier ? s.cashier.name : 'Unknown',
+                        payments: s.payments, // include detail
+                        total_cost,
+                        total_mrp,
+                        total_wholesale,
+                        total_selling_base
+                    };
+                }),
                 stats: {
                     totalSales,
                     totalTransactions: sales.length,
