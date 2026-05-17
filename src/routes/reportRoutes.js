@@ -10,6 +10,7 @@ router.use(authenticate);
 
 // Sales Reports
 router.get('/sales/daily', checkPermission('report:view'), reportController.getDailySales);
+router.get('/sales/payment-methods', checkPermission('report:view'), reportController.getSalePaymentMethods);
 router.get('/sales/product', checkPermission('report:view'), reportController.getSalesByProduct);
 router.get('/sales/returns', checkPermission('report:view'), reportController.getSalesReturnHistory);
 router.get('/sales/categories', checkPermission('report:view'), reportController.getCategorySales);
