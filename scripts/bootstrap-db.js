@@ -156,6 +156,13 @@ async function bootstrap() {
             { name: 'product_variant:create', group_name: 'Product', description: 'Create product variants' },
             { name: 'product_variant:edit', group_name: 'Product', description: 'Modify variants' },
             
+            // Production & Manufacturing
+            { name: 'production:view', group_name: 'Production', description: 'View manufacturing recipes and orders' },
+            { name: 'production:create', group_name: 'Production', description: 'Create new recipes and orders' },
+            { name: 'production:edit', group_name: 'Production', description: 'Edit existing recipes and orders' },
+            { name: 'production:delete', group_name: 'Production', description: 'Delete recipes and orders' },
+            { name: 'production:manage', group_name: 'Production', description: 'Finalize and complete production batches' },
+            
             // Purchase & Procurement
             { name: 'purchase:view', group_name: 'Purchase', description: 'View purchase history' },
             { name: 'purchase:create', group_name: 'Purchase', description: 'Initiate purchase orders' },
