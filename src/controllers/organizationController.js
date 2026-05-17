@@ -126,7 +126,8 @@ const createOrganization = async (req, res, next) => {
             shopify_enabled: req.body.shopify_enabled === 'true' || req.body.shopify_enabled === true,
             whatsapp_enabled: req.body.whatsapp_enabled === 'true' || req.body.whatsapp_enabled === true,
             textlk_enabled: req.body.textlk_enabled === 'true' || req.body.textlk_enabled === true,
-            loyalty_enabled: req.body.loyalty_enabled === 'true' || req.body.loyalty_enabled === true
+            loyalty_enabled: req.body.loyalty_enabled === 'true' || req.body.loyalty_enabled === true,
+            accounting_enabled: req.body.accounting_enabled === undefined ? true : (req.body.accounting_enabled === 'true' || req.body.accounting_enabled === true)
         }, { transaction });
 
         // Create initial subscription history record
@@ -363,6 +364,7 @@ const updateOrganizationById = async (req, res, next) => {
         if (updateData.whatsapp_enabled !== undefined) updateData.whatsapp_enabled = updateData.whatsapp_enabled === 'true' || updateData.whatsapp_enabled === true;
         if (updateData.textlk_enabled !== undefined) updateData.textlk_enabled = updateData.textlk_enabled === 'true' || updateData.textlk_enabled === true;
         if (updateData.loyalty_enabled !== undefined) updateData.loyalty_enabled = updateData.loyalty_enabled === 'true' || updateData.loyalty_enabled === true;
+        if (updateData.accounting_enabled !== undefined) updateData.accounting_enabled = updateData.accounting_enabled === 'true' || updateData.accounting_enabled === true;
 
         // 1. Smart Plan/Tier Alignment
         // Case A: plan_id provided → derive tier name from it
@@ -843,6 +845,38 @@ const toggleLoyaltyIntegration = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+
+const toggleAccountingIntegration = async (req, res, next) => {
+    try {
+        // Strict Super Admin Check
+        const isSuperAdmin = req.user.roles.some(role => role.name === 'Super Admin');
+        if (!isSuperAdmin) return errorResponse(res, 'Unauthorized: Super Admin only', 403);
+
+        const organization = await Organization.findByPk(req.params.id);
+        if (!organization) return errorResponse(res, 'Organization not found', 404);
+
+        const currentStatus = organization.accounting_enabled;
+        organization.accounting_enabled = !currentStatus;
+        await organization.save();
+
+        // Audit Logging
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logUpdate(
+            organization.id,
+            req.user.id,
+            'Organization',
+            organization.id,
+            { accounting_enabled: currentStatus },
+            { accounting_enabled: organization.accounting_enabled },
+            ipAddress,
+            userAgent,
+            { is_admin_action: true }
+        );
+
+        return successResponse(res, organization, `Accounting module ${organization.accounting_enabled ? 'enabled' : 'disabled'} successfully`);
+    } catch (error) { next(error); }
+};
+
 const toggleBackupFeature = async (req, res, next) => {
     try {
         // Strict Super Admin Check
@@ -1296,7 +1330,7 @@ module.exports = {
     getOrganizationById, updateOrganizationById, toggleOrganizationStatus, getSubscriptionHistory,
     getOrganizationFullDetails,
     getAllBranches, getActiveBranchesList, getBranchById, createBranch, updateBranch, toggleBranchStatus,
-    getSuperAdminStats, toggleShopifyIntegration, toggleWhatsAppIntegration, toggleTextLkIntegration, toggleLoyaltyIntegration, toggleBackupFeature,
+    getSuperAdminStats, toggleShopifyIntegration, toggleWhatsAppIntegration, toggleTextLkIntegration, toggleLoyaltyIntegration, toggleAccountingIntegration, toggleBackupFeature,
     getOnboardingStatus, updateOnboardingStatus, updateOnboardingPolicy,
     updateOrganizationPlan, updateOrganizationModules, extendOrganizationTrial,
     resetAdminPassword, resetOrganizationData

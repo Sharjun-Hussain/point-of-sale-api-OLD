@@ -11,6 +11,15 @@ const checkModule = (moduleKey) => {
 
             const organization = req.user.organization;
             
+            // 0a. Explicit Block if Accounting Module is Disabled for the Organization
+            if (organization.accounting_enabled === false && moduleKey.startsWith('accounting_')) {
+                return res.status(403).json({
+                    status: 'error',
+                    message: `Module Disabled: The Accounting Module is disabled for your organization.`,
+                    code: 'MODULE_DISABLED'
+                });
+            }
+            
             // 0. Master & Super Admin Bypass
             const isSuperAdmin = req.user.roles?.some(role => role.name === 'Super Admin');
             if (isSuperAdmin || organization.is_master) return next();

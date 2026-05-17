@@ -122,6 +122,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.BOOLEAN,
             defaultValue: false
         },
+        accounting_enabled: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: true
+        },
         backup_enabled: {
             type: DataTypes.BOOLEAN,
             defaultValue: false

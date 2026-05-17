@@ -37,6 +37,7 @@ router.patch('/:id/shopify', isMaster, checkPermission('org:edit'), orgControlle
 router.patch('/:id/whatsapp', isMaster, checkPermission('org:edit'), orgController.toggleWhatsAppIntegration);
 router.patch('/:id/textlk', isMaster, checkPermission('org:edit'), orgController.toggleTextLkIntegration);
 router.patch('/:id/loyalty', isMaster, checkPermission('org:edit'), orgController.toggleLoyaltyIntegration);
+router.patch('/:id/accounting', isMaster, checkPermission('org:edit'), orgController.toggleAccountingIntegration);
 router.patch('/:id/backup', isMaster, checkPermission('backup:admin'), orgController.toggleBackupFeature);
 router.get('/:id/subscription-history', isMaster, checkPermission('org:view'), orgController.getSubscriptionHistory);
 router.patch('/:id/plan', isMaster, checkPermission('org:edit'), orgController.updateOrganizationPlan);

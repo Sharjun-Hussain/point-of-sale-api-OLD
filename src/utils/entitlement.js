@@ -6,6 +6,11 @@ const getModuleAccess = (organization, moduleKey) => {
     // 0. Master Bypass
     if (organization.is_master) return true;
 
+    // 0a. Explicit Block if Accounting Module is Disabled for the Organization
+    if (organization.accounting_enabled === false && moduleKey.startsWith('accounting')) {
+        return false;
+    }
+
     // 1. Check Module Overrides (JSON array)
     const overrides = organization.module_overrides || [];
     if (overrides.includes(moduleKey) || overrides.includes('all_features')) return true;

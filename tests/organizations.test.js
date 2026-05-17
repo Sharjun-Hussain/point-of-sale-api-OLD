@@ -105,4 +105,37 @@ describe('Multi-Branch & Multi-Tenant Tests (Organizations & Branches)', () => {
             expect(response.body.data).toHaveProperty('organization_id', createdOrg.id);
         });
     });
+
+    describe('PATCH /api/v1/organizations/:id/accounting', () => {
+        let createdOrg;
+
+        beforeEach(async () => {
+            createdOrg = await db.Organization.create({
+                name: 'Accounting Test Org',
+                status: 'active',
+                email: 'accounting@test.com',
+                accounting_enabled: true
+            });
+        });
+
+        it('should toggle the accounting_enabled status of an organization', async () => {
+            // First toggle: true -> false
+            const toggleOff = await request(app)
+                .patch(`/api/v1/organizations/${createdOrg.id}/accounting`)
+                .set('Authorization', authHeader);
+
+            expect(toggleOff.status).toBe(200);
+            expect(toggleOff.body.status).toBe('success');
+            expect(toggleOff.body.data.accounting_enabled).toBe(false);
+
+            // Second toggle: false -> true
+            const toggleOn = await request(app)
+                .patch(`/api/v1/organizations/${createdOrg.id}/accounting`)
+                .set('Authorization', authHeader);
+
+            expect(toggleOn.status).toBe(200);
+            expect(toggleOn.body.status).toBe('success');
+            expect(toggleOn.body.data.accounting_enabled).toBe(true);
+        });
+    });
 });
