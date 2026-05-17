@@ -289,7 +289,7 @@ const reportController = {
                     {
                         model: ProductVariant,
                         as: 'variant',
-                        attributes: ['name', 'sku']
+                        attributes: ['name', 'sku', 'price', 'mrp_price', 'wholesale_price', 'cost_price']
                     }
                 ],
                 attributes: [
