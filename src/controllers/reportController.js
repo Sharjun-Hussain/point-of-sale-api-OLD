@@ -46,7 +46,7 @@ const reportController = {
 
     getDailySales: async (req, res, next) => {
         try {
-            const { start_date, end_date, branch_id, main_category_ids, sub_category_ids, brand_ids, payment_methods } = req.query;
+            const { start_date, end_date, branch_id, main_category_ids, sub_category_ids, brand_ids, supplier_ids, batch_ids, payment_methods } = req.query;
             const organization_id = req.user.organization_id;
 
             const whereClause = {
@@ -71,9 +71,10 @@ const reportController = {
                 };
             }
 
-            if (main_category_ids || sub_category_ids || brand_ids) {
+            if (main_category_ids || sub_category_ids || brand_ids || supplier_ids || batch_ids) {
                 const itemWhere = { organization_id };
                 const productWhere = {};
+                const batchWhere = {};
                 
                 if (main_category_ids && main_category_ids !== '') {
                     productWhere.main_category_id = { [Op.in]: main_category_ids.split(',') };
@@ -84,15 +85,35 @@ const reportController = {
                 if (brand_ids && brand_ids !== '') {
                     productWhere.brand_id = { [Op.in]: brand_ids.split(',') };
                 }
+                if (supplier_ids && supplier_ids !== '') {
+                    productWhere.supplier_id = { [Op.in]: supplier_ids.split(',') };
+                }
+                if (batch_ids && batch_ids !== '') {
+                    batchWhere.batch_number = { [Op.in]: batch_ids.split(',') };
+                }
                 
-                const matchingItems = await SaleItem.findAll({
-                    where: itemWhere,
-                    include: [{
+                const includeArray = [];
+                if (Object.keys(productWhere).length > 0) {
+                    includeArray.push({
                         model: Product,
                         as: 'product',
                         where: productWhere,
                         attributes: []
-                    }],
+                    });
+                }
+                
+                if (Object.keys(batchWhere).length > 0) {
+                    includeArray.push({
+                        model: db.ProductBatch,
+                        as: 'batch',
+                        where: batchWhere,
+                        attributes: []
+                    });
+                }
+                
+                const matchingItems = await SaleItem.findAll({
+                    where: itemWhere,
+                    include: includeArray,
                     attributes: ['sale_id'],
                     raw: true
                 });
