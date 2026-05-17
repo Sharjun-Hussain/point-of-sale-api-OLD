@@ -13,7 +13,7 @@ const reportController = {
     // 1. Daily Sales Summary
     getDailySales: async (req, res, next) => {
         try {
-            const { start_date, end_date, branch_id, main_category_ids, sub_category_ids } = req.query;
+            const { start_date, end_date, branch_id, main_category_ids, sub_category_ids, brand_ids } = req.query;
             const organization_id = req.user.organization_id;
 
             const whereClause = {
@@ -38,7 +38,7 @@ const reportController = {
                 };
             }
 
-            if (main_category_ids || sub_category_ids) {
+            if (main_category_ids || sub_category_ids || brand_ids) {
                 const itemWhere = { organization_id };
                 const productWhere = {};
                 
@@ -47,6 +47,9 @@ const reportController = {
                 }
                 if (sub_category_ids && sub_category_ids !== '') {
                     productWhere.sub_category_id = { [Op.in]: sub_category_ids.split(',') };
+                }
+                if (brand_ids && brand_ids !== '') {
+                    productWhere.brand_id = { [Op.in]: brand_ids.split(',') };
                 }
                 
                 const matchingItems = await SaleItem.findAll({
