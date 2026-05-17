@@ -1777,7 +1777,7 @@ const importProducts = async (req, res, next) => {
                 results.success++;
             } catch (error) {
                 results.failed++;
-                results.logs.push({ row: index + 1, name: p.name, msg: error.message });
+                results.logs.push({ row: index + 1, name: p.name, msg: error.message, details: error.errors ? error.errors.map(e => e.message) : null });
             }
         }
 
