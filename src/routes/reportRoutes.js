@@ -43,6 +43,7 @@ router.get('/customers/loyalty', checkPermission('report:view'), reportControlle
 
 // Purchase Reports
 router.get('/purchase/supplier-performance', checkPermission('report:view'), checkModule('dashboard_kpi_live'), reportController.getSupplierPerformance);
+router.get('/purchase/history', checkPermission('report:view'), reportController.getPurchaseHistoryReport);
 
 // Dashboard
 router.get('/dashboard/summary', reportController.getDashboardSummary);

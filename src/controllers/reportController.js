@@ -2667,6 +2667,87 @@ const reportController = {
                 data: batches.map(b => b.batch_number)
             });
         } catch (error) { next(error); }
+    },
+    getPurchaseHistoryReport: async (req, res, next) => {
+        try {
+            const { start_date, end_date, branch_id, supplier_id, status, search, page = 1, limit = 10 } = req.query;
+            const organization_id = req.user.organization_id;
+
+            const whereClause = { organization_id };
+
+            if (branch_id && branch_id !== 'all') {
+                whereClause.branch_id = branch_id;
+            }
+
+            if (supplier_id && supplier_id !== 'all') {
+                whereClause.supplier_id = supplier_id;
+            }
+
+            if (status && status !== 'all') {
+                whereClause.status = status;
+            }
+
+            if (start_date && end_date) {
+                whereClause.order_date = {
+                    [Op.between]: [
+                        new Date(start_date + 'T00:00:00'),
+                        new Date(end_date + 'T23:59:59')
+                    ]
+                };
+            }
+
+            if (search) {
+                whereClause.po_number = { [Op.like]: `%${search}%` };
+            }
+
+            const { count, rows: purchaseOrders } = await PurchaseOrder.findAndCountAll({
+                where: whereClause,
+                include: [
+                    { model: Supplier, as: 'supplier', attributes: ['id', 'name', 'phone', 'email', 'code', 'address'] },
+                    { model: Branch, as: 'branch', attributes: ['name'] },
+                    { model: User, as: 'created_by_user', attributes: ['name'] },
+                    {
+                        model: db.PurchaseOrderItem,
+                        as: 'items',
+                        include: [
+                            { model: Product, as: 'product', attributes: ['name', 'code'] },
+                            { model: ProductVariant, as: 'variant', attributes: ['name', 'sku'] }
+                        ]
+                    }
+                ],
+                order: [['order_date', 'DESC']],
+                limit: Number(limit),
+                offset: (Number(page) - 1) * Number(limit)
+            });
+
+            const allMatchingPOs = await PurchaseOrder.findAll({
+                where: whereClause,
+                attributes: ['total_amount', 'status']
+            });
+
+            const stats = {
+                totalPurchases: allMatchingPOs.reduce((sum, po) => sum + Number(po.total_amount || 0), 0),
+                totalOrdersCount: allMatchingPOs.length,
+                statusBreakdown: allMatchingPOs.reduce((acc, po) => {
+                    acc[po.status] = (acc[po.status] || 0) + 1;
+                    return acc;
+                }, {})
+            };
+
+            return successResponse(res, {
+                data: purchaseOrders,
+                stats,
+                pagination: {
+                    total: count,
+                    page: Number(page),
+                    limit: Number(limit),
+                    totalPages: Math.ceil(count / limit)
+                }
+            }, 'Purchase history report fetched successfully');
+
+        } catch (error) {
+            next(error);
+        }
     }
 };
 
