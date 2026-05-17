@@ -310,15 +310,21 @@ const reportController = {
                         model: ProductVariant,
                         as: 'variant',
                         attributes: ['name', 'sku', 'price', 'mrp_price', 'wholesale_price', 'cost_price']
+                    },
+                    {
+                        model: db.ProductBatch,
+                        as: 'batch',
+                        attributes: ['batch_number', 'expiry_date']
                     }
                 ],
                 attributes: [
                     'product_id',
                     'product_variant_id',
-                    [Sequelize.fn('SUM', Sequelize.col('quantity')), 'total_quantity'],
+                    'product_batch_id',
+                    [Sequelize.fn('SUM', Sequelize.col('SaleItem.quantity')), 'total_quantity'],
                     [Sequelize.fn('SUM', Sequelize.col('SaleItem.total_amount')), 'total_revenue']
                 ],
-                group: ['product_id', 'product_variant_id', 'product.id', 'variant.id'],
+                group: ['product_id', 'product_variant_id', 'product_batch_id', 'product.id', 'variant.id', 'batch.id'],
                 order: [[Sequelize.literal('total_revenue'), 'DESC']],
                 raw: true,
                 nest: true
