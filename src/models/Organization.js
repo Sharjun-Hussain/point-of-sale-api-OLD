@@ -101,6 +101,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.BOOLEAN,
             defaultValue: false
         },
+        textlk_enabled: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
+        },
         module_overrides: {
             type: DataTypes.JSON,
             allowNull: true,

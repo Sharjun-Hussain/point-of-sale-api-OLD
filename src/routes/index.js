@@ -47,6 +47,7 @@ const recipeRoutes = require('./recipe');
 const productionRoutes = require('./production');
 const wastageRoutes = require('./wastage');
 const planRoutes = require('./plans');
+const textLkRoutes = require('./textLkRoutes');
 
 // Activate global audit logger for all non-GET mutations
 router.use(auditMiddleware());
@@ -98,5 +99,6 @@ router.use('/recipes', recipeRoutes);
 router.use('/production', productionRoutes);
 router.use('/wastages', wastageRoutes);
 router.use('/plans', planRoutes);
+router.use('/crm/text-lk', textLkRoutes);
 
 module.exports = router;
