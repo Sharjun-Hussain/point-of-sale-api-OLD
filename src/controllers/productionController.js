@@ -75,7 +75,7 @@ const completeProductionOrder = async (req, res, next) => {
     const t = await sequelize.transaction();
     try {
         const { id } = req.params;
-        const { quantity_produced, items_consumed } = req.body; // items_consumed: [{ id, quantity_consumed }]
+        const { quantity_produced, items_consumed, expiry_date } = req.body; // items_consumed: [{ id, quantity_consumed }]
         const organization_id = req.user.organization_id;
 
         const order = await ProductionOrder.findOne({
@@ -154,6 +154,7 @@ const completeProductionOrder = async (req, res, next) => {
             product_variant_id: order.product_variant_id,
             quantity: quantity_produced,
             batch_number: `PROD-${order.order_number}`,
+            expiry_date: expiry_date || null,
             purchase_date: new Date(),
             cost_price: totalBatchCost / quantity_produced,
             is_active: true
@@ -163,6 +164,7 @@ const completeProductionOrder = async (req, res, next) => {
         await order.update({
             quantity_produced,
             total_cost: totalBatchCost,
+            expiry_date: expiry_date || null,
             status: 'completed',
             end_date: new Date()
         }, { transaction: t });

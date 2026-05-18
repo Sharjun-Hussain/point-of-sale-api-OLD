@@ -57,6 +57,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.TEXT,
             allowNull: true
         },
+        expiry_date: {
+            type: DataTypes.DATE,
+            allowNull: true
+        },
         user_id: {
             type: DataTypes.UUID,
             allowNull: false
