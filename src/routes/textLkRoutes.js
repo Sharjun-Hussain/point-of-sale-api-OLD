@@ -13,6 +13,7 @@ router.post('/test', checkPermission('system:settings'), textLkController.testCo
 router.get('/stats', textLkController.getStats);
 router.get('/contacts', textLkController.getContacts);
 router.post('/contacts', checkPermission('crm:manage'), textLkController.createContactGroup);
+router.patch('/contacts/:uid', checkPermission('crm:manage'), textLkController.updateContactGroup);
 router.post('/sync', checkPermission('crm:manage'), textLkController.syncCustomers);
 router.post('/send', textLkController.sendSms);
 

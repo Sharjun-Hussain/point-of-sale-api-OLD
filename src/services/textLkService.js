@@ -206,6 +206,30 @@ class TextLkService {
     }
 
     /**
+     * Delete a Contact Group
+     */
+    async deleteGroup(organizationId, uid) {
+        try {
+            const config = await this._getFullConfig(organizationId);
+            const response = await fetch(`${this.baseUrl}/contacts/${uid}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${config.apiKey}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                signal: AbortSignal.timeout(10000)
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Failed to delete group');
+            return data;
+        } catch (error) {
+            logger.error(`Text.lk Delete Group Error: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
      * Create/Sync a Contact
      */
     async createContact(organizationId, contact) {

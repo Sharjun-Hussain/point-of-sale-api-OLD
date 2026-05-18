@@ -115,6 +115,21 @@ const createContactGroup = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const updateContactGroup = async (req, res, next) => {
+    try {
+        const { uid } = req.params;
+        const { name } = req.body;
+        if (!uid) {
+            return errorResponse(res, 'Group Unique ID (UID) is required', 400);
+        }
+        if (!name) {
+            return errorResponse(res, 'Group name is required', 400);
+        }
+        const result = await textLkService.updateGroup(req.user.organization_id, uid, name);
+        return successResponse(res, result, 'Contact group updated successfully');
+    } catch (error) { next(error); }
+};
+
 const sendSms = async (req, res, next) => {
     try {
         const { recipient, message, template_id } = req.body;
@@ -295,6 +310,7 @@ module.exports = {
     testConnection,
     getContacts,
     createContactGroup,
+    updateContactGroup,
     sendSms,
     syncCustomers,
     getTemplates,
