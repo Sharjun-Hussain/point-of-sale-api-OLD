@@ -130,6 +130,17 @@ const updateContactGroup = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const deleteContactGroup = async (req, res, next) => {
+    try {
+        const { uid } = req.params;
+        if (!uid) {
+            return errorResponse(res, 'Group Unique ID (UID) is required', 400);
+        }
+        const result = await textLkService.deleteGroup(req.user.organization_id, uid);
+        return successResponse(res, result, 'Contact group deleted successfully');
+    } catch (error) { next(error); }
+};
+
 const sendSms = async (req, res, next) => {
     try {
         const { recipient, message, template_id } = req.body;
@@ -311,6 +322,7 @@ module.exports = {
     getContacts,
     createContactGroup,
     updateContactGroup,
+    deleteContactGroup,
     sendSms,
     syncCustomers,
     getTemplates,
