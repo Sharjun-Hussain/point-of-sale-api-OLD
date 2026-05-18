@@ -163,7 +163,10 @@ const createSale = async (req, res, next) => {
             is_wholesale: payload_is_wholesale,
             shift_id,
             redeemed_points: payload_redeemed_points,
-            payable_amount: payload_payable_amount
+            payable_amount: payload_payable_amount,
+            dining_type,
+            dining_table_id,
+            waiter_id
         } = req.body;
 
         const organization_id = req.user.organization_id;
@@ -266,7 +269,7 @@ const createSale = async (req, res, next) => {
         console.log(`[Debug] createSale: Starting for Org=${organization_id}, User=${user_id}, Items Count=${items.length}`);
         
         for (const item of items) {
-            const { product_id, product_variant_id, product_batch_id, quantity: raw_quantity, discount_amount: claimed_discount } = item;
+            const { product_id, product_variant_id, product_batch_id, quantity: raw_quantity, discount_amount: claimed_discount, cooking_notes } = item;
             const quantity = parseFloat(raw_quantity || 0);
 
             if (!product_id || quantity <= 0) continue;
@@ -351,7 +354,8 @@ const createSale = async (req, res, next) => {
                 mrp_price,
                 discount_amount: item_discount,
                 tax_amount: item_tax,
-                total_amount: taxable_amount + item_tax 
+                total_amount: taxable_amount + item_tax,
+                cooking_notes: cooking_notes || null
             });
         }
 
@@ -480,8 +484,23 @@ const createSale = async (req, res, next) => {
             is_wholesale: !!payload_is_wholesale,
             shift_id: shift_id || null,
             earned_points: 0, // Will update below
-            redeemed_points: redeemedPoints
+            redeemed_points: redeemedPoints,
+            dining_type: dining_type || 'takeaway',
+            dining_table_id: dining_table_id || null,
+            kot_status: dining_type === 'dine_in' ? 'sent_to_kitchen' : 'pending',
+            waiter_id: waiter_id || null
         }, { transaction: t });
+
+        // Lock dining table if dining_type is dine_in
+        if (dining_type === 'dine_in' && dining_table_id) {
+            const table = await db.DiningTable.findByPk(dining_table_id, { transaction: t });
+            if (table) {
+                await table.update({
+                    status: 'occupied',
+                    current_sale_id: sale.id
+                }, { transaction: t });
+            }
+        }
 
         // Calculate Earned Points (based on final payable amount BEFORE adjustment/redemption? No, usually on amount paid or total payable)
         // Let's use final_payable_amount + redemptionDiscount (pre-redemption)
@@ -908,9 +927,233 @@ const deleteSale = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+/**
+ * Settle Dining Table Order (Checkout & Free Table)
+ */
+const settleTableSale = async (req, res, next) => {
+    const t = await db.sequelize.transaction();
+    try {
+        const { id } = req.params;
+        const { payments, payment_method, paid_amount, status, shift_id } = req.body;
+        const organization_id = req.user.organization_id;
+
+        const sale = await Sale.findOne({
+            where: { id, organization_id },
+            include: [{ model: SaleItem, as: 'items' }],
+            transaction: t
+        });
+
+        if (!sale) {
+            await t.rollback();
+            return errorResponse(res, 'Order not found', 404);
+        }
+
+        // Process payments
+        let processedPayments = [];
+        let total_paid = 0;
+
+        if (payments && Array.isArray(payments) && payments.length > 0) {
+            processedPayments = payments.map(p => ({
+                payment_method: p.payment_method || 'cash',
+                amount: parseFloat(p.amount || 0),
+                transaction_reference: p.transaction_reference || null,
+                notes: p.notes || null
+            }));
+            total_paid = processedPayments.reduce((sum, p) => sum + p.amount, 0);
+        } else {
+            const amount = parseFloat(paid_amount || sale.payable_amount);
+            processedPayments = [{
+                payment_method: payment_method || 'cash',
+                amount: amount,
+                transaction_reference: null,
+                notes: null
+            }];
+            total_paid = amount;
+        }
+
+        let payment_status = 'unpaid';
+        if (total_paid >= parseFloat(sale.payable_amount)) {
+            payment_status = 'paid';
+        } else if (total_paid > 0) {
+            payment_status = 'partially_paid';
+        }
+
+        // Update sale status and payments
+        await sale.update({
+            status: status || 'completed',
+            paid_amount: total_paid,
+            payment_status,
+            payment_method: processedPayments.length === 1 ? processedPayments[0].payment_method : 'split',
+            shift_id: shift_id || sale.shift_id
+        }, { transaction: t });
+
+        // Save payments
+        for (const pmt of processedPayments) {
+            await SalePayment.create({
+                sale_id: sale.id,
+                organization_id,
+                ...pmt
+            }, { transaction: t });
+        }
+
+        // Deduct stocks using FIFO
+        for (const item of sale.items) {
+            const qtyToDeduct = parseFloat(item.quantity);
+
+            // Decrement global stock
+            const stock = await Stock.findOne({
+                where: {
+                    branch_id: sale.branch_id,
+                    product_id: item.product_id,
+                    product_variant_id: item.product_variant_id || null
+                },
+                transaction: t
+            });
+            if (stock) {
+                await stock.decrement('quantity', { by: qtyToDeduct, transaction: t });
+            }
+
+            // Decrement batch stock via FIFO
+            const batches = await ProductBatch.findAll({
+                where: {
+                    organization_id,
+                    branch_id: sale.branch_id,
+                    product_id: item.product_id,
+                    product_variant_id: item.product_variant_id || null,
+                    quantity: { [Op.gt]: 0 }
+                },
+                order: [
+                    ['expiry_date', 'ASC'],
+                    ['created_at', 'ASC']
+                ],
+                transaction: t
+            });
+
+            let remainingDeduction = qtyToDeduct;
+            for (const batch of batches) {
+                if (remainingDeduction <= 0) break;
+                const available = parseFloat(batch.quantity);
+                const deduction = Math.min(available, remainingDeduction);
+                await batch.decrement('quantity', { by: deduction, transaction: t });
+                remainingDeduction -= deduction;
+            }
+        }
+
+        // Release Table if linked
+        if (sale.dining_table_id) {
+            const table = await db.DiningTable.findByPk(sale.dining_table_id, { transaction: t });
+            if (table) {
+                await table.update({
+                    status: 'free',
+                    current_sale_id: null
+                }, { transaction: t });
+            }
+        }
+
+        await t.commit();
+
+        const settledSale = await Sale.findOne({
+            where: { id: sale.id },
+            include: [{ model: SaleItem, as: 'items' }, { model: SalePayment, as: 'payments' }]
+        });
+
+        return successResponse(res, settledSale, 'Restaurant table order settled and freed successfully');
+    } catch (error) {
+        await t.rollback();
+        next(error);
+    }
+};
+
+/**
+ * Append/Update Items on a Table Order (Adding new courses)
+ */
+const updateActiveTableSale = async (req, res, next) => {
+    const t = await db.sequelize.transaction();
+    try {
+        const { id } = req.params;
+        const { items } = req.body; // New items array to append
+        const organization_id = req.user.organization_id;
+
+        const sale = await Sale.findOne({
+            where: { id, organization_id },
+            include: [{ model: SaleItem, as: 'items' }],
+            transaction: t
+        });
+
+        if (!sale) {
+            await t.rollback();
+            return errorResponse(res, 'Active table order not found', 404);
+        }
+
+        let addedAmount = 0;
+        let addedTax = 0;
+        let addedDiscount = 0;
+
+        // Process each new item and create it
+        for (const item of items) {
+            const { product_id, product_variant_id, quantity, unit_price, mrp_price, discount_amount, tax_amount, cooking_notes } = item;
+            
+            const total = (parseFloat(unit_price) * parseFloat(quantity)) - parseFloat(discount_amount || 0) + parseFloat(tax_amount || 0);
+
+            await SaleItem.create({
+                sale_id: sale.id,
+                organization_id,
+                product_id,
+                product_variant_id: product_variant_id || null,
+                quantity,
+                unit_price,
+                mrp_price: mrp_price || unit_price,
+                discount_amount: discount_amount || 0,
+                tax_amount: tax_amount || 0,
+                total_amount: total,
+                cooking_notes: cooking_notes || null,
+                cooking_status: 'pending'
+            }, { transaction: t });
+
+            addedAmount += parseFloat(unit_price) * parseFloat(quantity);
+            addedDiscount += parseFloat(discount_amount || 0);
+            addedTax += parseFloat(tax_amount || 0);
+        }
+
+        // Update the header sale amounts
+        const newTotal = parseFloat(sale.total_amount) + addedAmount;
+        const newDiscount = parseFloat(sale.discount_amount) + addedDiscount;
+        const newTax = parseFloat(sale.tax_amount) + addedTax;
+        const newPayable = (newTotal - newDiscount) + newTax;
+
+        await sale.update({
+            total_amount: newTotal,
+            discount_amount: newDiscount,
+            tax_amount: newTax,
+            payable_amount: newPayable,
+            kot_status: 'sent_to_kitchen' // Sent new items to kitchen!
+        }, { transaction: t });
+
+        await t.commit();
+
+        const updatedSale = await Sale.findOne({
+            where: { id: sale.id },
+            include: [
+                {
+                    model: SaleItem,
+                    as: 'items',
+                    include: [{ model: Product, as: 'product', attributes: ['name'] }]
+                }
+            ]
+        });
+
+        return successResponse(res, updatedSale, 'Table order items updated and sent to kitchen successfully');
+    } catch (error) {
+        await t.rollback();
+        next(error);
+    }
+};
+
 module.exports = {
     getAllSales,
     getSaleById,
     createSale,
-    deleteSale
+    deleteSale,
+    settleTableSale,
+    updateActiveTableSale
 };

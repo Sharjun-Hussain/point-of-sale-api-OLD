@@ -48,6 +48,15 @@ module.exports = (sequelize, DataTypes) => {
         organization_id: {
             type: DataTypes.UUID,
             allowNull: true
+        },
+        cooking_status: {
+            type: DataTypes.ENUM('pending', 'preparing', 'ready', 'served'),
+            defaultValue: 'pending',
+            allowNull: false
+        },
+        cooking_notes: {
+            type: DataTypes.TEXT,
+            allowNull: true
         }
     }, {
         tableName: 'sale_items',

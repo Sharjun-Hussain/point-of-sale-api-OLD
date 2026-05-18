@@ -88,6 +88,24 @@ module.exports = (sequelize, DataTypes) => {
         redeemed_points: {
             type: DataTypes.INTEGER,
             defaultValue: 0
+        },
+        dining_type: {
+            type: DataTypes.ENUM('dine_in', 'takeaway', 'delivery'),
+            defaultValue: 'takeaway',
+            allowNull: false
+        },
+        dining_table_id: {
+            type: DataTypes.UUID,
+            allowNull: true
+        },
+        kot_status: {
+            type: DataTypes.ENUM('pending', 'sent_to_kitchen', 'preparing', 'ready', 'served'),
+            defaultValue: 'pending',
+            allowNull: false
+        },
+        waiter_id: {
+            type: DataTypes.UUID,
+            allowNull: true
         }
     }, {
         tableName: 'sales',
@@ -117,6 +135,8 @@ module.exports = (sequelize, DataTypes) => {
         Sale.hasMany(models.SalePayment, { as: 'payments', foreignKey: 'sale_id' });
         Sale.hasMany(models.SaleReturn, { as: 'returns', foreignKey: 'sale_id' });
         Sale.hasMany(models.Cheque, { as: 'cheques', foreignKey: 'reference_id', constraints: false });
+        Sale.belongsTo(models.DiningTable, { as: 'table', foreignKey: 'dining_table_id' });
+        Sale.belongsTo(models.User, { as: 'waiter', foreignKey: 'waiter_id' });
         if(models.Shift) {
             Sale.belongsTo(models.Shift, { as: 'shift', foreignKey: 'shift_id' });
         }

@@ -10,6 +10,8 @@ router.use(authenticate);
 router.get('/', checkPermission('sale:view'), saleController.getAllSales);
 router.get('/:id', checkPermission('sale:view'), saleController.getSaleById);
 router.post('/', checkPermission('sale:create'), saleController.createSale);
+router.put('/:id/settle', checkPermission('sale:create'), saleController.settleTableSale);
+router.put('/:id/append', checkPermission('sale:create'), saleController.updateActiveTableSale);
 router.delete('/:id', checkPermission('sale:delete'), saleController.deleteSale);
 
 // Returns
