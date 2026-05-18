@@ -138,7 +138,7 @@ class TextLkService {
             const config = await this._getFullConfig(organizationId);
             if (!config) throw new Error('Text.lk not configured');
 
-            const response = await fetch(`${this.baseUrl}/contacts-groups`, {
+            const response = await fetch(`${this.baseUrl}/contacts`, {
                 headers: {
                     'Authorization': `Bearer ${config.apiKey}`,
                     'Accept': 'application/json'
@@ -161,7 +161,7 @@ class TextLkService {
     async createGroup(organizationId, name) {
         try {
             const config = await this._getFullConfig(organizationId);
-            const response = await fetch(`${this.baseUrl}/contacts-groups/initialize`, {
+            const response = await fetch(`${this.baseUrl}/contacts`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${config.apiKey}`,
@@ -176,6 +176,31 @@ class TextLkService {
             return data;
         } catch (error) {
             logger.error(`Text.lk Create Group Error: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Update a Contact Group
+     */
+    async updateGroup(organizationId, uid, name) {
+        try {
+            const config = await this._getFullConfig(organizationId);
+            const response = await fetch(`${this.baseUrl}/contacts/${uid}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${config.apiKey}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ name }),
+                signal: AbortSignal.timeout(10000)
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Failed to update group');
+            return data;
+        } catch (error) {
+            logger.error(`Text.lk Update Group Error: ${error.message}`);
             throw error;
         }
     }

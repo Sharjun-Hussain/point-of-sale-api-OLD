@@ -104,6 +104,17 @@ const getContacts = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const createContactGroup = async (req, res, next) => {
+    try {
+        const { name } = req.body;
+        if (!name) {
+            return errorResponse(res, 'Group name is required', 400);
+        }
+        const result = await textLkService.createGroup(req.user.organization_id, name);
+        return successResponse(res, result, 'Contact group created successfully');
+    } catch (error) { next(error); }
+};
+
 const sendSms = async (req, res, next) => {
     try {
         const { recipient, message, template_id } = req.body;
@@ -283,6 +294,7 @@ module.exports = {
     saveConfig,
     testConnection,
     getContacts,
+    createContactGroup,
     sendSms,
     syncCustomers,
     getTemplates,
