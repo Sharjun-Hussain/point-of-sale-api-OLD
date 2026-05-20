@@ -377,10 +377,11 @@ const createGRN = async (req, res, next) => {
 
         await t.commit();
 
-        // --- SHOPIFY SYNC ---
+        // --- SHOPIFY & CUSTOM E-COMMERCE SYNC ---
         (async () => {
             try {
                 const shopifyService = require('../services/shopifyService');
+                const customEcommerceService = require('../services/customEcommerceService');
                 for (const item of items) {
                     let sku = null;
                     const pVariantId = item.product_variant_id || item.productVariantId;
@@ -398,10 +399,11 @@ const createGRN = async (req, res, next) => {
                         const qtyReceived = parseFloat(item.quantity_received || item.received_qty || item.receivedQty || 0);
                         const freeQty = parseFloat(item.free_qty || item.freeQty || 0);
                         await shopifyService.syncInventory(organization_id, sku, qtyReceived + freeQty);
+                        await customEcommerceService.syncInventory(organization_id, sku, qtyReceived + freeQty);
                     }
                 }
             } catch (err) {
-                console.error('[SHOPIFY] GRN sync failed:', err);
+                console.error('[SYNC] GRN sync failed:', err);
             }
         })();
 

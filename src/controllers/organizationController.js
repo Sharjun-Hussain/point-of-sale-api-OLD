@@ -751,6 +751,37 @@ const toggleShopifyIntegration = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const toggleCustomEcommerceIntegration = async (req, res, next) => {
+    try {
+        // Strict Super Admin Check
+        const isSuperAdmin = req.user.roles.some(role => role.name === 'Super Admin');
+        if (!isSuperAdmin) return errorResponse(res, 'Unauthorized: Super Admin only', 403);
+
+        const organization = await Organization.findByPk(req.params.id);
+        if (!organization) return errorResponse(res, 'Organization not found', 404);
+
+        const currentStatus = organization.custom_ecommerce_enabled;
+        organization.custom_ecommerce_enabled = !currentStatus;
+        await organization.save();
+
+        // Audit Logging
+        const { ipAddress, userAgent } = auditService.getRequestContext(req);
+        await auditService.logUpdate(
+            organization.id,
+            req.user.id,
+            'Organization',
+            organization.id,
+            { custom_ecommerce_enabled: currentStatus },
+            { custom_ecommerce_enabled: organization.custom_ecommerce_enabled },
+            ipAddress,
+            userAgent,
+            { is_admin_action: true }
+        );
+
+        return successResponse(res, organization, `Custom E-Commerce integration ${organization.custom_ecommerce_enabled ? 'enabled' : 'disabled'} successfully`);
+    } catch (error) { next(error); }
+};
+
 const toggleWhatsAppIntegration = async (req, res, next) => {
     try {
         // Strict Super Admin Check
@@ -1330,7 +1361,7 @@ module.exports = {
     getOrganizationById, updateOrganizationById, toggleOrganizationStatus, getSubscriptionHistory,
     getOrganizationFullDetails,
     getAllBranches, getActiveBranchesList, getBranchById, createBranch, updateBranch, toggleBranchStatus,
-    getSuperAdminStats, toggleShopifyIntegration, toggleWhatsAppIntegration, toggleTextLkIntegration, toggleLoyaltyIntegration, toggleAccountingIntegration, toggleBackupFeature,
+    getSuperAdminStats, toggleShopifyIntegration, toggleCustomEcommerceIntegration, toggleWhatsAppIntegration, toggleTextLkIntegration, toggleLoyaltyIntegration, toggleAccountingIntegration, toggleBackupFeature,
     getOnboardingStatus, updateOnboardingStatus, updateOnboardingPolicy,
     updateOrganizationPlan, updateOrganizationModules, extendOrganizationTrial,
     resetAdminPassword, resetOrganizationData

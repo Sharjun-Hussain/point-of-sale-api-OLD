@@ -105,6 +105,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.BOOLEAN,
             defaultValue: false
         },
+        custom_ecommerce_enabled: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
+        },
         module_overrides: {
             type: DataTypes.JSON,
             allowNull: true,

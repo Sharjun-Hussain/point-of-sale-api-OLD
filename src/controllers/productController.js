@@ -1577,29 +1577,43 @@ const importProducts = async (req, res, next) => {
         for (const [index, p] of products.entries()) {
             try {
                 if (index % 100 === 0) logger.info(`[Import] Processing row ${index + 1}...`);
-                
-                if (!p.name) {
+
+                // --- Sanitize all incoming string fields from Excel ---
+                // Excel cells can have trailing/leading spaces, or be numeric types
+                // for columns the user typed text into. Always trim + coerce to string.
+                const cleanStr = (val) => (val !== null && val !== undefined && String(val).trim() !== '') ? String(val).trim() : null;
+
+                const cleanName         = cleanStr(p.name);
+                const cleanCode         = cleanStr(p.code);
+                const cleanSku          = cleanStr(p.sku);
+                const cleanBarcode      = cleanStr(p.barcode);
+                const cleanMainCategory = cleanStr(p.main_category);
+                const cleanSubCategory  = cleanStr(p.sub_category);
+                const cleanBrand        = cleanStr(p.brand);
+                const cleanUnit         = cleanStr(p.unit);
+                const cleanDescription  = cleanStr(p.description);
+                const cleanVariantName  = cleanStr(p.variant_name);
+                const cleanBatchNumber  = cleanStr(p.batch_number);
+                const cleanExpiryDate   = cleanStr(p.expiry_date);
+
+                if (!cleanName) {
                     throw new Error('Product name is required');
                 }
 
                 // 1. Resolve Main Category
+                const mainCategoryName = cleanMainCategory || 'Uncategorized';
                 const [category] = await MainCategory.findOrCreate({
-                    where: {
-                        organization_id,
-                        name: p.main_category || 'Uncategorized'
-                    },
+                    where: { organization_id, name: mainCategoryName },
+                    defaults: { organization_id, name: mainCategoryName },
                     transaction: t
                 });
 
                 // 2. Resolve Sub Category (if provided)
                 let sub_category_id = null;
-                if (p.sub_category) {
+                if (cleanSubCategory) {
                     const [subCategory] = await SubCategory.findOrCreate({
-                        where: {
-                            organization_id,
-                            main_category_id: category.id,
-                            name: p.sub_category
-                        },
+                        where: { organization_id, main_category_id: category.id, name: cleanSubCategory },
+                        defaults: { organization_id, main_category_id: category.id, name: cleanSubCategory },
                         transaction: t
                     });
                     sub_category_id = subCategory.id;
@@ -1607,9 +1621,10 @@ const importProducts = async (req, res, next) => {
 
                 // 3. Resolve Brand
                 let brand_id = null;
-                if (p.brand) {
+                if (cleanBrand) {
                     const [brand] = await Brand.findOrCreate({
-                        where: { organization_id, name: p.brand },
+                        where: { organization_id, name: cleanBrand },
+                        defaults: { organization_id, name: cleanBrand },
                         transaction: t
                     });
                     brand_id = brand.id;
@@ -1617,43 +1632,44 @@ const importProducts = async (req, res, next) => {
 
                 // 4. Resolve Unit
                 let unit_id = null;
-                if (p.unit) {
+                if (cleanUnit) {
                     const [unit] = await Unit.findOrCreate({
-                        where: { organization_id, name: p.unit },
-                        defaults: { organization_id, name: p.unit, short_name: p.unit },
+                        where: { organization_id, name: cleanUnit },
+                        defaults: { organization_id, name: cleanUnit, short_name: cleanUnit },
                         transaction: t
                     });
                     unit_id = unit.id;
                 }
 
                 // 5. Find or Create Product (Deduplicate by Name or Code)
+                const productCode = cleanCode || `PRD-${Date.now()}-${index}`;
                 const [product, productCreated] = await Product.findOrCreate({
                     where: {
                         organization_id,
                         [Op.or]: [
-                            { name: p.name },
-                            { code: p.code || '___NON_EXISTENT_CODE___' }
+                            { name: cleanName },
+                            { code: cleanCode || '___NON_EXISTENT_CODE___' }
                         ]
                     },
                     defaults: {
-                        name: p.name,
-                        code: p.code || `PRD-${Date.now()}-${index}`,
+                        name: cleanName,
+                        code: productCode,
                         main_category_id: category.id,
                         sub_category_id,
                         brand_id,
                         unit_id,
-                        description: p.description || '',
-                        sku: p.sku || p.code,
-                        barcode: p.barcode || p.code,
+                        description: cleanDescription || '',
+                        sku: cleanSku || cleanCode,
+                        barcode: cleanBarcode || cleanCode,
                         is_active: true,
-                        is_variant: false, // Default to single variant for flat imports
-                        product_type: p.product_type || 'Finished Good'
+                        is_variant: false,
+                        product_type: cleanStr(p.product_type) || 'Finished Good'
                     },
                     transaction: t
                 });
 
                 // 6. Find or Create Variant
-                const variantSku = p.sku || p.code || `${product.code}-DEF`;
+                const variantSku = cleanSku || cleanCode || `${product.code}-DEF`;
                 const [variant, variantCreated] = await ProductVariant.findOrCreate({
                     where: {
                         organization_id,
@@ -1661,10 +1677,10 @@ const importProducts = async (req, res, next) => {
                         sku: variantSku
                     },
                     defaults: {
-                        name: p.variant_name || (productCreated ? 'Default' : `Variant ${variantSku}`),
+                        name: cleanVariantName || (productCreated ? 'Default' : `Variant ${variantSku}`),
                         sku: variantSku,
-                        code: p.code || product.code,
-                        barcode: p.barcode || p.code || product.barcode,
+                        code: cleanCode || product.code,
+                        barcode: cleanBarcode || cleanCode || product.barcode,
                         price: parseFloat(p.selling_price || 0),
                         cost_price: parseFloat(p.cost_price || 0),
                         mrp_price: parseFloat(p.mrp_price || 0),
@@ -1740,7 +1756,7 @@ const importProducts = async (req, res, next) => {
                         // Create Batch
                         // Generate a standard batch number if none provided
                         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-                        const finalBatchNumber = p.batch_number || `BT-IMP-${dateStr}-${Math.floor(1000 + Math.random() * 9000)}`;
+                        const finalBatchNumber = cleanBatchNumber || `BT-IMP-${dateStr}-${Math.floor(1000 + Math.random() * 9000)}`;
 
                         await ProductBatch.create({
                             organization_id,
@@ -1748,7 +1764,7 @@ const importProducts = async (req, res, next) => {
                             product_id: product.id,
                             product_variant_id: variant.id,
                             batch_number: finalBatchNumber,
-                            expiry_date: p.expiry_date ? new Date(p.expiry_date) : null,
+                            expiry_date: cleanExpiryDate ? new Date(cleanExpiryDate) : null,
                             quantity: stockQty,
                             cost_price: parseFloat(p.cost_price || 0),
                             selling_price: parseFloat(p.selling_price || 0),

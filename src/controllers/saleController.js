@@ -412,11 +412,11 @@ const createSale = async (req, res, next) => {
             total_paid = amount;
         }
 
-        // Rule: Guest/Walk-in must pay in full (SKIP for drafts)
+        // Rule: Guest/Walk-in must pay in full (SKIP for drafts & e-commerce source orders)
         // We use the frontend's provided payable_amount if available to avoid tax/rounding mismatches
         const effective_payable_amount = (parseFloat(payload_payable_amount) || final_payable_amount);
 
-        if (payload_status !== 'draft' && !customer_id && total_paid < effective_payable_amount) {
+        if (payload_status !== 'draft' && req.body.source !== 'ecommerce' && !customer_id && total_paid < effective_payable_amount) {
             if ((effective_payable_amount - total_paid) > 1.0) {
                 console.warn(`[createSale] 400 Error: Guest must pay in full. Provided Total: ${payload_payable_amount}, Calculated: ${final_payable_amount}, Paid: ${total_paid}`);
                 await t.rollback();
@@ -424,8 +424,8 @@ const createSale = async (req, res, next) => {
             }
         }
 
-        // Rule: Credit Limit Validation for Customers OR Distributors
-        if (payload_status !== 'draft' && (customer_id || distributor_id) && total_paid < effective_payable_amount) {
+        // Rule: Credit Limit Validation for Customers OR Distributors (SKIP for e-commerce source orders)
+        if (payload_status !== 'draft' && req.body.source !== 'ecommerce' && (customer_id || distributor_id) && total_paid < effective_payable_amount) {
             const newCreditAmount = effective_payable_amount - total_paid;
             
             if (customer_id) {
@@ -479,6 +479,7 @@ const createSale = async (req, res, next) => {
             paid_amount: total_paid,
             payment_status,
             payment_method: processedPayments.length === 1 ? processedPayments[0].payment_method : 'split',
+            source: req.body.source || 'pos',
             status: payload_status || 'completed',
             notes,
             is_wholesale: !!payload_is_wholesale,
@@ -715,6 +716,7 @@ const createSale = async (req, res, next) => {
             });
 
             // A. Credit Revenue (Increase Revenue)
+            const ledgerPrefix = sale.source === 'ecommerce' ? '[E-Commerce] ' : '';
             await accountingService.recordTransaction({
                 organization_id,
                 branch_id,
@@ -726,7 +728,7 @@ const createSale = async (req, res, next) => {
                 reference_type: 'Sale',
                 reference_id: sale.id,
                 transaction_date: date,
-                description: `Sales Revenue from Invoice ${invoice_number}`
+                description: `${ledgerPrefix}Sales Revenue from Invoice ${invoice_number}`
             }, t);
 
             // B. Debit Payments (Multi-method support) -> Increase Asset
@@ -767,7 +769,7 @@ const createSale = async (req, res, next) => {
                     reference_type: 'Sale',
                     reference_id: sale.id,
                     transaction_date: date,
-                    description: `${pmt.payment_method.toUpperCase()} payment for Invoice ${invoice_number}`
+                    description: `${ledgerPrefix}${pmt.payment_method.toUpperCase()} payment for Invoice ${invoice_number}`
                 }, t);
             }
 
@@ -785,7 +787,7 @@ const createSale = async (req, res, next) => {
                     reference_type: 'Sale',
                     reference_id: sale.id,
                     transaction_date: date,
-                    description: `Accounts Receivable for Invoice ${invoice_number}`
+                    description: `${ledgerPrefix}Accounts Receivable for Invoice ${invoice_number}`
                 }, t);
             }
         }
@@ -856,9 +858,10 @@ const createSale = async (req, res, next) => {
             }
         }
 
-        // --- 11. TRIGGER SHOPIFY SYNC ---
+        // --- 11. TRIGGER SHOPIFY & CUSTOM E-COMMERCE SYNC ---
         if (sale.status === 'completed') {
             const shopifyService = require('../services/shopifyService');
+            const customEcommerceService = require('../services/customEcommerceService');
             // Run in background to avoid blocking response
             (async () => {
                 try {
@@ -874,10 +877,11 @@ const createSale = async (req, res, next) => {
 
                         if (sku) {
                             await shopifyService.syncInventory(organization_id, sku, -pItem.quantity);
+                            await customEcommerceService.syncInventory(organization_id, sku, -pItem.quantity);
                         }
                     }
                 } catch (err) {
-                    console.error('[SHOPIFY] Background sync trigger failed:', err);
+                    console.error('[SYNC] Background sync trigger failed:', err);
                 }
             })();
         }

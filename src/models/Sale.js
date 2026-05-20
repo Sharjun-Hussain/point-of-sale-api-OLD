@@ -77,6 +77,11 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.BOOLEAN,
             defaultValue: false
         },
+        source: {
+            type: DataTypes.STRING(50),
+            defaultValue: 'pos',
+            allowNull: false
+        },
         return_status: {
             type: DataTypes.ENUM('none', 'partial', 'full'),
             defaultValue: 'none'

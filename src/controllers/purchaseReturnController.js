@@ -298,10 +298,11 @@ const createPurchaseReturn = async (req, res, next) => {
 
         await t.commit();
 
-        // --- SHOPIFY SYNC ---
+        // --- SHOPIFY & CUSTOM E-COMMERCE SYNC ---
         (async () => {
             try {
                 const shopifyService = require('../services/shopifyService');
+                const customEcommerceService = require('../services/customEcommerceService');
                 for (const item of processedItems) {
                     let sku = null;
                     if (item.product_variant_id) {
@@ -314,10 +315,11 @@ const createPurchaseReturn = async (req, res, next) => {
 
                     if (sku) {
                         await shopifyService.syncInventory(organization_id, sku, -parseFloat(item.quantity));
+                        await customEcommerceService.syncInventory(organization_id, sku, -parseFloat(item.quantity));
                     }
                 }
             } catch (err) {
-                console.error('[SHOPIFY] Purchase Return sync failed:', err);
+                console.error('[SYNC] Purchase Return sync failed:', err);
             }
         })();
 

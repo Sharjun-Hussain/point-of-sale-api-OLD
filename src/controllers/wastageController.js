@@ -152,10 +152,11 @@ const createWastage = async (req, res, next) => {
 
         await t.commit();
 
-        // --- SHOPIFY SYNC ---
+        // --- SHOPIFY & CUSTOM E-COMMERCE SYNC ---
         (async () => {
             try {
                 const shopifyService = require('../services/shopifyService');
+                const customEcommerceService = require('../services/customEcommerceService');
                 let sku = null;
                 if (product_variant_id) {
                     const variant = await ProductVariant.findByPk(product_variant_id);
@@ -167,9 +168,10 @@ const createWastage = async (req, res, next) => {
 
                 if (sku) {
                     await shopifyService.syncInventory(organization_id, sku, -qtyValue);
+                    await customEcommerceService.syncInventory(organization_id, sku, -qtyValue);
                 }
             } catch (err) {
-                console.error('[SHOPIFY] Wastage sync failed:', err);
+                console.error('[SYNC] Wastage sync failed:', err);
             }
         })();
 

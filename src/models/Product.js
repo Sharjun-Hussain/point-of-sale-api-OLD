@@ -82,6 +82,10 @@ module.exports = (sequelize, DataTypes) => {
         shopify_sync_enabled: {
             type: DataTypes.BOOLEAN,
             defaultValue: false
+        },
+        custom_ecommerce_sync_enabled: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
         }
     }, {
         tableName: 'products',
