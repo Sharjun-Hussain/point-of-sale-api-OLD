@@ -150,6 +150,17 @@ const createProduct = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const bulkCreateProducts = async (req, res, next) => {
+    try {
+        const { variant_ids } = req.body;
+        if (!Array.isArray(variant_ids) || variant_ids.length === 0) {
+            return errorResponse(res, 'variant_ids must be a non-empty array', 400);
+        }
+        const results = await shopifyService.bulkCreateShopifyProducts(req.user.organization_id, variant_ids);
+        return successResponse(res, results, `Bulk sync complete: ${results.created} created, ${results.linked} linked, ${results.failed} failed`);
+    } catch (error) { next(error); }
+};
+
 const getStoreDetails = async (req, res, next) => {
     try {
         const shop = await shopifyService.getShopifyStoreDetails(req.user.organization_id);
@@ -193,6 +204,7 @@ module.exports = {
     updateProductSync,
     getStoreDetails,
     createProduct,
+    bulkCreateProducts,
     updateProductStatus,
     deleteProduct,
     disconnectStore

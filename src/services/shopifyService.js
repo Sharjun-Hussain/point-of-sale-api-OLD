@@ -814,6 +814,28 @@ class ShopifyService {
     }
 
     /**
+     * Bulk Create/Link: For each variantId, create on Shopify if not already there,
+     * link if SKU exists, skip if no SKU. Enables sync for all.
+     */
+    async bulkCreateShopifyProducts(organizationId, variantIds) {
+        const results = { total: variantIds.length, created: 0, linked: 0, skipped: 0, failed: 0, errors: [] };
+
+        for (const variantId of variantIds) {
+            try {
+                const result = await this.createShopifyProduct(organizationId, variantId);
+                if (result.action === 'created') results.created++;
+                else if (result.action === 'linked') results.linked++;
+            } catch (err) {
+                logger.error(`Bulk Shopify Create - Variant ${variantId} failed: ${err.message}`);
+                results.failed++;
+                results.errors.push({ variantId, error: err.message });
+            }
+        }
+
+        return results;
+    }
+
+    /**
      * Helper to get total local stock for a variant
      */
     async _getLocalStockTotal(organizationId, variantId) {

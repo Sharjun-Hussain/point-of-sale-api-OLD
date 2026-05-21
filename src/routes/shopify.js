@@ -18,6 +18,7 @@ router.get('/shopify-orders', checkPermission('settings:general:update'), shopif
 router.get('/store-details', checkPermission('settings:general:update'), shopifyController.getStoreDetails);
 router.post('/products/sync', checkPermission('settings:general:update'), shopifyController.updateProductSync);
 router.post('/products/create', checkPermission('settings:general:update'), shopifyController.createProduct);
+router.post('/products/bulk-create', checkPermission('settings:general:update'), shopifyController.bulkCreateProducts);
 router.post('/products/update-status', checkPermission('settings:general:update'), shopifyController.updateProductStatus);
 router.post('/products/delete', checkPermission('settings:general:update'), shopifyController.deleteProduct);
 router.post('/disconnect', checkPermission('settings:general:update'), shopifyController.disconnectStore);
