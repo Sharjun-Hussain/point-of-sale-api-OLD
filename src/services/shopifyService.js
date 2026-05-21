@@ -1,4 +1,4 @@
-const { Setting, Product, ProductVariant, Organization, Branch, Stock } = require('../models');
+const { Setting, Product, ProductVariant, Organization, Branch, Stock, Brand } = require('../models');
 const logger = require('../utils/logger');
 const tokenManager = require('./shopifyTokenManager');
 const { decrypt } = require('../utils/security');
@@ -718,7 +718,14 @@ class ShopifyService {
             const cleanShopUrl = shop_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
             const variant = await ProductVariant.findByPk(variantId, {
-                include: [{ model: Product, as: 'product' }]
+                include: [{
+                    model: Product,
+                    as: 'product',
+                    include: [{
+                        model: Brand,
+                        as: 'brand'
+                    }]
+                }]
             });
 
             if (!variant) throw new Error('Local variant not found');
@@ -767,7 +774,7 @@ class ShopifyService {
                 product: {
                     title: variant.product.name + (variant.name && variant.name !== 'Default' ? ` - ${variant.name}` : ''),
                     body_html: variant.product.description || 'Synced from Inzeedo POS',
-                    vendor: 'Inzeedo POS',
+                    vendor: variant.product?.brand?.name || 'Inzeedo POS',
                     product_type: 'POS Sync',
                     status: 'active',
                     variants: [
