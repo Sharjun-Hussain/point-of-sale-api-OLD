@@ -6,12 +6,12 @@ const { checkPermission } = require('../middleware/permission');
 
 router.use(authenticate);
 
-router.get('/config', checkPermission('settings:manage'), customEcommerceController.getConfig);
-router.post('/config', checkPermission('settings:manage'), customEcommerceController.saveConfig);
-router.post('/token', checkPermission('settings:manage'), customEcommerceController.generateInboundToken);
-router.post('/verify', checkPermission('settings:manage'), customEcommerceController.testConnection);
-router.post('/push', checkPermission('settings:manage'), customEcommerceController.pushInventory);
-router.get('/products', checkPermission('settings:manage'), customEcommerceController.getLocalProducts);
-router.post('/products/sync', checkPermission('settings:manage'), customEcommerceController.updateProductSync);
+router.get('/config', checkPermission('settings:general:update'), customEcommerceController.getConfig);
+router.post('/config', checkPermission('settings:general:update'), customEcommerceController.saveConfig);
+router.post('/token', checkPermission('settings:general:update'), customEcommerceController.generateInboundToken);
+router.post('/verify', checkPermission('settings:general:update'), customEcommerceController.testConnection);
+router.post('/push', checkPermission('settings:general:update'), customEcommerceController.pushInventory);
+router.get('/products', checkPermission('settings:general:update'), customEcommerceController.getLocalProducts);
+router.post('/products/sync', checkPermission('settings:general:update'), customEcommerceController.updateProductSync);
 
 module.exports = router;
