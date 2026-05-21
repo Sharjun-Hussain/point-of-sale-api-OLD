@@ -184,6 +184,17 @@ const deleteProduct = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const bulkDeleteProducts = async (req, res, next) => {
+    try {
+        const { product_ids } = req.body;
+        if (!Array.isArray(product_ids) || product_ids.length === 0) {
+            return errorResponse(res, 'product_ids must be a non-empty array', 400);
+        }
+        const results = await shopifyService.bulkDeleteShopifyProducts(req.user.organization_id, product_ids);
+        return successResponse(res, results, `Bulk delete complete: ${results.deleted} deleted, ${results.failed} failed`);
+    } catch (error) { next(error); }
+};
+
 const disconnectStore = async (req, res, next) => {
     try {
         await shopifyService.disconnect(req.user.organization_id);
@@ -207,5 +218,6 @@ module.exports = {
     bulkCreateProducts,
     updateProductStatus,
     deleteProduct,
+    bulkDeleteProducts,
     disconnectStore
 };

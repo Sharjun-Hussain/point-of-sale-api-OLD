@@ -872,6 +872,44 @@ class ShopifyService {
     }
 
     /**
+     * Bulk Delete: Remove multiple products from Shopify by their Shopify product IDs
+     */
+    async bulkDeleteShopifyProducts(organizationId, productIds) {
+        const config = await this._getFullConfig(organizationId);
+        if (!config) throw new Error('Shopify not configured');
+
+        const cleanShopUrl = config.shop_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+        const access_token = await tokenManager.getValidToken(organizationId);
+        if (!access_token) throw new Error('No valid Shopify token available');
+
+        const results = { total: productIds.length, deleted: 0, failed: 0, errors: [] };
+
+        for (const productId of productIds) {
+            try {
+                const url = `https://${cleanShopUrl}/admin/api/2024-01/products/${productId}.json`;
+                const response = await fetch(url, {
+                    method: 'DELETE',
+                    headers: { 'X-Shopify-Access-Token': access_token },
+                    signal: AbortSignal.timeout(15000)
+                });
+
+                if (!response.ok) {
+                    const err = await response.json().catch(() => ({}));
+                    throw new Error(`Shopify API Error: ${JSON.stringify(err.errors || 'Unknown error')}`);
+                }
+
+                results.deleted++;
+            } catch (err) {
+                logger.error(`Bulk Delete - Product ${productId} failed: ${err.message}`);
+                results.failed++;
+                results.errors.push({ productId, error: err.message });
+            }
+        }
+
+        return results;
+    }
+
+    /**
      * Disconnect Shopify store and clear settings
      */
     async disconnect(organizationId) {

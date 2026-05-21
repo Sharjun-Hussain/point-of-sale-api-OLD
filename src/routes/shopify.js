@@ -21,6 +21,7 @@ router.post('/products/create', checkPermission('settings:general:update'), shop
 router.post('/products/bulk-create', checkPermission('settings:general:update'), shopifyController.bulkCreateProducts);
 router.post('/products/update-status', checkPermission('settings:general:update'), shopifyController.updateProductStatus);
 router.post('/products/delete', checkPermission('settings:general:update'), shopifyController.deleteProduct);
+router.post('/products/bulk-delete', checkPermission('settings:general:update'), shopifyController.bulkDeleteProducts);
 router.post('/disconnect', checkPermission('settings:general:update'), shopifyController.disconnectStore);
 
 module.exports = router;
