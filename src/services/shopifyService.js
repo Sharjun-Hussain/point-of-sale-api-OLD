@@ -180,8 +180,9 @@ class ShopifyService {
      */
     async getLocalProducts(organizationId, page = 1, limit = 10, filters = {}) {
         const p = parseInt(page) || 1;
-        const l = parseInt(limit) || 10;
-        const offset = (p - 1) * l;
+        const isShowAll = limit === 'all' || limit === -1 || limit === '-1';
+        const l = isShowAll ? null : (parseInt(limit) || 10);
+        const offset = isShowAll ? null : ((p - 1) * l);
         const where = { organization_id: organizationId };
 
         if (filters.search) {
@@ -236,7 +237,7 @@ class ShopifyService {
             order.push(['created_at', 'DESC']);
         }
 
-        const { count, rows } = await Product.findAndCountAll({
+        const queryOptions = {
             where,
             include: [
                 {
@@ -253,15 +254,20 @@ class ShopifyService {
                     }]
                 }
             ],
-            limit: l,
-            offset: offset,
             order
-        });
+        };
+
+        if (!isShowAll) {
+            queryOptions.limit = l;
+            queryOptions.offset = offset;
+        }
+
+        const { count, rows } = await Product.findAndCountAll(queryOptions);
 
         return {
             total: count,
             data: rows,
-            totalPages: Math.ceil(count / l)
+            totalPages: isShowAll ? 1 : Math.ceil(count / l)
         };
     }
 
