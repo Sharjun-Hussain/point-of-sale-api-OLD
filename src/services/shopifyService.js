@@ -299,18 +299,19 @@ class ShopifyService {
         }
     }
 
-    async deleteShopifyProduct(organizationId, productId) {
+    async deleteShopifyProduct(organizationId, productId, variantId = null) {
         try {
             const config = await this._getFullConfig(organizationId);
             if (!config) throw new Error('Shopify not configured');
 
+            const access_token = await tokenManager.getValidToken(organizationId);
             const cleanShopUrl = config.shop_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+
+            // Delete from Shopify
             const url = `https://${cleanShopUrl}/admin/api/2024-01/products/${productId}.json`;
             const response = await fetch(url, {
                 method: 'DELETE',
-                headers: {
-                    'X-Shopify-Access-Token': await tokenManager.getValidToken(organizationId)
-                },
+                headers: { 'X-Shopify-Access-Token': access_token },
                 signal: AbortSignal.timeout(15000)
             });
 
@@ -319,12 +320,22 @@ class ShopifyService {
                 throw new Error(`Shopify API Error: ${JSON.stringify(err.errors || 'Unknown error')}`);
             }
 
+            // Unlink the matched local variant by ID (most reliable — no SKU matching needed)
+            if (variantId) {
+                await ProductVariant.update(
+                    { shopify_sync_enabled: false },
+                    { where: { id: variantId, organization_id: organizationId } }
+                );
+                logger.info(`Delete: Unlinked local variant ID ${variantId}`);
+            }
+
             return true;
         } catch (error) {
             logger.error(`Delete Shopify Product Error: ${error.message}`);
             throw error;
         }
     }
+
 
     /**
      * Update sync status for multiple variants
@@ -609,7 +620,16 @@ class ShopifyService {
             localVariants.forEach(v => { skuMap[v.sku] = v; });
 
             shopifyProducts.forEach(p => {
-                p.local_match = p.variants?.some(v => skuMap[v.sku]) || false;
+                // Find the first Shopify variant that has a matching local variant by SKU
+                // Return the actual local variant object (not just boolean) so callers can access .id, .shopify_sync_enabled, etc.
+                let matched = null;
+                for (const v of (p.variants || [])) {
+                    if (v.sku && skuMap[v.sku]) {
+                        matched = skuMap[v.sku];
+                        break;
+                    }
+                }
+                p.local_match = matched || false;
             });
 
             return {
@@ -872,9 +892,10 @@ class ShopifyService {
     }
 
     /**
-     * Bulk Delete: Remove multiple products from Shopify by their Shopify product IDs
+     * Bulk Delete: Remove multiple products from Shopify by their Shopify product IDs.
+     * variantIds: optional array of local ProductVariant IDs to unlink after successful deletions.
      */
-    async bulkDeleteShopifyProducts(organizationId, productIds) {
+    async bulkDeleteShopifyProducts(organizationId, productIds, variantIds = []) {
         const config = await this._getFullConfig(organizationId);
         if (!config) throw new Error('Shopify not configured');
 
@@ -906,8 +927,22 @@ class ShopifyService {
             }
         }
 
+        // Unlink local variants by ID (direct, reliable)
+        if (variantIds.length > 0) {
+            try {
+                const [unlinkedCount] = await ProductVariant.update(
+                    { shopify_sync_enabled: false },
+                    { where: { id: variantIds, organization_id: organizationId } }
+                );
+                logger.info(`Bulk Delete: Unlinked ${unlinkedCount} local variant(s) by ID`);
+            } catch (unlinkErr) {
+                logger.error(`Bulk Delete: Failed to unlink local variants: ${unlinkErr.message}`);
+            }
+        }
+
         return results;
     }
+
 
     /**
      * Disconnect Shopify store and clear settings
