@@ -230,8 +230,10 @@ const reportController = {
                         payments: s.payments, // include detail
                         total_cost,
                         total_mrp,
+                        total_mrp,
                         total_wholesale,
-                        total_selling_base
+                        total_selling_base,
+                        source: s.source
                     };
                 }),
                 stats: {
@@ -241,7 +243,10 @@ const reportController = {
                     totalTax,
                     avgValue: sales.length > 0 ? totalSales / sales.length : 0,
                     paymentBreakdown: breakdownPercentages,
-                    paymentAmounts: categoryAmounts
+                    paymentAmounts: categoryAmounts,
+                    shopifyEnabled: !!(await db.Organization.findByPk(organization_id))?.shopify_enabled,
+                    posSalesVolume: sales.filter(s => s.source !== 'shopify').reduce((sum, s) => sum + Number(s.payable_amount), 0),
+                    shopifySalesVolume: sales.filter(s => s.source === 'shopify').reduce((sum, s) => sum + Number(s.payable_amount), 0),
                 }
             }, 'Daily sales report fetched successfully');
 
@@ -498,15 +503,25 @@ const reportController = {
                 branchFilter.branch_id = branch_id;
             }
 
-            // 1. Revenue (Sales)
-            const sales = await Sale.sum('payable_amount', {
+            const organization = await db.Organization.findByPk(organization_id);
+            const shopifyEnabled = organization?.shopify_enabled;
+
+            // 1. Revenue (Sales) grouped by source
+            const salesData = await Sale.findAll({
                 where: {
                     organization_id,
                     status: 'completed',
                     ...dateFilter,
                     ...branchFilter
-                }
+                },
+                attributes: [
+                    'source',
+                    [Sequelize.fn('SUM', Sequelize.col('payable_amount')), 'revenue']
+                ],
+                group: ['source'],
+                raw: true
             });
+            const sales = salesData.reduce((sum, s) => sum + Number(s.revenue), 0);
 
             // 2. Expenses
             const expenseDateFilter = {};
@@ -530,10 +545,6 @@ const reportController = {
             });
 
             // 3. COGS (Estimation based on items sold * cost)
-            // This is expensive to calculate exactly on the fly without aggregation table. 
-            // We will try a simplified approach or just mock COGS if Product Cost not available.
-            // For now, let's fetch SaleItems and calc cost.
-
             const soldItems = await SaleItem.findAll({
                 include: [
                     {
@@ -545,15 +556,20 @@ const reportController = {
                             ...dateFilter,
                             ...branchFilter
                         },
-                        attributes: []
+                        attributes: ['source']
                     },
                     { model: ProductVariant, as: 'variant', attributes: ['cost_price'] }
                 ]
             });
 
-            const cogs = soldItems.reduce((sum, item) => {
-                return sum + (Number(item.quantity) * Number(item.variant?.cost_price || 0));
-            }, 0);
+            let cogs = 0;
+            const cogsBySource = { pos: 0, shopify: 0 };
+            soldItems.forEach(item => {
+                const itemCogs = Number(item.quantity) * Number(item.variant?.cost_price || 0);
+                cogs += itemCogs;
+                const source = item.sale?.source || 'pos';
+                cogsBySource[source] = (cogsBySource[source] || 0) + itemCogs;
+            });
 
             // 4. Sales Returns
             const returns = await db.SaleReturn.findAll({
@@ -563,20 +579,58 @@ const reportController = {
                     ...dateFilter,
                     ...branchFilter
                 },
-                include: [{ model: db.SaleReturnItem, as: 'items', include: [{ model: db.ProductVariant, as: 'variant', attributes: ['cost_price'] }] }]
+                include: [
+                    { model: db.Sale, as: 'sale', attributes: ['source'] },
+                    { model: db.SaleReturnItem, as: 'items', include: [{ model: db.ProductVariant, as: 'variant', attributes: ['cost_price'] }] }
+                ]
             });
 
-            const totalReturns = returns.reduce((sum, r) => sum + Number(r.total_amount), 0);
-            const returnCogs = returns.reduce((sum, r) => {
-                const itemCogs = r.items.reduce((iSum, item) => iSum + (Number(item.quantity) * Number(item.variant?.cost_price || 0)), 0);
-                return sum + itemCogs;
-            }, 0);
+            let totalReturns = 0;
+            let returnCogs = 0;
+            const returnsBySource = { pos: 0, shopify: 0 };
+            const returnCogsBySource = { pos: 0, shopify: 0 };
+
+            returns.forEach(r => {
+                const rAmount = Number(r.total_amount);
+                totalReturns += rAmount;
+                const source = r.sale?.source || 'pos';
+                returnsBySource[source] = (returnsBySource[source] || 0) + rAmount;
+
+                const rCogs = r.items.reduce((iSum, item) => iSum + (Number(item.quantity) * Number(item.variant?.cost_price || 0)), 0);
+                returnCogs += rCogs;
+                returnCogsBySource[source] = (returnCogsBySource[source] || 0) + rCogs;
+            });
 
             const revenue = (sales || 0) - totalReturns;
             const adjustedCogs = cogs - returnCogs;
             const totalExpenses = expenses || 0;
             const grossProfit = revenue - adjustedCogs;
             const netProfit = grossProfit - totalExpenses;
+
+            let sourceBreakdown = null;
+            if (shopifyEnabled) {
+                const rawPosRev = Number(salesData.find(s => s.source !== 'shopify')?.revenue || 0);
+                const rawShopifyRev = Number(salesData.find(s => s.source === 'shopify')?.revenue || 0);
+                
+                const posRevenue = rawPosRev - returnsBySource.pos;
+                const shopifyRevenue = rawShopifyRev - returnsBySource.shopify;
+                
+                const posCogs = cogsBySource.pos - returnCogsBySource.pos;
+                const shopifyCogs = cogsBySource.shopify - returnCogsBySource.shopify;
+
+                sourceBreakdown = {
+                    pos: {
+                        revenue: posRevenue,
+                        cogs: posCogs,
+                        grossProfit: posRevenue - posCogs
+                    },
+                    shopify: {
+                        revenue: shopifyRevenue,
+                        cogs: shopifyCogs,
+                        grossProfit: shopifyRevenue - shopifyCogs
+                    }
+                };
+            }
 
             return successResponse(res, {
                 revenue,
@@ -585,7 +639,9 @@ const reportController = {
                 grossProfit,
                 expenses: totalExpenses,
                 netProfit,
-                margin: revenue > 0 ? (netProfit / revenue) * 100 : 0
+                margin: revenue > 0 ? (netProfit / revenue) * 100 : 0,
+                sourceBreakdown
+
             }, 'Profit & Loss fetched');
 
         } catch (error) { next(error); }
