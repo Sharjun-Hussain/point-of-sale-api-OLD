@@ -17,7 +17,10 @@ const getAllSuppliers = async (req, res, next) => {
 
         const where = {};
         if (name) {
-            where.name = { [Sequelize.Op.like]: `%${name}%` };
+            where[Sequelize.Op.or] = [
+                { name: { [Sequelize.Op.like]: `%${name}%` } },
+                { code: { [Sequelize.Op.like]: `%${name}%` } }
+            ];
         }
 
         const suppliers = await Supplier.findAndCountAll({
@@ -27,7 +30,43 @@ const getAllSuppliers = async (req, res, next) => {
             order: [['name', 'ASC']]
         });
 
-        return paginatedResponse(res, suppliers.rows, {
+        let suppliersWithBalance = suppliers.rows;
+
+        // Fetch AP Account to calculate current balances
+        const apAccount = await Account.findOne({
+            where: { organization_id: req.user.organization_id, code: '2100' }
+        });
+
+        if (apAccount && suppliers.rows.length > 0) {
+            const supplierIds = suppliers.rows.map(s => s.id);
+            const transactions = await Transaction.findAll({
+                where: {
+                    supplier_id: { [Sequelize.Op.in]: supplierIds },
+                    account_id: apAccount.id
+                },
+                attributes: ['supplier_id', 'type', 'amount']
+            });
+            
+            const balanceMap = {};
+            transactions.forEach(t => {
+                if (!balanceMap[t.supplier_id]) balanceMap[t.supplier_id] = 0;
+                balanceMap[t.supplier_id] += (t.type === 'credit' ? parseFloat(t.amount) : -parseFloat(t.amount));
+            });
+            
+            suppliersWithBalance = suppliers.rows.map(s => {
+                const sJson = typeof s.toJSON === 'function' ? s.toJSON() : s;
+                sJson.current_balance = parseFloat(sJson.opening_balance || 0) + (balanceMap[sJson.id] || 0);
+                return sJson;
+            });
+        } else {
+            suppliersWithBalance = suppliers.rows.map(s => {
+                const sJson = typeof s.toJSON === 'function' ? s.toJSON() : s;
+                sJson.current_balance = parseFloat(sJson.opening_balance || 0);
+                return sJson;
+            });
+        }
+
+        return paginatedResponse(res, suppliersWithBalance, {
             total: suppliers.count,
             page: parseInt(page) || 1,
             limit
@@ -200,6 +239,7 @@ const createGRN = async (req, res, next) => {
             const unitCost = parseFloat(item.unit_cost || item.unitCost || 0);
             const sellingPrice = parseFloat(item.selling_price || item.sellingPrice || unitCost * 1.25);
             const wholesalePrice = parseFloat(item.wholesale_price || item.wholesalePrice || 0);
+            const mrpPrice = parseFloat(item.mrp_price || item.mrpPrice || 0);
             const itemTotal = qtyReceived * unitCost;
 
             // Handle auto-generation of batch number if missing (Purchase Date Based)
@@ -221,7 +261,8 @@ const createGRN = async (req, res, next) => {
                     expiry_date: item.expiry_date || item.expiryDate || null,
                     cost_price: unitCost,
                     selling_price: sellingPrice,
-                    wholesale_price: wholesalePrice
+                    wholesale_price: wholesalePrice,
+                    mrp_price: mrpPrice
                 },
                 defaults: {
                     quantity: 0,
@@ -243,6 +284,9 @@ const createGRN = async (req, res, next) => {
                 quantity_received: qtyReceived,
                 free_quantity: freeQty,
                 unit_cost: unitCost,
+                mrp_price: mrpPrice,
+                selling_price: sellingPrice,
+                wholesale_price: wholesalePrice,
                 total_amount: itemTotal,
                 expiry_date: item.expiry_date || item.expiryDate || null,
                 batch_number: effectiveBatchNumber

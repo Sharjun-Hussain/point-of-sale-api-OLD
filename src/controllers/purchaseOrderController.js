@@ -174,8 +174,12 @@ const createPurchaseOrder = async (req, res, next) => {
                 const cost = Number(item.unit_cost || item.unitCost) ||
                     Number(variant?.cost_price) ||
                     Number(product?.cost_price) || 0;
+                const discount = Number(item.discount_percentage || item.discount) || 0;
 
-                const itemTotal = qty * cost;
+                const baseTotal = qty * cost;
+                const itemDiscountAmt = baseTotal * (discount / 100);
+                const itemTotal = baseTotal - itemDiscountAmt;
+                
                 totalAmount += itemTotal;
 
                 itemsToCreate.push({
@@ -185,6 +189,7 @@ const createPurchaseOrder = async (req, res, next) => {
                     product_variant_id: resolvedVariantId,
                     quantity: qty,
                     unit_cost: cost,
+                    discount_percentage: discount,
                     total_amount: itemTotal
                 });
             }
@@ -192,7 +197,8 @@ const createPurchaseOrder = async (req, res, next) => {
             if (itemsToCreate.length > 0) {
                 await PurchaseOrderItem.bulkCreate(itemsToCreate);
                 // Final update for total amount
-                await po.update({ total_amount: totalAmount });
+                const finalTotal = Math.max(0, totalAmount - (Number(po.discount_amount) || 0));
+                await po.update({ total_amount: finalTotal });
             }
         }
 

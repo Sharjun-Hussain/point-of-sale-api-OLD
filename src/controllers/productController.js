@@ -1569,6 +1569,22 @@ const importProducts = async (req, res, next) => {
         const organization = await Organization.findByPk(organization_id);
         const isRetail = organization?.business_type === 'Retail';
 
+        // Set up Accounting Variables
+        let totalImportValue = 0;
+        const transactionsToCreate = [];
+
+        const [inventoryAccount] = await Account.findOrCreate({
+            where: { organization_id, code: '1200' },
+            defaults: { name: 'Inventory Asset', type: 'asset' },
+            transaction: t
+        });
+
+        const [equityAccount] = await Account.findOrCreate({
+            where: { organization_id, code: '3000' },
+            defaults: { name: 'Opening Balance Equity', type: 'equity' },
+            transaction: t
+        });
+
         if (!products || !Array.isArray(products)) {
             logger.error('[Import] No products array in request body');
             return errorResponse(res, 'No product data provided', 400);
@@ -1742,6 +1758,7 @@ const importProducts = async (req, res, next) => {
 
                     if (branch_id) {
                         // Create Opening Stock Header if not exists for this import
+                        const openingValue = stockQty * parseFloat(p.cost_price || 0);
                         const reference_number = `IMP-OS-${product.code}-${Date.now()}-${index}`;
                         const opening = await StockOpening.create({
                             organization_id,
@@ -1750,7 +1767,7 @@ const importProducts = async (req, res, next) => {
                             reference_number,
                             opening_date: new Date(),
                             notes: 'Automatic opening stock from bulk import',
-                            total_value: stockQty * parseFloat(p.cost_price || 0)
+                            total_value: openingValue
                         }, { transaction: t });
 
                         // Create Batch
@@ -1787,6 +1804,35 @@ const importProducts = async (req, res, next) => {
                             transaction: t
                         });
                         await stockRecord.increment('quantity', { by: stockQty, transaction: t });
+                        
+                        // Queue Accounting Transactions if value is present
+                        if (openingValue > 0) {
+                            totalImportValue += openingValue;
+                            
+                            transactionsToCreate.push({
+                                organization_id,
+                                branch_id,
+                                account_id: inventoryAccount.id,
+                                amount: openingValue,
+                                type: 'debit',
+                                reference_type: 'StockOpening',
+                                reference_id: opening.id,
+                                transaction_date: new Date(),
+                                description: `Opening Stock Value: ${reference_number}`
+                            });
+                            
+                            transactionsToCreate.push({
+                                organization_id,
+                                branch_id,
+                                account_id: equityAccount.id,
+                                amount: openingValue,
+                                type: 'credit',
+                                reference_type: 'StockOpening',
+                                reference_id: opening.id,
+                                transaction_date: new Date(),
+                                description: `Opening Stock Equity: ${reference_number}`
+                            });
+                        }
                     }
                 }
 
@@ -1801,6 +1847,15 @@ const importProducts = async (req, res, next) => {
         if (results.failed > 0) {
             logger.info(`[Import] Error Samples: ${JSON.stringify(results.logs.slice(0, 5), null, 2)}`);
         }
+        
+        // Execute queued financial transactions
+        if (transactionsToCreate.length > 0) {
+            await Transaction.bulkCreate(transactionsToCreate, { transaction: t });
+            await inventoryAccount.increment('balance', { by: totalImportValue, transaction: t });
+            await equityAccount.increment('balance', { by: totalImportValue, transaction: t });
+            logger.info(`[Import] Created ${transactionsToCreate.length} financial transactions with total asset value of ${totalImportValue}`);
+        }
+        
         await t.commit();
         logger.info(`[Import] Transaction committed successfully.`);
         return successResponse(res, results, 'Import completed');

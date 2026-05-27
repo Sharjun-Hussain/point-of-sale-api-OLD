@@ -40,6 +40,10 @@ module.exports = (sequelize, DataTypes) => {
         status: {
             type: DataTypes.ENUM('ordered', 'pending', 'received', 'partially_received', 'cancelled'),
             defaultValue: 'ordered'
+        },
+        discount_amount: {
+            type: DataTypes.DECIMAL(15, 2),
+            defaultValue: 0.00
         }
     }, {
         tableName: 'purchase_orders',

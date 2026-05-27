@@ -52,6 +52,18 @@ module.exports = (sequelize, DataTypes) => {
         product_batch_id: {
             type: DataTypes.UUID,
             allowNull: true
+        },
+        selling_price: {
+            type: DataTypes.DECIMAL(15, 2),
+            defaultValue: 0.00
+        },
+        wholesale_price: {
+            type: DataTypes.DECIMAL(15, 2),
+            defaultValue: 0.00
+        },
+        mrp_price: {
+            type: DataTypes.DECIMAL(15, 2),
+            defaultValue: 0.00
         }
     }, {
         tableName: 'grn_items',

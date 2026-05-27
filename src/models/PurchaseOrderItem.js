@@ -36,6 +36,10 @@ module.exports = (sequelize, DataTypes) => {
         organization_id: {
             type: DataTypes.UUID,
             allowNull: true
+        },
+        discount_percentage: {
+            type: DataTypes.DECIMAL(5, 2),
+            defaultValue: 0.00
         }
     }, {
         tableName: 'purchase_order_items',
