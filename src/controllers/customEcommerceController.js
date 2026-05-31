@@ -97,7 +97,9 @@ const saveConfig = async (req, res, next) => {
                 updatedSettings.inbound_token = `pos_inbound_${crypto.randomBytes(24).toString('hex')}`;
             }
 
-            await setting.update({ settings_data: updatedSettings });
+            setting.set('settings_data', updatedSettings);
+            setting.changed('settings_data', true);
+            await setting.save();
         }
 
         return successResponse(res, null, 'Custom e-commerce configuration saved successfully');
