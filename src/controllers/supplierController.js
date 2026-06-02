@@ -1,5 +1,5 @@
 const db = require('../models');
-const { Supplier, GRN, GRNItem, Stock, Account, Transaction, PurchaseOrder, Product, ProductVariant, Attachment, Cheque, SupplierPayment, SupplierPaymentMethod } = require('../models');
+const { Supplier, GRN, GRNItem, Stock, Account, Transaction, PurchaseOrder, Product, ProductVariant, Attachment, Cheque, SupplierPayment, SupplierPaymentMethod, Branch, User } = require('../models');
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
 const { Sequelize } = require('sequelize');
@@ -627,6 +627,8 @@ const getGRNDetail = async (req, res, next) => {
             where: { id, organization_id: req.user.organization_id },
             include: [
                 { model: Supplier, as: 'supplier' },
+                { model: Branch, as: 'branch' },
+                { model: User, as: 'received_by_user' },
                 {
                     model: GRNItem,
                     as: 'items',
