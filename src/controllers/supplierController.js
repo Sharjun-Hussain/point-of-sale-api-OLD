@@ -46,13 +46,13 @@ const getAllSuppliers = async (req, res, next) => {
                 },
                 attributes: ['supplier_id', 'type', 'amount']
             });
-            
+
             const balanceMap = {};
             transactions.forEach(t => {
                 if (!balanceMap[t.supplier_id]) balanceMap[t.supplier_id] = 0;
                 balanceMap[t.supplier_id] += (t.type === 'credit' ? parseFloat(t.amount) : -parseFloat(t.amount));
             });
-            
+
             suppliersWithBalance = suppliers.rows.map(s => {
                 const sJson = typeof s.toJSON === 'function' ? s.toJSON() : s;
                 sJson.current_balance = parseFloat(sJson.opening_balance || 0) + (balanceMap[sJson.id] || 0);
@@ -164,6 +164,11 @@ const createGRN = async (req, res, next) => {
             supplier_id, purchase_order_id, grn_number,
             items, remarks, total_amount, grn_date, invoice_number
         } = bodyContent;
+
+        if (!items || !Array.isArray(items) || items.length === 0) {
+            await t.rollback();
+            return res.status(400).json({ status: 'error', message: 'Items are required to create a GRN' });
+        }
 
         const notes = remarks || bodyContent.notes;
         const received_date = grn_date || bodyContent.received_date || new Date();
@@ -459,6 +464,122 @@ const createGRN = async (req, res, next) => {
 };
 
 /**
+ * Create Direct GRN (Auto-generates a PO)
+ */
+const createDirectGRN = async (req, res, next) => {
+    const t = await db.sequelize.transaction();
+    try {
+        let bodyContent = req.body;
+        if (req.body.data && typeof req.body.data === 'string') {
+            try { bodyContent = JSON.parse(req.body.data); } catch (e) { }
+        }
+
+        const { supplier_id, items, branch_id } = bodyContent;
+        const organization_id = req.user.organization_id;
+        const target_branch_id = branch_id || req.user.branch_id;
+
+        if (!target_branch_id) {
+            await t.rollback();
+            return errorResponse(res, 'Branch ID is required', 400);
+        }
+        if (!supplier_id) {
+            await t.rollback();
+            return errorResponse(res, 'Supplier ID is required', 400);
+        }
+
+        // 1. Auto-generate PO number
+        const date = new Date();
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const random = Math.floor(1000 + Math.random() * 9000);
+        const po_number = `PO-${year}${month}${day}-${random}-DIRECT`;
+
+        // Calculate total_amount for PO
+        let totalAmount = 0;
+        const itemsToCreate = [];
+
+        for (const item of items) {
+            let variantId = item.variant_id || item.product_variant_id || item.productId;
+            let productId = item.product_id;
+
+            let variant = null;
+            let product = null;
+
+            if (variantId) {
+                variant = await db.ProductVariant.findOne({ where: { id: variantId, organization_id } });
+            }
+            if (!variant) {
+                const lookupId = variantId || productId;
+                if (lookupId) {
+                    product = await db.Product.findOne({ where: { id: lookupId, organization_id } });
+                    if (product) {
+                        variant = await db.ProductVariant.findOne({ where: { product_id: product.id, organization_id } });
+                    }
+                }
+            } else {
+                product = await db.Product.findOne({ where: { id: variant.product_id, organization_id } });
+            }
+
+            if (!product && !variant) continue;
+
+            const resolvedProductId = product ? product.id : variant.product_id;
+            const resolvedVariantId = variant ? variant.id : null;
+
+            const qtyReceived = parseFloat(item.quantity_received || item.received_qty || item.receivedQty || 0);
+            const cost = parseFloat(item.unit_cost || item.unitCost || 0);
+            const itemTotal = qtyReceived * cost;
+
+            totalAmount += itemTotal;
+
+            // Ensure the item object for createGRN has resolved IDs
+            item.product_id = resolvedProductId;
+            item.product_variant_id = resolvedVariantId;
+
+            itemsToCreate.push({
+                organization_id,
+                product_id: resolvedProductId,
+                product_variant_id: resolvedVariantId,
+                quantity: qtyReceived,
+                unit_cost: cost,
+                discount_percentage: 0,
+                total_amount: itemTotal
+            });
+        }
+
+        const po = await PurchaseOrder.create({
+            po_number,
+            supplier_id,
+            organization_id,
+            branch_id: target_branch_id,
+            user_id: req.user.id,
+            status: 'received',
+            total_amount: totalAmount,
+            remarks: 'Auto-generated for Direct GRN'
+        }, { transaction: t });
+
+        const poItemsWithId = itemsToCreate.map(i => ({ ...i, purchase_order_id: po.id }));
+        await db.PurchaseOrderItem.bulkCreate(poItemsWithId, { transaction: t });
+
+        await t.commit();
+
+        // 2. Delegate to createGRN
+        req.body.purchase_order_id = po.id;
+        if (req.body.data && typeof req.body.data === 'string') {
+            const parsedData = JSON.parse(req.body.data);
+            parsedData.purchase_order_id = po.id;
+            parsedData.items = items; // Pass the resolved items with correct IDs to createGRN
+            req.body.data = JSON.stringify(parsedData);
+        }
+
+        return createGRN(req, res, next);
+    } catch (error) {
+        await t.rollback();
+        next(error);
+    }
+};
+
+/**
  * Get All GRNs (Paginated & Filtered)
  */
 const getGRNList = async (req, res, next) => {
@@ -540,7 +661,7 @@ const createSupplier = async (req, res, next) => {
     try {
         const organization_id = req.user.organization_id;
         const data = { ...req.body };
-        
+
         // Convert empty strings to null to prevent unique constraint issues
         if (data.code === "") data.code = null;
         if (data.phone === "") data.phone = null;
@@ -709,14 +830,14 @@ const createSupplierPayment = async (req, res, next) => {
     const t = await db.sequelize.transaction();
     try {
         const { id: supplier_id } = req.params;
-        const { 
-            payments, 
+        const {
+            payments,
             total_amount: payload_total,
-            transaction_date, 
-            description, 
-            branch_id: payload_branch_id 
+            transaction_date,
+            description,
+            branch_id: payload_branch_id
         } = req.body;
-        
+
         const organization_id = req.user.organization_id;
         let branch_id = payload_branch_id || req.user.branch_id;
 
@@ -778,7 +899,7 @@ const createSupplierPayment = async (req, res, next) => {
             if (amt <= 0) continue;
 
             const method = pmt.payment_method.toLowerCase();
-            
+
             let accountCode = '1010'; // Default Cash
             let accountName = 'Cash in Hand';
             let accountType = 'asset';
@@ -900,11 +1021,11 @@ const deleteGRNAttachment = async (req, res, next) => {
     try {
         const { id, attachmentId } = req.params;
         const attachment = await Attachment.findOne({
-            where: { 
-                id: attachmentId, 
-                entity_id: id, 
+            where: {
+                id: attachmentId,
+                entity_id: id,
                 entity_type: 'GRN',
-                organization_id: req.user.organization_id 
+                organization_id: req.user.organization_id
             }
         });
 
@@ -914,7 +1035,7 @@ const deleteGRNAttachment = async (req, res, next) => {
         const fs = require('fs');
         const path = require('path');
         const fullPath = path.join(process.cwd(), attachment.file_path);
-        
+
         if (fs.existsSync(fullPath)) {
             fs.unlinkSync(fullPath);
         }
@@ -938,5 +1059,6 @@ module.exports = {
     createSupplierPayment,
     generateGRNPDF,
     uploadGRNAttachment,
-    deleteGRNAttachment
+    deleteGRNAttachment,
+    createDirectGRN
 };

@@ -17,6 +17,7 @@ router.get('/:id/ledger', checkPermission('finance:view'), supplierController.ge
 
 router.post('/', checkPermission('supplier:create'), upload.none(), supplierController.createSupplier);
 router.post('/grn', checkPermission('purchase:create'), upload.array('attachmentFiles', 10), supplierController.createGRN);
+router.post('/grn/direct', checkPermission('purchase:create'), upload.array('attachmentFiles', 10), supplierController.createDirectGRN);
 router.post('/grn/:id/attachments', checkPermission('purchase:edit'), upload.array('attachmentFiles', 10), supplierController.uploadGRNAttachment);
 router.delete('/grn/:id/attachments/:attachmentId', checkPermission('purchase:edit'), supplierController.deleteGRNAttachment);
 router.post('/:id/payments', checkPermission('finance:manage'), supplierController.createSupplierPayment);
