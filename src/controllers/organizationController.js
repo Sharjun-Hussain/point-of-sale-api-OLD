@@ -1329,6 +1329,59 @@ const resetOrganizationData = async (req, res, next) => {
         // Re-enable foreign key checks
         await sequelize.query('SET FOREIGN_KEY_CHECKS = 1', { transaction });
 
+        // --- Handle User Deletion (Keep 1 Admin) ---
+        const { Op } = require('sequelize');
+        const adminRole = await Role.findOne({ where: { name: 'Organization Admin' } });
+        let adminUserToKeep = null;
+
+        if (adminRole) {
+            adminUserToKeep = await User.findOne({
+                where: { organization_id: organizationId },
+                include: [{
+                    model: Role,
+                    as: 'roles',
+                    where: { id: adminRole.id }
+                }],
+                order: [['created_at', 'ASC']]
+            });
+        }
+
+        const usersToDeleteWhere = { organization_id: organizationId };
+        if (adminUserToKeep) {
+            usersToDeleteWhere.id = { [Op.ne]: adminUserToKeep.id };
+        }
+
+        const usersToDelete = await User.findAll({
+            where: usersToDeleteWhere,
+            attributes: ['id']
+        });
+
+        if (usersToDelete.length > 0) {
+            const userIds = usersToDelete.map(u => u.id);
+
+            if (db.UserRole) {
+                await db.UserRole.destroy({
+                    where: { user_id: { [Op.in]: userIds } },
+                    transaction,
+                    force: true
+                });
+            }
+            
+            if (db.UserBranch) {
+                await db.UserBranch.destroy({
+                    where: { user_id: { [Op.in]: userIds } },
+                    transaction,
+                    force: true
+                });
+            }
+            
+            await User.destroy({
+                where: { id: { [Op.in]: userIds } },
+                transaction,
+                force: true
+            });
+        }
+
         // Audit Logging
         const { ipAddress, userAgent } = auditService.getRequestContext(req);
         await auditService.logCustom(

@@ -1693,7 +1693,7 @@ const importProducts = async (req, res, next) => {
                         sku: variantSku
                     },
                     defaults: {
-                        name: cleanVariantName || (productCreated ? 'Default' : `Variant ${variantSku}`),
+                        name: cleanVariantName || cleanName,
                         sku: variantSku,
                         code: cleanCode || product.code,
                         barcode: cleanBarcode || cleanCode || product.barcode,
@@ -1728,6 +1728,48 @@ const importProducts = async (req, res, next) => {
                     
                     if (Object.keys(updates).length > 0) {
                         await variant.update(updates, { transaction: t });
+                    }
+                }
+
+                // 6.5 Process and Link Attributes
+                if (p.attributes && Array.isArray(p.attributes) && p.attributes.length > 0) {
+                    
+                    if (!product.is_variant) {
+                        await product.update({ is_variant: true }, { transaction: t });
+                    }
+
+                    for (const attr of p.attributes) {
+                        if (!attr.name || !attr.value) continue;
+                        
+                        // Find or Create Attribute (e.g., "Size")
+                        const [attribute] = await Attribute.findOrCreate({
+                            where: { organization_id, name: attr.name },
+                            defaults: { organization_id, name: attr.name },
+                            transaction: t
+                        });
+                        
+                        // Link Attribute to Parent Product
+                        if (sequelize.models.ProductAttribute) {
+                            await sequelize.models.ProductAttribute.findOrCreate({
+                                where: { product_id: product.id, attribute_id: attribute.id },
+                                defaults: { product_id: product.id, attribute_id: attribute.id },
+                                transaction: t
+                            });
+                        }
+
+                        // Find or Create AttributeValue (e.g., "Large")
+                        const [attributeValue] = await AttributeValue.findOrCreate({
+                            where: { organization_id, attribute_id: attribute.id, value: attr.value },
+                            defaults: { organization_id, attribute_id: attribute.id, value: attr.value },
+                            transaction: t
+                        });
+                        
+                        // Link VariantAttributeValue
+                        await VariantAttributeValue.findOrCreate({
+                            where: { product_variant_id: variant.id, attribute_value_id: attributeValue.id },
+                            defaults: { product_variant_id: variant.id, attribute_value_id: attributeValue.id },
+                            transaction: t
+                        });
                     }
                 }
 

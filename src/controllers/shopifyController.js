@@ -144,19 +144,19 @@ const getShopifyOrders = async (req, res, next) => {
 
 const createProduct = async (req, res, next) => {
     try {
-        const { variant_id } = req.body;
-        const product = await shopifyService.createShopifyProduct(req.user.organization_id, variant_id);
+        const { product_id } = req.body;
+        const product = await shopifyService.createShopifyProduct(req.user.organization_id, product_id);
         return successResponse(res, product, 'Product created on Shopify');
     } catch (error) { next(error); }
 };
 
 const bulkCreateProducts = async (req, res, next) => {
     try {
-        const { variant_ids } = req.body;
-        if (!Array.isArray(variant_ids) || variant_ids.length === 0) {
-            return errorResponse(res, 'variant_ids must be a non-empty array', 400);
+        const { product_ids } = req.body;
+        if (!Array.isArray(product_ids) || product_ids.length === 0) {
+            return errorResponse(res, 'product_ids must be a non-empty array', 400);
         }
-        const results = await shopifyService.bulkCreateShopifyProducts(req.user.organization_id, variant_ids);
+        const results = await shopifyService.bulkCreateShopifyProducts(req.user.organization_id, product_ids);
         return successResponse(res, results, `Bulk sync complete: ${results.created} created, ${results.linked} linked, ${results.failed} failed`);
     } catch (error) { next(error); }
 };
@@ -195,6 +195,17 @@ const bulkDeleteProducts = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const getProductDetails = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        if (!id) {
+            return errorResponse(res, 'Product ID is required', 400);
+        }
+        const product = await shopifyService.getShopifyProductDetails(req.user.organization_id, id);
+        return successResponse(res, product, 'Product details fetched');
+    } catch (error) { next(error); }
+};
+
 const disconnectStore = async (req, res, next) => {
     try {
         await shopifyService.disconnect(req.user.organization_id);
@@ -210,6 +221,7 @@ module.exports = {
     pullProducts,
     getAnalytics,
     getShopifyProducts,
+    getProductDetails,
     getShopifyOrders,
     getLocalProducts,
     updateProductSync,

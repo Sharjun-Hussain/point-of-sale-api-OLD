@@ -14,6 +14,7 @@ router.post('/pull', checkPermission('settings:general:update'), shopifyControll
 router.get('/analytics', checkPermission('settings:general:update'), shopifyController.getAnalytics);
 router.get('/products', checkPermission('settings:general:update'), shopifyController.getLocalProducts);
 router.get('/shopify-products', checkPermission('settings:general:update'), shopifyController.getShopifyProducts);
+router.get('/shopify-products/:id', checkPermission('settings:general:update'), shopifyController.getProductDetails);
 router.get('/shopify-orders', checkPermission('settings:general:update'), shopifyController.getShopifyOrders);
 router.get('/store-details', checkPermission('settings:general:update'), shopifyController.getStoreDetails);
 router.post('/products/sync', checkPermission('settings:general:update'), shopifyController.updateProductSync);
