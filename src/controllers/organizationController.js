@@ -1374,6 +1374,14 @@ const resetOrganizationData = async (req, res, next) => {
                     force: true
                 });
             }
+
+            if (db.RefreshToken) {
+                await db.RefreshToken.destroy({
+                    where: { user_id: { [Op.in]: userIds } },
+                    transaction,
+                    force: true
+                });
+            }
             
             await User.destroy({
                 where: { id: { [Op.in]: userIds } },
