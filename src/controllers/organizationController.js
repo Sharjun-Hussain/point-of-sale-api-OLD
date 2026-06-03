@@ -1304,8 +1304,8 @@ const resetOrganizationData = async (req, res, next) => {
             'Supplier', 'Customer', 'Distributor',
             'EmployeeBranch', 'Employee', 'Department', 'Designation',
 
-            // 4. Structure (Users are preserved, but their links to branches are cleared)
-            'Branch', 'UserBranch', 'Setting'
+            // 4. Structure (Users, Branches, User-Branch assignments, and Settings are preserved)
+            // Removed 'Branch', 'UserBranch', 'Setting' from deletion
         ];
 
         // Disable foreign key checks for the duration of the reset
