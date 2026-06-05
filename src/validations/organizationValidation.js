@@ -8,13 +8,13 @@ const updateOrganizationValidationRules = [
         .isLength({ min: 2 }).withMessage('Legal name basis must be at least 2 characters'),
     
     body('email')
-        .optional()
+        .optional({ checkFalsy: true })
         .trim()
         .isEmail().withMessage('Institutional email format failure')
         .normalizeEmail(),
 
     body('phone')
-        .optional()
+        .optional({ checkFalsy: true })
         .trim()
         .matches(/^[\d+() -]+$/).withMessage('Contact basis contains invalid structural characters'),
 
