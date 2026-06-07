@@ -15,6 +15,7 @@ RUN pnpm install --frozen-lockfile
 
 # Step 3: Final Production Image
 FROM base AS runner
+RUN apt-get update && apt-get install -y default-mysql-client && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
