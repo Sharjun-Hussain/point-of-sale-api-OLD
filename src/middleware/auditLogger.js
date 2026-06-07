@@ -6,14 +6,14 @@ const auditService = require('../services/auditService');
  */
 const auditMiddleware = (options = {}) => {
     const {
-        excludePaths = ['/api/v1/health', '/api/v1/audit-logs'], // Don't log these paths
+        excludePaths = ['/api/v1/health', '/api/v1/audit-logs', '/api/v1/maintenance/db/import'], // Don't log these paths
         excludeMethods = ['GET'], // Don't log GET requests by default (too verbose)
         logGetRequests = false // Set to true to log GET requests
     } = options;
 
     return async (req, res, next) => {
-        // Skip if path is excluded
-        if (excludePaths.some(path => req.path.startsWith(path))) {
+        // Skip if path is excluded. Use originalUrl to match the full path reliably.
+        if (excludePaths.some(path => req.originalUrl.startsWith(path))) {
             return next();
         }
 
