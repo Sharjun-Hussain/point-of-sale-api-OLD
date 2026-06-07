@@ -398,6 +398,9 @@ class MaintenanceService {
             // Replace with utf8mb4_general_ci for maximum compatibility
             content = content.replace(/utf8mb4_0900_ai_ci/g, 'utf8mb4_general_ci');
 
+            // 3. Fix Corrupted JSON data from native export fallback
+            content = content.replace(/'\[object Object\]'/g, "'{}'");
+
             fs.writeFileSync(filepath, content);
         } catch (err) {
             logger.warn(`SQL Pre-processing Warning: ${err.message}`);
