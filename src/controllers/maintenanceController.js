@@ -2,6 +2,7 @@ const maintenanceService = require('../services/maintenanceService');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const auditService = require('../services/auditService');
 const fs = require('fs');
+const logger = require('../utils/logger');
 
 /**
  * MAINTENANCE CONTROLLER
@@ -33,7 +34,7 @@ class MaintenanceController {
             // Default to 60 minutes if not provided
             const minutes = parseInt(req.query.minutes) || 60;
             const history = await maintenanceService.getTelemetryHistory(minutes);
-            
+
             return successResponse(res, history, 'Telemetry history fetched successfully.');
         } catch (error) { next(error); }
     }
@@ -44,7 +45,7 @@ class MaintenanceController {
     async optimizeDatabase(req, res, next) {
         try {
             const { ipAddress, userAgent } = auditService.getRequestContext(req);
-            
+
             // Log the optimization attempt
             await auditService.logCustom(
                 req.user.organization_id,
@@ -79,7 +80,7 @@ class MaintenanceController {
             await auditService.logCustom(req.user.organization_id, req.user.id, 'DB_EXPORT', 'Generated full SQL snapshot.', ipAddress, userAgent);
 
             const { filepath, filename } = await maintenanceService.exportSql();
-            
+
             res.download(filepath, filename, (err) => {
                 if (err) {
                     logger.error(`Download Error: ${err.message}`);
