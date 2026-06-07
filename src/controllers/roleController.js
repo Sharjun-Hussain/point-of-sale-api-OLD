@@ -1,4 +1,4 @@
-const { Role, Permission } = require('../models');
+const { Role, Permission, Organization } = require('../models');
 const { Op } = require('sequelize');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 
@@ -22,13 +22,34 @@ const getAllRoles = async (req, res, next) => {
             where,
             include: [{ model: Permission, as: 'permissions' }]
         });
-        return successResponse(res, { data: roles }, 'Roles fetched successfully');
+
+        // Filter out roles for features the organization hasn't enabled
+        let filteredRoles = roles;
+        if (req.user.organization_id && !isSuperAdmin) {
+            const org = await Organization.findByPk(req.user.organization_id);
+            if (org) {
+                filteredRoles = roles.filter(role => {
+                    const name = role.name.toLowerCase();
+                    
+                    if (name.includes('shopify') && !org.shopify_enabled) return false;
+                    if (name.includes('whatsapp') && !org.whatsapp_enabled) return false;
+                    if ((name.includes('ecommerce') || name.includes('e-commerce')) && !org.custom_ecommerce_enabled) return false;
+                    if (name.includes('textlk') && !org.textlk_enabled) return false;
+                    if (name.includes('loyalty') && !org.loyalty_enabled) return false;
+                    
+                    return true;
+                });
+            }
+        }
+
+        return successResponse(res, { data: filteredRoles }, 'Roles fetched successfully');
     } catch (error) { next(error); }
 };
 
 const createRole = async (req, res, next) => {
     try {
-        const { name, description, permission_ids, organization_id: target_org_id } = req.body;
+        const { name, description, permissions, permission_ids: alt_perm_ids, organization_id: target_org_id } = req.body;
+        const permission_ids = permissions || alt_perm_ids;
         const isSuperAdmin = req.user.roles.some(role => role.name === 'Super Admin');
         
         // Block creation of any role named "Super Admin" by others
