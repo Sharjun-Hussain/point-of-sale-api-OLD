@@ -319,6 +319,22 @@ async function bootstrap() {
         await accountantRole.setPermissions(accountantPerms);
         console.log(`✅ Accountant role assigned ${accountantPerms.length} permissions.`);
 
+        // ── Sales Executive Role ─────────────────────────────────────────────
+        const [salesExecRole] = await db.Role.findOrCreate({
+            where: { name: 'Sales Executive' },
+            defaults: { id: crypto.randomUUID(), description: 'Sales and store operations access' }
+        });
+        const salesExecAllowed = [
+            'sale:view', 'sale:create', 'sale:edit',
+            'purchase:view', 'purchase:create', 'supplier:view',
+            'expense:view', 'expense:create', 'expense:edit',
+            'stock:view',
+            'branch:view', 'user:view', 'employee:view'
+        ];
+        const salesExecPerms = allPerms.filter(p => salesExecAllowed.includes(p.name));
+        await salesExecRole.setPermissions(salesExecPerms);
+        console.log(`✅ Sales Executive role assigned ${salesExecPerms.length} permissions.`);
+
         // ── Shopify User Role ────────────────────────────────────────────────
         const [shopifyRole] = await db.Role.findOrCreate({
             where: { name: 'Shopify User' },
