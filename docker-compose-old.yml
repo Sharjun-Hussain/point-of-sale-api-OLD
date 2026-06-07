@@ -1,0 +1,17 @@
+services:
+  # --- Backend API (Industrial POS) ---
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pos_api
+    restart: always
+    env_file:
+      - .env.docker
+    # Host Networking allows the API to reach your native MySQL/Redis on localhost
+    network_mode: "host"
+    volumes:
+      - uploads_data:/app/uploads
+
+volumes:
+  uploads_data:
