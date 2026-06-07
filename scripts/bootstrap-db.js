@@ -86,20 +86,20 @@ async function bootstrap() {
             { name: 'attr:create', group_name: 'Attribute', description: 'Create product attributes' },
             { name: 'attr:edit', group_name: 'Attribute', description: 'Edit product attributes' },
             { name: 'attr:delete', group_name: 'Attribute', description: 'Delete product attributes' },
-            
+
             // Brand Management
             { name: 'brand:view', group_name: 'Brand', description: 'View brands' },
             { name: 'brand:create', group_name: 'Brand', description: 'Create brands' },
             { name: 'brand:edit', group_name: 'Brand', description: 'Edit brands' },
             { name: 'brand:delete', group_name: 'Brand', description: 'Delete brands' },
             { name: 'brand:manage', group_name: 'Brand', description: 'Manage brand groups' },
-            
+
             // Branch Management
             { name: 'branch:view', group_name: 'Branch', description: 'View branch details' },
             { name: 'branch:create', group_name: 'Branch', description: 'Create new branches' },
             { name: 'branch:edit', group_name: 'Branch', description: 'Edit branch configuration' },
             { name: 'branch:delete', group_name: 'Branch', description: 'Decommission branches' },
-            
+
             // Category Management
             { name: 'category:view', group_name: 'Category', description: 'View categories' },
             { name: 'category:create', group_name: 'Category', description: 'Create product categories' },
@@ -108,44 +108,44 @@ async function bootstrap() {
             { name: 'category:manage', group_name: 'Category', description: 'Full category administration' },
             { name: 'category:manage_main', group_name: 'Category', description: 'Manage parent categories' },
             { name: 'category:manage_sub', group_name: 'Category', description: 'Manage child categories' },
-            
+
             // Container Management
             { name: 'container:view', group_name: 'Container', description: 'View storage containers' },
             { name: 'container:create', group_name: 'Container', description: 'Create containers' },
             { name: 'container:edit', group_name: 'Container', description: 'Modify containers' },
             { name: 'container:delete', group_name: 'Container', description: 'Remove containers' },
-            
+
             // Customer Management
             { name: 'customer:view', group_name: 'Customer', description: 'View customer database' },
             { name: 'customer:create', group_name: 'Customer', description: 'Register new customers' },
             { name: 'customer:edit', group_name: 'Customer', description: 'Edit customer profiles' },
             { name: 'customer:delete', group_name: 'Customer', description: 'Remove customers' },
-            
+
             // Employee Management
             { name: 'employee:view', group_name: 'Employee', description: 'View employee records' },
             { name: 'employee:create', group_name: 'Employee', description: 'Enroll new staff' },
             { name: 'employee:edit', group_name: 'Employee', description: 'Update HR files' },
             { name: 'employee:delete', group_name: 'Employee', description: 'Terminate employment records' },
-            
+
             // Expense Management
             { name: 'expense:view', group_name: 'Finance', description: 'View expenditure' },
             { name: 'expense:create', group_name: 'Finance', description: 'Record expenses' },
             { name: 'expense:edit', group_name: 'Finance', description: 'Modify expense logs' },
             { name: 'expense:delete', group_name: 'Finance', description: 'Delete expenses' },
             { name: 'expense:manage', group_name: 'Finance', description: 'Manage expense categories' },
-            
+
             // Finance & Accounting
             { name: 'finance:view', group_name: 'Finance', description: 'Access financial data' },
             { name: 'finance:manage', group_name: 'Finance', description: 'Manage ledger and accounts' },
             { name: 'account:manage', group_name: 'Finance', description: 'Configure chart of accounts' },
             { name: 'cheque:manage', group_name: 'Finance', description: 'Process cheque payments' },
-            
+
             // Organization Control
             { name: 'org:view', group_name: 'Organization', description: 'Monitor organization health' },
             { name: 'org:create', group_name: 'Organization', description: 'Onboard new organizations' },
             { name: 'org:edit', group_name: 'Organization', description: 'Edit organizational identity' },
             { name: 'org:delete', group_name: 'Organization', description: 'Purge organization data' },
-            
+
             // Product Management
             { name: 'product:view', group_name: 'Product', description: 'View product catalog' },
             { name: 'product:create', group_name: 'Product', description: 'Create new products' },
@@ -155,14 +155,14 @@ async function bootstrap() {
             { name: 'product_variant:view', group_name: 'Product', description: 'View specific variants' },
             { name: 'product_variant:create', group_name: 'Product', description: 'Create product variants' },
             { name: 'product_variant:edit', group_name: 'Product', description: 'Modify variants' },
-            
+
             // Production & Manufacturing
             { name: 'production:view', group_name: 'Production', description: 'View manufacturing recipes and orders' },
             { name: 'production:create', group_name: 'Production', description: 'Create new recipes and orders' },
             { name: 'production:edit', group_name: 'Production', description: 'Edit existing recipes and orders' },
             { name: 'production:delete', group_name: 'Production', description: 'Delete recipes and orders' },
             { name: 'production:manage', group_name: 'Production', description: 'Finalize and complete production batches' },
-            
+
             // Purchase & Procurement
             { name: 'purchase:view', group_name: 'Purchase', description: 'View purchase history' },
             { name: 'purchase:create', group_name: 'Purchase', description: 'Initiate purchase orders' },
@@ -170,13 +170,13 @@ async function bootstrap() {
             { name: 'purchase:delete', group_name: 'Purchase', description: 'Cancel procurement' },
             { name: 'purchase_return:view', group_name: 'Purchase', description: 'View purchase returns' },
             { name: 'purchase_return:create', group_name: 'Purchase', description: 'Process returns to supplier' },
-            
+
             // Role Management
             { name: 'role:view', group_name: 'Role', description: 'View security roles' },
             { name: 'role:create', group_name: 'Role', description: 'Define new roles' },
             { name: 'role:edit', group_name: 'Role', description: 'Edit role permissions' },
             { name: 'role:delete', group_name: 'Role', description: 'Delete access roles' },
-            
+
             // Sale & POS
             { name: 'sale:view', group_name: 'Sale', description: 'View sale transactions' },
             { name: 'sale:create', group_name: 'Sale', description: 'Perform new sales' },
@@ -188,7 +188,7 @@ async function bootstrap() {
             { name: 'shift:manage', group_name: 'Sale', description: 'Close and reconcile shifts' },
             { name: 'sale_return:view', group_name: 'Sale', description: 'View sale returns' },
             { name: 'sale_return:create', group_name: 'Sale', description: 'Process customer returns' },
-            
+
             // Stock & Inventory
             { name: 'stock:view', group_name: 'Inventory', description: 'View live inventory' },
             { name: 'stock:create', group_name: 'Inventory', description: 'Initialize inventory' },
@@ -196,20 +196,20 @@ async function bootstrap() {
             { name: 'stock:delete', group_name: 'Inventory', description: 'Purge stock records' },
             { name: 'stock:adjust', group_name: 'Inventory', description: 'Perform stock adjustments' },
             { name: 'stock:transfer', group_name: 'Inventory', description: 'Transfer between branches' },
-            
+
             // Supplier Management
             { name: 'supplier:view', group_name: 'Purchase', description: 'View suppliers' },
             { name: 'supplier:create', group_name: 'Purchase', description: 'Add suppliers' },
             { name: 'supplier:edit', group_name: 'Purchase', description: 'Edit supplier details' },
             { name: 'supplier:delete', group_name: 'Purchase', description: 'Remove suppliers' },
-            
+
             // Unit of Measurement
             { name: 'unit:view', group_name: 'Unit', description: 'View units' },
             { name: 'unit:create', group_name: 'Unit', description: 'Create units' },
             { name: 'unit:edit', group_name: 'Unit', description: 'Edit units' },
             { name: 'unit:delete', group_name: 'Unit', description: 'Delete units' },
             { name: 'unit:manage', group_name: 'Unit', description: 'Global unit management' },
-            
+
             // System Settings
             { name: 'settings:general:update', group_name: 'Settings', description: 'Manage regional settings' },
             { name: 'settings:business:update', group_name: 'Settings', description: 'Manage business identity' },
@@ -221,19 +221,19 @@ async function bootstrap() {
             { name: 'settings:report:update', group_name: 'Settings', description: 'Manage report templates' },
             { name: 'system:settings', group_name: 'Settings', description: 'Full root configuration' },
             { name: 'system:audit_log', group_name: 'Settings', description: 'Access forensic audit logs' },
-            
+
             // Reports
             { name: 'report:view', group_name: 'Reports', description: 'Access report center' },
             { name: 'report:sales', group_name: 'Reports', description: 'View sales analytics' },
             { name: 'report:inventory', group_name: 'Reports', description: 'View inventory analytics' },
             { name: 'report:financial', group_name: 'Reports', description: 'View accounting reports' },
-            
+
             // User Management
             { name: 'user:view', group_name: 'User', description: 'View user accounts' },
             { name: 'user:create', group_name: 'User', description: 'Create user logins' },
             { name: 'user:edit', group_name: 'User', description: 'Update user profiles' },
             { name: 'user:delete', group_name: 'User', description: 'Disable user access' },
-            
+
             // CRM & WhatsApp
             { name: 'crm:view', group_name: 'CRM', description: 'View CRM and WhatsApp templates' },
             { name: 'crm:manage', group_name: 'CRM', description: 'Manage CRM settings and send messages' },
@@ -269,7 +269,7 @@ async function bootstrap() {
             where: { name: 'Organization Admin' },
             defaults: { id: crypto.randomUUID(), description: 'Tenant Administrator Access' }
         });
-        
+
         // Filter out restricted permissions for Org Admin
         const restrictedPerms = [
             'org:create', 'org:delete', 'org:edit', 'org:view',
@@ -296,7 +296,7 @@ async function bootstrap() {
             defaults: { id: crypto.randomUUID(), description: 'POS Operations and Front-desk' }
         });
         const cashierAllowed = [
-            'sale:view', 'sale:create', 'pos:access', 'shift:view', 'shift:create', 
+            'sale:view', 'sale:create', 'pos:access', 'shift:view', 'shift:create',
             'shift:manage', 'product:view', 'customer:view', 'customer:create',
             'sale_return:create', 'dashboard:view'
         ];
@@ -325,7 +325,7 @@ async function bootstrap() {
             defaults: { id: crypto.randomUUID(), description: 'E-commerce Sync and Product Management' }
         });
         const shopifyAllowed = [
-            'product:view', 'product:create', 'product:edit', 'category:view', 
+            'product:view', 'product:create', 'product:edit', 'category:view',
             'category:manage', 'stock:view', 'sale:view', 'dashboard:view'
         ];
         const shopifyPerms = allPerms.filter(p => shopifyAllowed.includes(p.name));
@@ -338,7 +338,7 @@ async function bootstrap() {
             defaults: { id: crypto.randomUUID(), description: 'Customer Engagement and Marketing' }
         });
         const whatsappAllowed = [
-            'crm:view', 'crm:manage', 'customer:view', 'customer:edit', 
+            'crm:view', 'crm:manage', 'customer:view', 'customer:edit',
             'sale:view', 'dashboard:view'
         ];
         const whatsappPerms = allPerms.filter(p => whatsappAllowed.includes(p.name));
@@ -354,9 +354,9 @@ async function bootstrap() {
                 max_branches: 1,
                 price_per_additional_user: 1000,
                 features: [
-                    'pos_billing', 'inventory_basic', 'inventory_po', 'accounting_basic', 
-                    'accounting_ledger_supplier', 'accounting_ledger_customer', 'staff_management', 
-                    'shift_management', 'system_backup', 'barcode_customization', 'reports_basic', 
+                    'pos_billing', 'inventory_basic', 'inventory_po', 'accounting_basic',
+                    'accounting_ledger_supplier', 'accounting_ledger_customer', 'staff_management',
+                    'shift_management', 'system_backup', 'barcode_customization', 'reports_basic',
                     'dashboard_kpi_live', 'dashboard_health'
                 ]
             },
@@ -367,13 +367,13 @@ async function bootstrap() {
                 max_branches: 3,
                 price_per_additional_user: 1000,
                 features: [
-                    'dashboard_kpi_live', 'dashboard_health', 'dashboard_custom', 'reports_basic', 
-                    'reports_advanced', 'pos_billing', 'pos_advanced', 'invoice_customization', 
-                    'pos_payments', 'pos_offline', 'inventory_basic', 'inventory_advanced', 
-                    'inventory_ledger', 'inventory_po', 'inventory_transfers', 'accounting_basic', 
-                    'accounting_advanced', 'accounting_ledger_manual', 'accounting_ledger_supplier', 
-                    'accounting_ledger_customer', 'accounting_reconciliation', 'staff_management', 
-                    'shift_management', 'multi_location', 'barcode_customization', 'system_backup', 
+                    'dashboard_kpi_live', 'dashboard_health', 'dashboard_custom', 'reports_basic',
+                    'reports_advanced', 'pos_billing', 'pos_advanced', 'invoice_customization',
+                    'pos_payments', 'pos_offline', 'inventory_basic', 'inventory_advanced',
+                    'inventory_ledger', 'inventory_po', 'inventory_transfers', 'accounting_basic',
+                    'accounting_advanced', 'accounting_ledger_manual', 'accounting_ledger_supplier',
+                    'accounting_ledger_customer', 'accounting_reconciliation', 'staff_management',
+                    'shift_management', 'multi_location', 'barcode_customization', 'system_backup',
                     'data_export'
                 ]
             },

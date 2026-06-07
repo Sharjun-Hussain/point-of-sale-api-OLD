@@ -70,6 +70,8 @@ const alwaysAllowedOrigins = [
     // Production frontend(s)
     'https://pos.inzeedo.lk',
     'http://pos.inzeedo.lk',
+    'https://pos-frontend-old-v2.vercel.app',
+    'http://pos-frontend-old-v2.vercel.app'
 ];
 
 // Merge: env overrides + static whitelist, deduplicated
