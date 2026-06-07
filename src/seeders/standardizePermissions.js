@@ -175,6 +175,23 @@ const seed = async () => {
         await orgAdminRole.setPermissions(orgAdminPermissions);
         console.log('✅ Assigned filtered permissions to Organization Admin role.');
 
+        // Create Sales Executive Role
+        const [salesExecRole] = await Role.findOrCreate({
+            where: { name: 'Sales Executive' },
+            defaults: { description: 'Sales and store operations access' }
+        });
+
+        const salesExecPermNames = [
+            'sale:view', 'sale:create', 'sale:edit',
+            'purchase:view', 'purchase:create', 'supplier:view',
+            'expense:view', 'expense:create', 'expense:edit',
+            'stock:view',
+            'branch:view', 'user:view', 'employee:view'
+        ];
+        const salesExecPermissions = allPermissionInstances.filter(p => salesExecPermNames.includes(p.name));
+        await salesExecRole.setPermissions(salesExecPermissions);
+        console.log('✅ Created Sales Executive role and assigned specific permissions.');
+
         console.log('🌱 Standardized Permissions Seeding Completed Successfully!');
         process.exit(0);
     } catch (error) {
