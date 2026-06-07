@@ -16,7 +16,7 @@ const registerValidationRules = [
         .withMessage('Email is required')
         .isEmail()
         .withMessage('Please provide a valid email address')
-        .normalizeEmail(),
+        .toLowerCase(),
 
     body('password')
         .notEmpty()
@@ -34,7 +34,7 @@ const loginValidationRules = [
         .withMessage('Email is required')
         .isEmail()
         .withMessage('Please provide a valid email address')
-        .normalizeEmail(),
+        .toLowerCase(),
 
     body('password')
         .notEmpty()

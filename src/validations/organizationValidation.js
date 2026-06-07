@@ -11,7 +11,7 @@ const updateOrganizationValidationRules = [
         .optional({ checkFalsy: true })
         .trim()
         .isEmail().withMessage('Institutional email format failure')
-        .normalizeEmail(),
+        .toLowerCase(),
 
     body('phone')
         .optional({ checkFalsy: true })
