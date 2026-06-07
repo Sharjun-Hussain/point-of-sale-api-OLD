@@ -401,6 +401,15 @@ class MaintenanceService {
             // 3. Fix Corrupted JSON data from native export fallback
             content = content.replace(/'\[object Object\]'/g, "'{}'");
 
+            // 4. Fix Corrupted features JSON array in business_plans
+            // Matches the sequence: features, price_per_additional_user, trial_days, is_active, created_at
+            content = content.replace(/,\s*'([A-Za-z0-9_,]+)',\s*'([0-9.]+)',\s*([0-9-]+),\s*([0-1]),\s*'([0-9]{4}-[0-9]{2}-[0-9]{2})/g, 
+                (match, features, price, trial, active, date) => {
+                    const jsonFeatures = `["${features.split(',').join('","')}"]`;
+                    return `, '${jsonFeatures}', '${price}', ${trial}, ${active}, '${date}`;
+                }
+            );
+
             fs.writeFileSync(filepath, content);
         } catch (err) {
             logger.warn(`SQL Pre-processing Warning: ${err.message}`);
