@@ -29,7 +29,7 @@ router.get('/stocks/expiring', checkPermission('report:view'), reportController.
 router.get('/stocks/batches/list', checkPermission('report:view'), reportController.getUniqueBatches);
 
 // Financial Reports
-router.get('/finance/profit-loss', checkPermission('report:view'), checkModule('accounting_advanced'), reportController.getProfitLoss);
+router.get('/finance/profit-loss', checkPermission('report:view'), checkModule('reports_advanced'), reportController.getProfitLoss);
 router.get('/finance/tax', checkPermission('report:view'), reportController.getTaxReport);
 router.get('/finance/capital-balance', checkPermission('report:view'), reportController.getCapitalBalance);
 router.get('/finance/cheques', checkPermission('report:view'), reportController.getChequeSummary);
@@ -59,9 +59,9 @@ router.get('/manufacturing/raw-material-usage', checkPermission('report:view'), 
 router.get('/manufacturing/distribution', checkPermission('report:view'), reportController.getDistributionReport);
 
 // Advanced Reports
-router.get('/advanced/transactions', checkPermission('report:view'), reportController.getStockTransactions);
-router.get('/advanced/stocks', checkPermission('report:view'), reportController.getAdvancedStockReport);
-router.get('/advanced/sales', checkPermission('report:view'), reportController.getAdvancedSalesReport);
-router.get('/advanced/batch-sales', checkPermission('report:view'), reportController.getBatchWiseSalesReport);
+router.get('/advanced/transactions', checkPermission('report:view'), checkModule('reports_advanced'), reportController.getStockTransactions);
+router.get('/advanced/stocks', checkPermission('report:view'), checkModule('reports_advanced'), reportController.getAdvancedStockReport);
+router.get('/advanced/sales', checkPermission('report:view'), checkModule('reports_advanced'), reportController.getAdvancedSalesReport);
+router.get('/advanced/batch-sales', checkPermission('report:view'), checkModule('reports_advanced'), reportController.getBatchWiseSalesReport);
 
 module.exports = router;
