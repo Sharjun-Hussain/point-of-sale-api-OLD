@@ -465,6 +465,8 @@ const createGRN = async (req, res, next) => {
 
 /**
  * Create Direct GRN (Auto-generates a PO)
+ * Everything runs in ONE atomic transaction — if GRN creation fails,
+ * the PO is also rolled back (no orphan POs with "received" status).
  */
 const createDirectGRN = async (req, res, next) => {
     const t = await db.sequelize.transaction();
@@ -474,9 +476,10 @@ const createDirectGRN = async (req, res, next) => {
             try { bodyContent = JSON.parse(req.body.data); } catch (e) { }
         }
 
-        const { supplier_id, items, branch_id } = bodyContent;
+        const { supplier_id, items, branch_id, grn_date, invoice_number, remarks, total_amount: payloadTotal } = bodyContent;
         const organization_id = req.user.organization_id;
         const target_branch_id = branch_id || req.user.branch_id;
+        const user_id = req.user.id;
 
         if (!target_branch_id) {
             await t.rollback();
@@ -486,93 +489,239 @@ const createDirectGRN = async (req, res, next) => {
             await t.rollback();
             return errorResponse(res, 'Supplier ID is required', 400);
         }
+        if (!items || !Array.isArray(items) || items.length === 0) {
+            await t.rollback();
+            return errorResponse(res, 'Items are required to create a GRN', 400);
+        }
 
-        // 1. Auto-generate PO number
+        // ── STEP 1: Resolve product / variant IDs ────────────────────────────────
         const date = new Date();
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const random = Math.floor(1000 + Math.random() * 9000);
-        const po_number = `PO-${year}${month}${day}-${random}-DIRECT`;
+        const po_number = `PO-${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}-${Math.floor(1000 + Math.random() * 9000)}-DIRECT`;
 
-        // Calculate total_amount for PO
         let totalAmount = 0;
-        const itemsToCreate = [];
+        const resolvedItems = [];
 
         for (const item of items) {
-            let variantId = item.variant_id || item.product_variant_id || item.productId;
-            let productId = item.product_id;
+            // Frontend sends snake_case fields: product_id, product_variant_id
+            const rawVariantId = item.variant_id || item.product_variant_id || null;
+            const rawProductId = item.product_id || null;
 
             let variant = null;
             let product = null;
 
-            if (variantId) {
-                variant = await db.ProductVariant.findOne({ where: { id: variantId, organization_id } });
+            if (rawVariantId) {
+                variant = await db.ProductVariant.findOne({ where: { id: rawVariantId, organization_id }, transaction: t });
             }
-            if (!variant) {
-                const lookupId = variantId || productId;
-                if (lookupId) {
-                    product = await db.Product.findOne({ where: { id: lookupId, organization_id } });
-                    if (product) {
-                        variant = await db.ProductVariant.findOne({ where: { product_id: product.id, organization_id } });
-                    }
+
+            if (variant) {
+                product = await db.Product.findOne({ where: { id: variant.product_id, organization_id }, transaction: t });
+            } else if (rawProductId) {
+                product = await db.Product.findOne({ where: { id: rawProductId, organization_id }, transaction: t });
+                if (product) {
+                    variant = await db.ProductVariant.findOne({
+                        where: { product_id: product.id, organization_id, is_active: true },
+                        order: [['is_default', 'DESC']],
+                        transaction: t
+                    });
                 }
-            } else {
-                product = await db.Product.findOne({ where: { id: variant.product_id, organization_id } });
             }
 
-            if (!product && !variant) continue;
+            if (!product) continue;
 
-            const resolvedProductId = product ? product.id : variant.product_id;
+            const resolvedProductId = product.id;
             const resolvedVariantId = variant ? variant.id : null;
-
             const qtyReceived = parseFloat(item.quantity_received || item.received_qty || item.receivedQty || 0);
             const cost = parseFloat(item.unit_cost || item.unitCost || 0);
-            const itemTotal = qtyReceived * cost;
+            totalAmount += qtyReceived * cost;
 
-            totalAmount += itemTotal;
-
-            // Ensure the item object for createGRN has resolved IDs
-            item.product_id = resolvedProductId;
-            item.product_variant_id = resolvedVariantId;
-
-            itemsToCreate.push({
-                organization_id,
+            resolvedItems.push({
+                ...item,
                 product_id: resolvedProductId,
                 product_variant_id: resolvedVariantId,
-                quantity: qtyReceived,
-                unit_cost: cost,
-                discount_percentage: 0,
-                total_amount: itemTotal
+                quantity_received: qtyReceived,
+                unit_cost: cost
             });
         }
 
+        if (resolvedItems.length === 0) {
+            await t.rollback();
+            return errorResponse(res, 'No valid items found to process', 400);
+        }
+
+        // ── STEP 2: Create Purchase Order ────────────────────────────────────────
         const po = await PurchaseOrder.create({
-            po_number,
-            supplier_id,
-            organization_id,
-            branch_id: target_branch_id,
-            user_id: req.user.id,
-            status: 'received',
-            total_amount: totalAmount,
+            po_number, supplier_id, organization_id,
+            branch_id: target_branch_id, user_id,
+            status: 'received', total_amount: totalAmount,
             remarks: 'Auto-generated for Direct GRN'
         }, { transaction: t });
 
-        const poItemsWithId = itemsToCreate.map(i => ({ ...i, purchase_order_id: po.id }));
-        await db.PurchaseOrderItem.bulkCreate(poItemsWithId, { transaction: t });
+        await db.PurchaseOrderItem.bulkCreate(
+            resolvedItems.map(i => ({
+                organization_id, purchase_order_id: po.id,
+                product_id: i.product_id, product_variant_id: i.product_variant_id,
+                quantity: i.quantity_received, unit_cost: i.unit_cost,
+                discount_percentage: 0, total_amount: i.quantity_received * i.unit_cost
+            })),
+            { transaction: t }
+        );
 
-        await t.commit();
+        // ── STEP 3: Auto-generate GRN number ─────────────────────────────────────
+        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const grnCount = await GRN.count({ where: { organization_id }, transaction: t });
+        const grn_number = `GRN-${dateStr}-${(grnCount + 1).toString().padStart(4, '0')}`;
+        const received_date = grn_date || new Date();
+        const finalTotal = payloadTotal || totalAmount;
 
-        // 2. Delegate to createGRN
-        req.body.purchase_order_id = po.id;
-        if (req.body.data && typeof req.body.data === 'string') {
-            const parsedData = JSON.parse(req.body.data);
-            parsedData.purchase_order_id = po.id;
-            parsedData.items = items; // Pass the resolved items with correct IDs to createGRN
-            req.body.data = JSON.stringify(parsedData);
+        // ── STEP 4: Create GRN ────────────────────────────────────────────────────
+        const grn = await GRN.create({
+            supplier_id, branch_id: target_branch_id, organization_id,
+            purchase_order_id: po.id, user_id, grn_number,
+            total_amount: finalTotal, notes: remarks || null,
+            invoice_number: invoice_number || null,
+            invoice_file: req.file ? req.file.path : null,
+            received_date
+        }, { transaction: t });
+
+        if (req.files && req.files.length > 0) {
+            await Promise.all(req.files.map(file =>
+                Attachment.create({
+                    organization_id, entity_type: 'GRN', entity_id: grn.id,
+                    file_path: file.path, file_name: file.originalname,
+                    file_size: file.size, file_type: file.mimetype
+                }, { transaction: t })
+            ));
         }
 
-        return createGRN(req, res, next);
+        // ── STEP 5: GRN items, batches, stock, price updates ─────────────────────
+        for (const item of resolvedItems) {
+            const qtyReceived = item.quantity_received;
+            const freeQty = parseFloat(item.free_qty || item.freeQty || 0);
+            const unitCost = item.unit_cost;
+            const sellingPrice = parseFloat(item.selling_price || item.sellingPrice || unitCost * 1.25);
+            const wholesalePrice = parseFloat(item.wholesale_price || item.wholesalePrice || 0);
+            const mrpPrice = parseFloat(item.mrp_price || item.mrpPrice || 0);
+
+            let effectiveBatchNumber = item.batch_number || item.batchNumber;
+            if (!effectiveBatchNumber) {
+                const dp = new Date(received_date).toISOString().slice(0, 10).replace(/-/g, '');
+                effectiveBatchNumber = `BN-${dp}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+            }
+
+            const [batch] = await db.ProductBatch.findOrCreate({
+                where: {
+                    organization_id, branch_id: target_branch_id,
+                    product_id: item.product_id, product_variant_id: item.product_variant_id || null,
+                    batch_number: effectiveBatchNumber,
+                    expiry_date: item.expiry_date || item.expiryDate || null,
+                    cost_price: unitCost, selling_price: sellingPrice,
+                    wholesale_price: wholesalePrice, mrp_price: mrpPrice
+                },
+                defaults: { quantity: 0, purchase_date: received_date },
+                transaction: t
+            });
+            await batch.increment('quantity', { by: qtyReceived + freeQty, transaction: t });
+
+            await db.GRNItem.create({
+                grn_id: grn.id,
+                product_id: item.product_id,
+                product_variant_id: item.product_variant_id || null,
+                product_batch_id: batch.id,
+                quantity_ordered: qtyReceived, quantity_received: qtyReceived,
+                free_quantity: freeQty, unit_cost: unitCost, mrp_price: mrpPrice,
+                selling_price: sellingPrice, wholesale_price: wholesalePrice,
+                total_amount: qtyReceived * unitCost,
+                expiry_date: item.expiry_date || item.expiryDate || null,
+                batch_number: effectiveBatchNumber
+            }, { transaction: t });
+
+            const [stock] = await db.Stock.findOrCreate({
+                where: {
+                    organization_id, branch_id: target_branch_id,
+                    product_id: item.product_id, product_variant_id: item.product_variant_id || null
+                },
+                defaults: { quantity: 0 },
+                transaction: t
+            });
+            await stock.increment('quantity', { by: qtyReceived + freeQty, transaction: t });
+
+            if (item.product_variant_id) {
+                await db.ProductVariant.update(
+                    { cost_price: unitCost, price: sellingPrice, wholesale_price: wholesalePrice },
+                    { where: { id: item.product_variant_id, organization_id }, transaction: t }
+                );
+            } else {
+                await db.Product.update(
+                    { cost_price: unitCost, price: sellingPrice, wholesale_price: wholesalePrice },
+                    { where: { id: item.product_id, organization_id }, transaction: t }
+                );
+            }
+        }
+
+        // ── STEP 6: Accounting (skip if total is 0 to avoid accountingService error) ──
+        if (finalTotal > 0) {
+            const [apAccount] = await Account.findOrCreate({
+                where: { organization_id, code: '2100' },
+                defaults: { name: 'Accounts Payable', type: 'liability' },
+                transaction: t
+            });
+            await accountingService.recordTransaction({
+                organization_id, branch_id: target_branch_id, account_id: apAccount.id,
+                supplier_id, amount: finalTotal, type: 'credit',
+                reference_type: 'GRN', reference_id: grn.id, transaction_date: received_date,
+                description: `Goods Received: ${grn_number} (Ref: ${invoice_number || 'N/A'})`
+            }, t);
+
+            const [inventoryAccount] = await Account.findOrCreate({
+                where: { organization_id, code: '1200' },
+                defaults: { name: 'Inventory Asset', type: 'asset' },
+                transaction: t
+            });
+            await accountingService.recordTransaction({
+                organization_id, branch_id: target_branch_id, account_id: inventoryAccount.id,
+                amount: finalTotal, type: 'debit',
+                reference_type: 'GRN', reference_id: grn.id, transaction_date: received_date,
+                description: `Inventory Addition: ${grn_number}`
+            }, t);
+        }
+
+        // ── STEP 7: Audit log ─────────────────────────────────────────────────────
+        await db.AuditLog.create({
+            organization_id, user_id, action: 'CREATE',
+            entity_type: 'GRN', entity_id: grn.id,
+            description: `Direct GRN created: ${grn_number}. Auto PO: ${po_number}. ${resolvedItems.length} items received.`,
+            metadata: { grn_id: grn.id, grn_number, po_id: po.id, po_number, items_count: resolvedItems.length }
+        }, { transaction: t });
+
+        // ── Commit everything atomically ──────────────────────────────────────────
+        await t.commit();
+
+        // E-commerce sync (fire-and-forget, runs outside the transaction)
+        (async () => {
+            try {
+                const shopifyService = require('../services/shopifyService');
+                const customEcommerceService = require('../services/customEcommerceService');
+                for (const item of resolvedItems) {
+                    let sku = null;
+                    if (item.product_variant_id) {
+                        const v = await db.ProductVariant.findByPk(item.product_variant_id);
+                        sku = v?.sku || v?.barcode;
+                    } else {
+                        const p = await db.Product.findByPk(item.product_id);
+                        sku = p?.code || p?.barcode;
+                    }
+                    if (sku) {
+                        const qty = item.quantity_received + parseFloat(item.free_qty || item.freeQty || 0);
+                        await shopifyService.syncInventory(organization_id, sku, qty);
+                        await customEcommerceService.syncInventory(organization_id, sku, qty);
+                    }
+                }
+            } catch (err) {
+                console.error('[SYNC] Direct GRN sync failed:', err);
+            }
+        })();
+
+        return successResponse(res, grn, 'Direct GRN & Purchase Order created successfully', 201);
     } catch (error) {
         await t.rollback();
         next(error);
