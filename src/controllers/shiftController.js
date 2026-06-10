@@ -205,13 +205,39 @@ const closeShift = async (req, res, next) => {
         });
         
         let cashSales = 0;
+        const saleIds = [];
         for (const sale of sales) {
+            saleIds.push(sale.id);
             if (sale.payments && sale.payments.length > 0) {
-                const cashLine = sale.payments.filter(p => p.payment_method.toLowerCase() === 'cash');
-                cashSales += cashLine.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+                // Cap to payable_amount to exclude change given back to customer
+                let remaining_payable = parseFloat(sale.payable_amount);
+                for (const p of sale.payments) {
+                    if (p.payment_method.toLowerCase() === 'cash') {
+                        const effective = Math.min(parseFloat(p.amount), remaining_payable);
+                        cashSales += effective;
+                        remaining_payable -= effective;
+                    }
+                }
             } else if (sale.payment_method && sale.payment_method.toLowerCase() === 'cash') {
                 // Fallback for legacy records created before SalePayment migration
-                cashSales += parseFloat(sale.paid_amount || 0);
+                cashSales += Math.min(parseFloat(sale.paid_amount || 0), parseFloat(sale.payable_amount));
+            }
+        }
+
+        // Subtract cash refunds issued during this shift
+        let cashRefunds = 0;
+        if (saleIds.length > 0) {
+            const saleReturns = await db.SaleReturn.findAll({
+                where: { sale_id: saleIds },
+                include: [{ model: db.SaleReturnPayment, as: 'payments' }],
+                transaction: t
+            });
+            for (const ret of saleReturns) {
+                if (ret.payments && ret.payments.length > 0) {
+                    cashRefunds += ret.payments
+                        .filter(p => p.payment_method && p.payment_method.toLowerCase() === 'cash')
+                        .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+                }
             }
         }
 
@@ -224,7 +250,7 @@ const closeShift = async (req, res, next) => {
             if (tx.type === 'payout') payouts += parseFloat(tx.amount);
         }
 
-        const expected_cash = parseFloat(shift.opening_cash) + cashSales + payIns - drops - payouts;
+        const expected_cash = parseFloat(shift.opening_cash) + cashSales - cashRefunds + payIns - drops - payouts;
         const variance = parseFloat(closing_cash) - expected_cash;
 
         shift.closing_cash = closing_cash;

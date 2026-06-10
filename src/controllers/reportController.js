@@ -237,8 +237,8 @@ const reportController = {
                 }
             }
 
-            // ── Cash Refunds (cash returned to customers in this date range) ───────
-            const refundWhereClause = { organization_id, payment_method: 'cash' };
+            // ── All Refunds (money returned to customers in this date range) ───────
+            const refundWhereClause = { organization_id };
             if (start_date && end_date) {
                 refundWhereClause.created_at = {
                     [Op.between]: [
@@ -247,13 +247,18 @@ const reportController = {
                     ]
                 };
             }
-            const cashRefunds = await db.SaleReturnPayment.findAll({
+            const allRefunds = await db.SaleReturnPayment.findAll({
                 where: refundWhereClause,
-                attributes: ['amount'],
+                attributes: ['amount', 'payment_method'],
                 raw: true
             });
-            const totalCashRefunded = cashRefunds.reduce((sum, r) => sum + Number(r.amount), 0);
-            totalRefund = totalCashRefunded;
+            
+            totalRefund = allRefunds.reduce((sum, r) => sum + Number(r.amount), 0);
+            
+            // Filter only cash refunds to calculate the physical cash drawer balance
+            const totalCashRefunded = allRefunds
+                .filter(r => r.payment_method && r.payment_method.toLowerCase() === 'cash')
+                .reduce((sum, r) => sum + Number(r.amount), 0);
 
             // ── Shift Opening Balance (sum of all shifts opened in this date range) ─
             const shiftWhereClause = { organization_id };
