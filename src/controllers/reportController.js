@@ -155,11 +155,19 @@ const reportController = {
                     { 
                         model: SaleItem, 
                         as: 'items',
-                        include: [{
-                            model: ProductVariant,
-                            as: 'variant',
-                            attributes: ['cost_price', 'mrp_price', 'wholesale_price', 'price']
-                        }]
+                        include: [
+                            {
+                                model: ProductVariant,
+                                as: 'variant',
+                                attributes: ['cost_price', 'mrp_price', 'wholesale_price', 'price']
+                            },
+                            {
+                                model: Product,
+                                as: 'product',
+                                attributes: ['name', 'product_type'],
+                                include: [{ model: db.Brand, as: 'brand', attributes: ['name'] }]
+                            }
+                        ]
                     }
                 ],
                 order: [['created_at', 'DESC']]
@@ -168,9 +176,11 @@ const reportController = {
 
 
             // Aggregate Data
+            const productBreakdown = {};
             const totalSales = sales.reduce((sum, sale) => sum + Number(sale.payable_amount), 0);
             const totalDiscounts = sales.reduce((sum, sale) => sum + Number(sale.discount_amount), 0);
             const totalTax = sales.reduce((sum, sale) => sum + Number(sale.tax_amount), 0);
+            let totalRefund = 0; // We'll compute total refund if there are any returned sales, but for now it's 0 as these are completed sales
 
             // ── Split Payment Aware Breakdown ──────────────────────────────────────
             const categoryAmounts = {};
@@ -198,6 +208,22 @@ const reportController = {
                     const method = sale.payment_method || 'Other';
                     categoryAmounts[method] = (categoryAmounts[method] || 0) + Number(sale.paid_amount);
                     categoryCounts[method] = (categoryCounts[method] || 0) + 1;
+                }
+
+                // Product Breakdown
+                if (sale.items && sale.items.length > 0) {
+                    for (const item of sale.items) {
+                        const qty = Number(item.quantity);
+                        const amount = Number(item.total_amount || (qty * Number(item.price || item.variant?.price || 0)));
+                        const isService = item.product?.product_type === 'Service';
+                        
+                        if (!isService) {
+                            const brandName = item.product?.brand?.name || item.product?.name || item.variant?.name || 'Unbranded';
+                            if (!productBreakdown[brandName]) productBreakdown[brandName] = { brand: brandName, quantity: 0, amount: 0 };
+                            productBreakdown[brandName].quantity += qty;
+                            productBreakdown[brandName].amount += amount;
+                        }
+                    }
                 }
             }
 
@@ -244,6 +270,8 @@ const reportController = {
                     avgValue: sales.length > 0 ? totalSales / sales.length : 0,
                     paymentBreakdown: breakdownPercentages,
                     paymentAmounts: categoryAmounts,
+                    productBreakdown,
+                    totalRefund,
                     shopifyEnabled: !!(await db.Organization.findByPk(organization_id))?.shopify_enabled,
                     posSalesVolume: sales.filter(s => s.source !== 'shopify').reduce((sum, s) => sum + Number(s.payable_amount), 0),
                     shopifySalesVolume: sales.filter(s => s.source === 'shopify').reduce((sum, s) => sum + Number(s.payable_amount), 0),
