@@ -19,9 +19,17 @@ const db = require('./src/models');
 async function cleanup() {
     const t = await db.sequelize.transaction();
     try {
-        // Find the bad POs
         const badPOs = await db.PurchaseOrder.findAll({
-            where: { remarks: 'Auto-generated for Direct GRN', status: 'received' },
+            where: { 
+                po_number: { [db.Sequelize.Op.like]: '%-DIRECT' },
+                status: 'received',
+                created_at: {
+                    [db.Sequelize.Op.between]: ['2026-06-10 00:00:00', '2026-06-10 23:59:59']
+                },
+                id: {
+                    [db.Sequelize.Op.notIn]: db.sequelize.literal(`(SELECT purchase_order_id FROM grns WHERE purchase_order_id IS NOT NULL)`)
+                }
+            },
             attributes: ['id', 'po_number', 'total_amount', 'created_at'],
             transaction: t
         });
