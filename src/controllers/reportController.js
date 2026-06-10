@@ -198,15 +198,25 @@ const reportController = {
 
                 // Process actual payments
                 if (sale.payments && sale.payments.length > 0) {
+                    let remaining_payable = Number(sale.payable_amount);
                     for (const pmt of sale.payments) {
                         const method = pmt.payment_method || 'Other';
-                        categoryAmounts[method] = (categoryAmounts[method] || 0) + Number(pmt.amount);
+                        const pmt_amount = Number(pmt.amount);
+                        
+                        // Cap the payment to remaining payable to exclude change given back
+                        // This ensures 'Total Payment' matches 'Total Sales' exactly
+                        const effective_amount = Math.max(0, Math.min(pmt_amount, remaining_payable));
+                        
+                        categoryAmounts[method] = (categoryAmounts[method] || 0) + effective_amount;
                         categoryCounts[method] = (categoryCounts[method] || 0) + 1;
+                        
+                        remaining_payable -= effective_amount;
                     }
                 } else {
                     // Fallback for legacy data/drafts
                     const method = sale.payment_method || 'Other';
-                    categoryAmounts[method] = (categoryAmounts[method] || 0) + Number(sale.paid_amount);
+                    const effective_amount = Math.max(0, Math.min(Number(sale.paid_amount), Number(sale.payable_amount)));
+                    categoryAmounts[method] = (categoryAmounts[method] || 0) + effective_amount;
                     categoryCounts[method] = (categoryCounts[method] || 0) + 1;
                 }
 
