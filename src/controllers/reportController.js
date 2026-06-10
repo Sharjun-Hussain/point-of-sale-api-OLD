@@ -180,7 +180,7 @@ const reportController = {
             const totalSales = sales.reduce((sum, sale) => sum + Number(sale.payable_amount), 0);
             const totalDiscounts = sales.reduce((sum, sale) => sum + Number(sale.discount_amount), 0);
             const totalTax = sales.reduce((sum, sale) => sum + Number(sale.tax_amount), 0);
-            let totalRefund = 0; // We'll compute total refund if there are any returned sales, but for now it's 0 as these are completed sales
+            let totalRefund = 0; 
 
             // ── Split Payment Aware Breakdown ──────────────────────────────────────
             const categoryAmounts = {};
@@ -227,6 +227,49 @@ const reportController = {
                 }
             }
 
+            // ── Cash Refunds (cash returned to customers in this date range) ───────
+            const refundWhereClause = { organization_id, payment_method: 'cash' };
+            if (start_date && end_date) {
+                refundWhereClause.created_at = {
+                    [Op.between]: [
+                        new Date(start_date + 'T00:00:00'),
+                        new Date(end_date + 'T23:59:59')
+                    ]
+                };
+            }
+            const cashRefunds = await db.SaleReturnPayment.findAll({
+                where: refundWhereClause,
+                attributes: ['amount'],
+                raw: true
+            });
+            const totalCashRefunded = cashRefunds.reduce((sum, r) => sum + Number(r.amount), 0);
+            totalRefund = totalCashRefunded;
+
+            // ── Shift Opening Balance (sum of all shifts opened in this date range) ─
+            const shiftWhereClause = { organization_id };
+            if (branch_id && branch_id !== 'all') {
+                shiftWhereClause.branch_id = branch_id;
+            }
+            if (start_date && end_date) {
+                shiftWhereClause.opening_time = {
+                    [Op.between]: [
+                        new Date(start_date + 'T00:00:00'),
+                        new Date(end_date + 'T23:59:59')
+                    ]
+                };
+            }
+            const shifts = await db.Shift.findAll({
+                where: shiftWhereClause,
+                attributes: ['opening_cash'],
+                raw: true
+            });
+            const totalOpeningBalance = shifts.reduce((sum, s) => sum + Number(s.opening_cash || 0), 0);
+
+            // ── Real Cash in Hand Calculation ──────────────────────────────────────
+            // Normalise cash key — DB may store as 'cash' (lowercase) or 'Cash' (capitalised)
+            const cashSales = (categoryAmounts['cash'] || categoryAmounts['Cash'] || 0);
+            const cashInHand = totalOpeningBalance + cashSales - totalCashRefunded;
+
             // Calculate percentages based on AMOUNT (more useful for financial reports)
             const breakdownPercentages = {};
             for (const [category, amount] of Object.entries(categoryAmounts)) {
@@ -256,7 +299,6 @@ const reportController = {
                         payments: s.payments, // include detail
                         total_cost,
                         total_mrp,
-                        total_mrp,
                         total_wholesale,
                         total_selling_base,
                         source: s.source
@@ -272,6 +314,8 @@ const reportController = {
                     paymentAmounts: categoryAmounts,
                     productBreakdown,
                     totalRefund,
+                    totalOpeningBalance,
+                    cashInHand,
                     shopifyEnabled: !!(await db.Organization.findByPk(organization_id))?.shopify_enabled,
                     posSalesVolume: sales.filter(s => s.source !== 'shopify').reduce((sum, s) => sum + Number(s.payable_amount), 0),
                     shopifySalesVolume: sales.filter(s => s.source === 'shopify').reduce((sum, s) => sum + Number(s.payable_amount), 0),
