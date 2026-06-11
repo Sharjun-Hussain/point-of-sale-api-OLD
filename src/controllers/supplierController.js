@@ -778,6 +778,7 @@ const getGRNDetail = async (req, res, next) => {
                 { model: Supplier, as: 'supplier' },
                 { model: Branch, as: 'branch' },
                 { model: User, as: 'received_by_user' },
+                { model: PurchaseOrder, as: 'purchase_order' },
                 {
                     model: GRNItem,
                     as: 'items',
