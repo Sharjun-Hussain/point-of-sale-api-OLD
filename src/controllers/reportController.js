@@ -429,6 +429,87 @@ const reportController = {
                 uniqueProducts: acc.uniqueProducts + 1
             }), { totalRevenue: 0, totalSold: 0, uniqueProducts: 0 });
 
+            // Calculate global register details for the date range
+            const registerSaleWhere = { organization_id, status: 'completed' };
+            if (start_date && end_date) {
+                registerSaleWhere.created_at = whereClause.created_at;
+            }
+            if (branch_id && branch_id !== 'all') {
+                registerSaleWhere.branch_id = branch_id;
+            }
+
+            const salesForRegister = await Sale.findAll({
+                where: registerSaleWhere,
+                include: [{ model: db.SalePayment, as: 'payments' }]
+            });
+
+            const paymentAmounts = {};
+            let totalSales = 0;
+            let totalCreditSales = 0;
+            for (const sale of salesForRegister) {
+                totalSales += Number(sale.payable_amount);
+                
+                if (sale.payment_status === 'unpaid' || sale.payment_status === 'partially_paid') {
+                    const remaining = Number(sale.payable_amount) - Number(sale.paid_amount);
+                    if (remaining > 0) {
+                        paymentAmounts['Credit'] = (paymentAmounts['Credit'] || 0) + remaining;
+                        totalCreditSales += remaining;
+                    }
+                }
+
+                if (sale.payments && sale.payments.length > 0) {
+                    let remaining = Number(sale.payable_amount);
+                    for (const pmt of sale.payments) {
+                        const method = pmt.payment_method || 'Other';
+                        const effective = Math.max(0, Math.min(Number(pmt.amount), remaining));
+                        paymentAmounts[method] = (paymentAmounts[method] || 0) + effective;
+                        remaining -= effective;
+                    }
+                } else {
+                    const method = sale.payment_method || 'Other';
+                    const effective = Math.max(0, Math.min(Number(sale.paid_amount), Number(sale.payable_amount)));
+                    paymentAmounts[method] = (paymentAmounts[method] || 0) + effective;
+                }
+            }
+
+            // Refunds
+            const refundWhereClause = { organization_id };
+            if (start_date && end_date) {
+                refundWhereClause.created_at = whereClause.created_at;
+            }
+            const allRefunds = await db.SaleReturnPayment.findAll({
+                where: refundWhereClause,
+                attributes: ['amount', 'payment_method'],
+                raw: true
+            });
+            const totalRefund = allRefunds.reduce((sum, r) => sum + Number(r.amount), 0);
+            const totalCashRefunded = allRefunds
+                .filter(r => r.payment_method && r.payment_method.toLowerCase() === 'cash')
+                .reduce((sum, r) => sum + Number(r.amount), 0);
+
+            // Shifts
+            const shiftWhereClause = { organization_id };
+            if (branch_id && branch_id !== 'all') shiftWhereClause.branch_id = branch_id;
+            if (start_date && end_date) shiftWhereClause.opening_time = whereClause.created_at;
+            const shifts = await db.Shift.findAll({
+                where: shiftWhereClause,
+                attributes: ['opening_cash'],
+                raw: true
+            });
+            const totalOpeningBalance = shifts.reduce((sum, s) => sum + Number(s.opening_cash || 0), 0);
+
+            const cashSales = (paymentAmounts['cash'] || paymentAmounts['Cash'] || 0);
+            const cashInHand = totalOpeningBalance + cashSales - totalCashRefunded;
+
+            summary.registerDetails = {
+                paymentAmounts,
+                totalRefund,
+                totalOpeningBalance,
+                cashInHand,
+                totalSales,
+                totalCreditSales
+            };
+
             // Pagination
             const total = items.length;
             const totalPages = Math.ceil(total / limit);
