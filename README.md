@@ -8,42 +8,57 @@
 ## 📑 Table of Contents
 
 - [1. Overview & Key Features](#1-overview--key-features)
-- [2. Tech Stack & Architecture](#2-tech-stack--architecture)
+- [2. Tech Stack & Project Architecture](#2-tech-stack--project-architecture)
 - [3. Local Hosting & Development](#3-local-hosting--development)
-  - [Prerequisites](#prerequisites)
-  - [Installation & Configuration](#installation--configuration)
-  - [Database Bootstrap](#database-bootstrap)
-  - [Running Locally](#running-locally)
-- [4. API Documentation](#4-api-documentation)
-  - [Authentication](#authentication)
-  - [Example Endpoints](#example-endpoints)
-- [5. Production Deployment (VPS)](#5-production-deployment-vps)
-  - [Method 1: Docker & Traefik (Recommended)](#method-1-docker--traefik-recommended)
-  - [Method 2: Bare-Metal Setup (PM2 & Nginx)](#method-2-bare-metal-setup-pm2--nginx)
-- [6. HTTPS & Load Balancing Strategy](#6-https--load-balancing-strategy)
+- [4. Database Migrations & Backups](#4-database-migrations--backups)
+- [5. API Documentation & WebSockets](#5-api-documentation--websockets)
+- [6. Production Deployment (VPS)](#6-production-deployment-vps)
+- [7. HTTPS & Load Balancing Strategy](#7-https--load-balancing-strategy)
+- [8. CI/CD & Testing Pipelines](#8-cicd--testing-pipelines)
+- [9. Monitoring, Logging & Error Handling](#9-monitoring-logging--error-handling)
+- [10. Contribution Guidelines](#10-contribution-guidelines)
 
 ---
 
 ## 1. Overview & Key Features
 
-The **Backend Services** repository houses the core API infrastructure that powers the entire Inzeedo ecosystem (Web Client, Desktop/Electron apps, and Mobile applications). 
+The **Backend Services** repository houses the core API infrastructure that powers the entire Inzeedo ecosystem. 
 
 ### ✨ Key Features
-- **Centralized Data Hub**: Single source of truth for all POS transactions, user management, and business operations.
-- **Robust Authentication**: Secure, token-based authentication handling multiple client types and RBAC (Role-Based Access Control) permissions.
-- **High-Performance Architecture**: Built to handle concurrent point-of-sale transactions efficiently without data collisions.
-- **Hardware Integrations API**: Provides endpoints tailored for hardware synchronization and receipt generation metrics.
-- **Reporting Engine**: Processes complex aggregate queries for the financial and sales reporting dashboards.
+- **Centralized Data Hub**: Single source of truth for POS transactions and business operations.
+- **Robust Authentication**: Token-based auth handling multiple client types and RBAC.
+- **High-Performance Architecture**: Handles concurrent POS transactions safely.
+- **Reporting Engine**: Processes complex aggregate queries for dashboards.
+- **Real-Time Sync**: Pushes instant updates to POS terminals via WebSockets.
 
 ---
 
-## 2. Tech Stack & Architecture
+## 2. Tech Stack & Project Architecture
 
 - **Framework**: Node.js / Express (or Next.js API Routes)
 - **Database**: PostgreSQL / MySQL
 - **ORM**: Prisma / Sequelize
 - **Caching**: Redis
-- **Authentication**: JWT / NextAuth compatibility
+- **Authentication**: JWT
+
+### 📂 Directory Structure
+We utilize a Service-Controller pattern to ensure business logic is decoupled from HTTP transport layers.
+
+```text
+backend/
+├── src/
+│   ├── config/         # Environment & third-party integrations setup
+│   ├── controllers/    # Request/Response handling & input parsing
+│   ├── middlewares/    # Auth, Validation, & Error handling middleware
+│   ├── models/         # ORM schemas and database definitions
+│   ├── routes/         # Express router definitions mapping to controllers
+│   ├── services/       # Core business logic (DB calls, complex calculations)
+│   ├── sockets/        # WebSocket event listeners and emitters
+│   └── utils/          # Shared helpers, logger instances, constants
+├── tests/              # Unit and integration test suites
+├── package.json
+└── bootstrap-db.js     # DB initialization script
+```
 
 ---
 
@@ -51,146 +66,159 @@ The **Backend Services** repository houses the core API infrastructure that powe
 
 ### Prerequisites
 - **Node.js**: >= 18.x
-- **Database**: PostgreSQL/MySQL running locally or via Docker
-- **Redis**: Optional, for caching and rate-limiting
+- **Database**: PostgreSQL/MySQL
+- **Redis**: Optional, for caching
 
 ### Installation & Configuration
+```bash
+git clone <repo-url>
+cd pos/important/backend
+npm install
+```
 
-1. **Clone the repository** and navigate to the backend directory:
-   ```bash
-   cd pos/important/backend
-   npm install
-   ```
+### 🔐 Environment Variables Reference
+Create a `.env` file in the root. Below is a comprehensive list of all required and optional flags:
 
-2. **Configure Environment Variables**: Create a `.env` file in the root of the `backend` directory.
-   ```env
-   PORT=8000
-   DATABASE_URL="postgresql://user:password@localhost:5432/inzeedo_db?schema=public"
-   JWT_SECRET="your_jwt_secret"
-   NODE_ENV="development"
-   ```
+| Variable | Type | Default | Description | Required |
+|----------|------|---------|-------------|----------|
+| `PORT` | Number | `8000` | The port the HTTP server binds to. | Yes |
+| `NODE_ENV` | String | `development` | `development`, `staging`, or `production`. | Yes |
+| `DATABASE_URL` | String | - | Connection string for Postgres/MySQL. | Yes |
+| `JWT_SECRET` | String | - | Secret key used to sign Auth tokens. | Yes |
+| `JWT_EXPIRES_IN` | String | `7d` | Token expiration time (e.g., `15m`, `7d`). | No |
+| `REDIS_URL` | String | - | Connection string for Redis caching. | No |
+| `CORS_ORIGIN` | String | `*` | Allowed origins for API requests. | No |
 
 ### Database Bootstrap
-Before running the application, you must initialize the database schema and populate it with essential seed data (default admin accounts, system settings, and essential roles).
-
-Run the bootstrap script:
+Run the initialization script to seed the database:
 ```bash
 node bootstrap-db.js
 ```
 > [!WARNING]
-> This script will drop existing tables if run with a `--force` flag. Ensure you are using it carefully in development environments.
+> Running this script with the `--force` flag will drop all existing tables. Use with extreme caution.
 
 ### Running Locally
-Start the development server with hot-reloading:
 ```bash
 npm run dev
 ```
-The API will be available at `http://localhost:8000`.
 
 ---
 
-## 4. API Documentation
+## 4. Database Migrations & Backups
 
-The backend exposes a RESTful API to handle ERP functions.
+### Migrations
+We manage database schema changes via our ORM. Never modify the database schema directly via SQL.
 
-### Authentication
-All protected routes require an authorization header containing a valid JWT token:
-```http
-Authorization: Bearer <your_jwt_token>
+- **Create a Migration**: `npm run db:migrate:make "migration_name"`
+- **Apply Migrations**: `npm run db:migrate`
+- **Rollback**: `npm run db:migrate:undo`
+
+### Production Backups
+In production, automated backups should be scheduled via `cron`.
+Example `pg_dump` backup strategy:
+```bash
+0 2 * * * pg_dump $DATABASE_URL > /backups/db_backup_$(date +\%F).sql
 ```
 
-### Example Endpoints
-- `POST /api/auth/login` - Authenticate a user and receive a token.
-- `GET /api/inventory/products` - Fetch the product catalog (supports pagination, filtering).
-- `POST /api/sales/transaction` - Submit a new POS transaction.
-- `GET /api/reports/daily-sales` - Retrieve aggregated sales data for dashboards.
+---
+
+## 5. API Documentation & WebSockets
+
+### REST API
+All protected routes require an authorization header: `Authorization: Bearer <token>`.
+- `POST /api/auth/login` - Authenticate a user.
+- `GET /api/inventory/products` - Fetch paginated products.
+- `POST /api/sales/transaction` - Submit POS transaction.
+
+### WebSockets (Real-Time Events)
+The backend uses WebSockets to sync data to active POS terminals instantly.
+- **Connection URL**: `ws://api.yourdomain.com/socket`
+- **Events Emitted**:
+  - `inventory:update` - Triggered when a product stock level drops.
+  - `order:new` - Triggered for Kitchen Display Screens (KDS) when a food order is placed.
 
 ---
 
-## 5. Production Deployment (VPS)
-
-The backend is designed to be highly available. We provide two primary methods for deploying the backend to a Virtual Private Server (VPS).
+## 6. Production Deployment (VPS)
 
 ### Method 1: Docker & Traefik (Recommended)
-This approach provides automated HTTPS certificates via Let's Encrypt and seamless load balancing out-of-the-box.
-
-1. **Install Requirements**: Ensure Docker & Docker Compose are installed on your VPS.
-2. **Docker Compose Setup**: Define the Backend, Database, Redis, and Traefik router in `docker-compose.yml`.
-3. **Traefik Configuration Labels**: Ensure the backend container includes the following routing and SSL labels:
+Provides automated HTTPS and load balancing out-of-the-box.
+1. Define the Backend, DB, and Traefik in `docker-compose.yml`.
+2. Apply Traefik Labels to the backend service:
    ```yaml
    labels:
      - "traefik.enable=true"
      - "traefik.http.routers.backend.rule=Host(`api.yourdomain.com`)"
      - "traefik.http.routers.backend.entrypoints=websecure"
      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
-     - "traefik.http.services.backend.loadbalancer.server.port=8000"
    ```
-4. **Deploy Application**:
-   ```bash
-   docker-compose up -d --build
-   ```
+3. Deploy: `docker-compose up -d --build`
 
-### Method 2: Bare-Metal Setup (PM2 & Nginx)
-For traditional deployments without Docker.
-
-1. **Install Requirements**: Install Node.js, PM2, and Nginx on your VPS.
-2. **Build the Project**: Run `npm install` and `npm run build`.
-3. **Bootstrap Production DB**: `NODE_ENV=production node bootstrap-db.js`
-4. **Start with PM2**: Run the application in cluster mode to utilize all CPU cores.
+### Method 2: Bare-Metal Setup (PM2)
+1. Install Node.js, PM2, and Nginx.
+2. Build the project: `npm run build`.
+3. Start PM2 in cluster mode to utilize all CPU cores:
    ```bash
    pm2 start npm --name "inzeedo-backend" -i max -- run start
    pm2 save
-   pm2 startup
    ```
 
 ---
 
-## 6. HTTPS & Load Balancing Strategy
+## 7. HTTPS & Load Balancing Strategy
 
-### Scaling with Traefik (Method 1)
-To scale the backend instances with Traefik, simply use Docker Compose scaling. Traefik will automatically round-robin traffic between the containers.
-```bash
-docker-compose up -d --scale backend=3
-```
+- **Traefik Scaling**: `docker-compose up -d --scale backend=3`
+- **Nginx Config**: If using PM2, configure Nginx as a reverse proxy:
+  ```nginx
+  upstream backend_cluster {
+      server 127.0.0.1:8000;
+  }
+  server {
+      listen 80;
+      server_name api.yourdomain.com;
+      location / {
+          proxy_pass http://backend_cluster;
+          proxy_http_version 1.1;
+          proxy_set_header Upgrade $http_upgrade;
+          proxy_set_header Connection 'upgrade';
+      }
+  }
+  ```
+- **Certbot (Nginx SSL)**: `sudo certbot --nginx -d api.yourdomain.com`
 
-### Scaling with Nginx & Certbot (Method 2)
-If you used the bare-metal setup, configure Nginx to act as a reverse proxy and load balancer.
+---
 
-1. **Create Nginx Configuration**: `/etc/nginx/sites-available/api.yourdomain.com`:
-   ```nginx
-   upstream backend_cluster {
-       # PM2 handles local clustering, but if you have multiple VPS nodes:
-       server 127.0.0.1:8000;
-       # server 10.0.0.2:8000; # Add secondary nodes here
-   }
+## 8. CI/CD & Testing Pipelines
 
-   server {
-       listen 80;
-       server_name api.yourdomain.com;
+We ensure code quality through automated pipelines (GitHub Actions / GitLab CI).
 
-       location / {
-           proxy_pass http://backend_cluster;
-           proxy_http_version 1.1;
-           proxy_set_header Upgrade $http_upgrade;
-           proxy_set_header Connection 'upgrade';
-           proxy_set_header Host $host;
-           proxy_cache_bypass $http_upgrade;
-           
-           # Real IP Forwarding
-           proxy_set_header X-Real-IP $remote_addr;
-           proxy_set_header X-Forwarded-For $proxy_addres_forwarded_for;
-       }
-   }
-   ```
-2. **Enable and Restart**:
-   ```bash
-   ln -s /etc/nginx/sites-available/api.yourdomain.com /etc/nginx/sites-enabled/
-   nginx -t
-   systemctl restart nginx
-   ```
-3. **Secure with Let's Encrypt**:
-   ```bash
-   sudo apt install certbot python3-certbot-nginx
-   sudo certbot --nginx -d api.yourdomain.com
-   ```
-   Certbot will automatically install the SSL certificates and redirect HTTP traffic to HTTPS.
+### Testing
+Run the test suites locally before pushing:
+- **Unit Tests**: `npm run test:unit`
+- **Integration Tests**: `npm run test:integration`
+- **Coverage Report**: `npm run test:coverage`
+
+### Automated Pipeline Workflow
+1. **Lint & Test**: On every PR, the pipeline runs ESLint and Jest suites.
+2. **Docker Build**: On merge to `main`, a new Docker image is built and pushed to the registry.
+3. **Deploy**: A webhook triggers a rolling restart on the production VPS.
+
+---
+
+## 9. Monitoring, Logging & Error Handling
+
+### Logging
+We use structured JSON logging (via Winston/Pino) so logs can be easily parsed by DataDog/ELK stack.
+- View local logs: `pm2 logs inzeedo-backend`
+- View Docker logs: `docker logs -f backend_container`
+
+### Error Handling
+Always use the custom `AppError` class located in `src/utils/AppError.js` to throw errors. This ensures a consistent JSON error response format to the frontend clients.
+
+---
+
+## 10. Contribution Guidelines
+
+- **Branch Naming**: Use `feature/name`, `bugfix/name`, or `hotfix/name`.
+- **Commit Messages**: Follow Conventional Commits format (e.g., `feat: added caching to product route`).
+- **Code Style**: Ensure you run `npm run lint` and `npm run format` (Prettier) before opening a PR to avoid failing pipeline checks.
