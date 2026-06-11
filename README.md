@@ -11,7 +11,7 @@
 - [2. Tech Stack & Project Architecture](#2-tech-stack--project-architecture)
 - [3. Local Hosting & Development](#3-local-hosting--development)
 - [4. Database Migrations & Backups](#4-database-migrations--backups)
-- [5. API Documentation & WebSockets](#5-api-documentation--websockets)
+- [5. API Documentation](#5-api-documentation)
 - [6. Production Deployment (VPS)](#6-production-deployment-vps)
 - [7. HTTPS & Load Balancing Strategy](#7-https--load-balancing-strategy)
 - [8. CI/CD & Testing Pipelines](#8-cicd--testing-pipelines)
@@ -79,15 +79,33 @@ npm install
 ### 🔐 Environment Variables Reference
 Create a `.env` file in the root. Below is a comprehensive list of all required and optional flags:
 
-| Variable | Type | Default | Description | Required |
-|----------|------|---------|-------------|----------|
-| `PORT` | Number | `8000` | The port the HTTP server binds to. | Yes |
-| `NODE_ENV` | String | `development` | `development`, `staging`, or `production`. | Yes |
-| `DATABASE_URL` | String | - | Connection string for Postgres/MySQL. | Yes |
-| `JWT_SECRET` | String | - | Secret key used to sign Auth tokens. | Yes |
-| `JWT_EXPIRES_IN` | String | `7d` | Token expiration time (e.g., `15m`, `7d`). | No |
-| `REDIS_URL` | String | - | Connection string for Redis caching. | No |
-| `CORS_ORIGIN` | String | `*` | Allowed origins for API requests. | No |
+| Variable | Group | Default | Description | Required |
+|----------|-------|---------|-------------|----------|
+| `APP_PLATFORM` | Server Config | `VPS` | The target platform environment. | Yes |
+| `NODE_ENV` | Server Config | `development` | The environment mode (`development` or `production`). | Yes |
+| `PORT` | Server Config | `5000` | The port the HTTP server binds to. | Yes |
+| `BACKEND_URL` | Server Config | `http://localhost:5000` | The publicly accessible URL of the backend. | Yes |
+| `API_VERSION` | Server Config | `v1` | Global API version prefix. | Yes |
+| `LOG_LEVEL` | Server Config | `info` | Winston logging level (`info`, `debug`, `error`). | No |
+| `DB_HOST` | Database | `127.0.0.1` | Hostname or IP of the database server. | Yes |
+| `DB_PORT` | Database | `3306` | Port of the database server. | Yes |
+| `DB_NAME` | Database | `pos_system` | Name of the database. | Yes |
+| `DB_USER` | Database | `root` | Database user. | Yes |
+| `DB_PASSWORD` | Database | - | Database password. | Yes |
+| `DB_DIALECT` | Database | `mysql` | Dialect (`mysql`, `postgres`). | Yes |
+| `JWT_SECRET` | Authentication | - | Secret key used to sign Access Tokens. | Yes |
+| `JWT_EXPIRES_IN` | Authentication | `2h` | Expiration time for Access Tokens. | No |
+| `JWT_REFRESH_SECRET` | Authentication | - | Secret key used to sign Refresh Tokens. | Yes |
+| `FRONTEND_URL` | CORS | `http://localhost:3000` | Comma-separated list of allowed frontend origins. | Yes |
+| `UPLOAD_PATH` | File System | `./uploads` | Local path for storing uploaded files. | Yes |
+| `MAX_FILE_SIZE` | File System | `5242880` | Max upload size in bytes (e.g. 5MB). | No |
+| `SMTP_HOST` | Email (Primary) | `smtp.gmail.com` | SMTP Server Host for transactional emails. | Yes |
+| `SMTP_USER` | Email (Primary) | - | Username for SMTP authentication. | Yes |
+| `FALLBACK_EMAIL_API_KEY` | Email (Brevo) | - | Brevo fallback API key if primary SMTP fails. | No |
+| `RATE_LIMIT_WINDOW_MS` | Security | `900000` | Time window for rate limiting in ms. | No |
+| `RATE_LIMIT_MAX_REQUESTS` | Security | `1000` | Maximum requests allowed within the window. | No |
+| `REDIS_URL` | Caching | - | Connection string for Redis caching server. | No |
+| `QZ_PRIVATE_KEY` | Hardware | - | PEM formatted private key for QZ Tray integration. | No |
 
 ### Database Bootstrap
 Run the initialization script to seed the database:
@@ -122,20 +140,13 @@ Example `pg_dump` backup strategy:
 
 ---
 
-## 5. API Documentation & WebSockets
+## 5. API Documentation
 
 ### REST API
 All protected routes require an authorization header: `Authorization: Bearer <token>`.
 - `POST /api/auth/login` - Authenticate a user.
 - `GET /api/inventory/products` - Fetch paginated products.
 - `POST /api/sales/transaction` - Submit POS transaction.
-
-### WebSockets (Real-Time Events)
-The backend uses WebSockets to sync data to active POS terminals instantly.
-- **Connection URL**: `ws://api.yourdomain.com/socket`
-- **Events Emitted**:
-  - `inventory:update` - Triggered when a product stock level drops.
-  - `order:new` - Triggered for Kitchen Display Screens (KDS) when a food order is placed.
 
 ---
 
