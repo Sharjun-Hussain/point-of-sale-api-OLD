@@ -6,6 +6,18 @@ const { Op } = require('sequelize');
 const accountingService = require('../services/accountingService');
 const auditService = require('../services/auditService');
 
+// Helper for dynamic ledger account lookup to avoid unique constraint violations
+const getOrCreateAccount = async (organization_id, name, defaultCode, type, t) => {
+    let account = await Account.findOne({ where: { organization_id, name }, transaction: t });
+    if (!account) {
+        account = await Account.findOne({ where: { organization_id, code: defaultCode }, transaction: t });
+        if (!account) {
+            account = await Account.create({ organization_id, name, code: defaultCode, type }, { transaction: t });
+        }
+    }
+    return account;
+};
+
 // --- Expense Categories ---
 const getAllExpenseCategories = async (req, res, next) => {
     try {
@@ -128,11 +140,7 @@ const createExpense = async (req, res, next) => {
         }, { transaction: t });
 
         // --- 2. ACCOUNTING: DEBIT THE EXPENSE ACCOUNT ---
-        const [expenseAccount] = await Account.findOrCreate({
-            where: { organization_id, name: 'General Expenses' },
-            defaults: { code: '6000', type: 'expense' },
-            transaction: t
-        });
+        const expenseAccount = await getOrCreateAccount(organization_id, 'General Expenses', '6000', 'expense', t);
 
         await accountingService.recordTransaction({
             organization_id,
@@ -157,27 +165,15 @@ const createExpense = async (req, res, next) => {
             const method = (pmt.payment_method || 'cash').toLowerCase();
 
             if (method === 'bank' || method === 'bank_transfer' || method === 'card' || method === 'credit_card') {
-                const [paymentAccount] = await Account.findOrCreate({
-                    where: { organization_id, name: 'Bank Account' },
-                    defaults: { code: '1010', type: 'asset' },
-                    transaction: t
-                });
+                const paymentAccount = await getOrCreateAccount(organization_id, 'Bank Account', '1010', 'asset', t);
                 accountName = 'Bank Account';
                 targetAccountId = paymentAccount.id;
             } else if (method === 'cheque') {
-                const [paymentAccount] = await Account.findOrCreate({
-                    where: { organization_id, name: 'Cheques Payable' },
-                    defaults: { code: '2110', type: 'liability' },
-                    transaction: t
-                });
+                const paymentAccount = await getOrCreateAccount(organization_id, 'Cheques Payable', '2110', 'liability', t);
                 accountName = 'Cheques Payable';
                 targetAccountId = paymentAccount.id;
             } else {
-                const [paymentAccount] = await Account.findOrCreate({
-                    where: { organization_id, name: 'Cash on Hand' },
-                    defaults: { code: '1000', type: 'asset' },
-                    transaction: t
-                });
+                const paymentAccount = await getOrCreateAccount(organization_id, 'Cash on Hand', '1000', 'asset', t);
                 accountName = 'Cash on Hand';
                 targetAccountId = paymentAccount.id;
             }
