@@ -1321,7 +1321,9 @@ const reportController = {
                 where[Op.or] = [
                     { '$product.name$': { [Op.like]: `%${search}%` } },
                     { '$product.code$': { [Op.like]: `%${search}%` } },
-                    { '$variant.sku$': { [Op.like]: `%${search}%` } }
+                    { '$product.barcode$': { [Op.like]: `%${search}%` } },
+                    { '$variant.sku$': { [Op.like]: `%${search}%` } },
+                    { '$variant.barcode$': { [Op.like]: `%${search}%` } }
                 ];
             }
 
@@ -1367,7 +1369,7 @@ const reportController = {
                         model: db.Product,
                         as: 'product',
                         where: Object.keys(productWhere).length > 0 ? productWhere : undefined,
-                        attributes: ['name', 'code'],
+                        attributes: ['name', 'code', 'barcode'],
                         include: [
                             { model: db.MainCategory, as: 'main_category', attributes: ['name'] }
                         ]
@@ -1375,7 +1377,9 @@ const reportController = {
                     { 
                         model: db.ProductVariant, 
                         as: 'variant', 
-                        attributes: ['name', 'sku', 'cost_price', 'price', 'low_stock_threshold'] 
+                        // required: false → LEFT JOIN to preserve Stock rows where product_variant_id IS NULL
+                        required: false,
+                        attributes: ['name', 'sku', 'cost_price', 'price', 'low_stock_threshold', 'barcode'] 
                     },
                     {
                         model: db.Branch,
@@ -1414,7 +1418,7 @@ const reportController = {
             const allStocks = await db.Stock.findAll({ 
                 where: statsWhere, 
                 attributes: ['quantity'],
-                include: [{ model: db.ProductVariant, as: 'variant', attributes: ['low_stock_threshold'] }]
+                include: [{ model: db.ProductVariant, as: 'variant', required: false, attributes: ['low_stock_threshold'] }]
             });
 
             const lowStockCount = allStocks.filter(s => {
@@ -1787,6 +1791,7 @@ const reportController = {
                     {
                         model: ProductVariant,
                         as: 'variant',
+                        required: false,
                         attributes: ['low_stock_threshold']
                     }
                 ],
@@ -2163,6 +2168,7 @@ const reportController = {
                     {
                         model: db.ProductVariant,
                         as: 'variant',
+                        required: false,
                         attributes: ['name', 'sku']
                     },
                     {
@@ -2192,7 +2198,8 @@ const reportController = {
                 where: stockWhere,
                 include: [
                     { model: db.Product, as: 'product', attributes: ['name'] },
-                    { model: db.ProductVariant, as: 'variant', attributes: ['name', 'cost_price', 'price'] }
+                    // required: false → LEFT JOIN to preserve Stock rows where product_variant_id IS NULL
+                    { model: db.ProductVariant, as: 'variant', required: false, attributes: ['name', 'cost_price', 'price'] }
                 ]
             });
 
@@ -2526,7 +2533,7 @@ const reportController = {
                 model: db.Product, as: 'product',
                 where: productWhere,
                 required: true,
-                attributes: ['id', 'name', 'code'],
+                attributes: ['id', 'name', 'code', 'barcode'],
                 include: [
                     { model: db.Brand,        as: 'brand',         attributes: ['name'], required: false },
                     { model: db.MainCategory, as: 'main_category', attributes: ['name'], required: false },
@@ -2572,7 +2579,7 @@ const reportController = {
                         productInclude,
                         {
                             model: db.ProductVariant, as: 'variant',
-                            attributes: ['name', 'sku', 'price', 'cost_price'],
+                            attributes: ['name', 'sku', 'price', 'cost_price', 'barcode'],
                             required: false
                         },
                         {
@@ -2623,7 +2630,7 @@ const reportController = {
                     productInclude,
                     {
                         model: db.ProductVariant, as: 'variant',
-                        attributes: ['name', 'sku', 'price', 'cost_price'],
+                        attributes: ['name', 'sku', 'price', 'cost_price', 'barcode'],
                         required: false
                     },
                     {

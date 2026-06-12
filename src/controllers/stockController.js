@@ -109,14 +109,23 @@ const getAllStocks = async (req, res, next) => {
                     model: Product,
                     as: 'product',
                     where: { organization_id: req.user.organization_id },
-                    attributes: ['id', 'name', 'code', 'image']
+                    attributes: ['id', 'name', 'code', 'image', 'barcode']
                 },
                 {
                     model: ProductVariant,
                     as: 'variant',
-                    where: { organization_id: req.user.organization_id },
-                    attributes: ['id', 'name', 'sku', 'image'],
                     required: false,
+                    // Multi-tenancy: filter org on variant, but also allow NULL (variant.id IS NULL)
+                    // because Stock rows for non-variant products have product_variant_id = NULL,
+                    // producing a LEFT JOIN row with all variant columns = NULL.
+                    // Op.or allows: (org matches) OR (no variant joined at all)
+                    where: {
+                        [Op.or]: [
+                            { organization_id: req.user.organization_id },
+                            { id: null }
+                        ]
+                    },
+                    attributes: ['id', 'name', 'sku', 'image', 'barcode'],
                     include: [
                         {
                             model: AttributeValue,
