@@ -503,7 +503,10 @@ const reportController = {
             if (branch_id && branch_id !== 'all') expenseWhereClause.branch_id = branch_id;
             if (start_date && end_date) {
                 expenseWhereClause.expense_date = {
-                    [Op.between]: [start_date, end_date]
+                    [Op.between]: [
+                        new Date(start_date + 'T00:00:00'),
+                        new Date(end_date + 'T23:59:59')
+                    ]
                 };
             }
             const expenses = await db.Expense.findAll({
