@@ -113,9 +113,12 @@ const createExpense = async (req, res, next) => {
         if (total_amount <= 0) return errorResponse(res, 'Expense amount must be greater than zero', 400);
 
         // --- 1. CREATE EXPENSE HEADER ---
+        const primaryPaymentMethod = (payments && payments.length > 0) ? payments[0].payment_method : 'cash';
+        
         const expense = await Expense.create({
             ...bodyData,
             amount: total_amount,
+            payment_method: primaryPaymentMethod,
             expense_category_id: actual_category_id,
             notes: actual_notes,
             receipt_image: req.file ? req.file.path : null,
@@ -126,8 +129,8 @@ const createExpense = async (req, res, next) => {
 
         // --- 2. ACCOUNTING: DEBIT THE EXPENSE ACCOUNT ---
         const [expenseAccount] = await Account.findOrCreate({
-            where: { organization_id, code: '5000' },
-            defaults: { name: 'General Expenses', type: 'expense' },
+            where: { organization_id, name: 'General Expenses' },
+            defaults: { code: '6000', type: 'expense' },
             transaction: t
         });
 
@@ -148,32 +151,42 @@ const createExpense = async (req, res, next) => {
             const amt = parseFloat(pmt.amount || 0);
             if (amt <= 0) continue;
 
-            const method = pmt.payment_method.toLowerCase();
+            let accountName = 'Cash on Hand';
+            let targetAccountId;
             
-            let accountCode = '1010'; // Default Cash
-            let accountName = 'Cash in Hand';
-            let accountType = 'asset';
+            const method = (pmt.payment_method || 'cash').toLowerCase();
 
             if (method === 'bank' || method === 'bank_transfer' || method === 'card' || method === 'credit_card') {
-                accountCode = '1020';
-                accountName = 'Bank';
+                const [paymentAccount] = await Account.findOrCreate({
+                    where: { organization_id, name: 'Bank Account' },
+                    defaults: { code: '1010', type: 'asset' },
+                    transaction: t
+                });
+                accountName = 'Bank Account';
+                targetAccountId = paymentAccount.id;
             } else if (method === 'cheque') {
-                accountCode = '2110';
+                const [paymentAccount] = await Account.findOrCreate({
+                    where: { organization_id, name: 'Cheques Payable' },
+                    defaults: { code: '2110', type: 'liability' },
+                    transaction: t
+                });
                 accountName = 'Cheques Payable';
-                accountType = 'liability';
+                targetAccountId = paymentAccount.id;
+            } else {
+                const [paymentAccount] = await Account.findOrCreate({
+                    where: { organization_id, name: 'Cash on Hand' },
+                    defaults: { code: '1000', type: 'asset' },
+                    transaction: t
+                });
+                accountName = 'Cash on Hand';
+                targetAccountId = paymentAccount.id;
             }
-
-            const [paymentAccount] = await Account.findOrCreate({
-                where: { organization_id, code: accountCode },
-                defaults: { name: accountName, type: accountType },
-                transaction: t
-            });
 
             // Credit Entry
             const ledgerCreditTx = await accountingService.recordTransaction({
                 organization_id,
                 branch_id,
-                account_id: paymentAccount.id,
+                account_id: targetAccountId,
                 amount: amt,
                 type: 'credit',
                 reference_type: 'Expense',
@@ -302,20 +315,8 @@ const updateExpense = async (req, res, next) => {
 
             // 2. Record new transactions
             const [expenseAccount] = await Account.findOrCreate({
-                where: { organization_id, code: '5000' },
-                defaults: { name: 'General Expenses', type: 'expense' },
-                transaction: t
-            });
-
-            const [cashAccount] = await Account.findOrCreate({
-                where: { organization_id, code: '1000' },
-                defaults: { name: 'Cash', type: 'asset' },
-                transaction: t
-            });
-
-            const [chequesPayableAccount] = await Account.findOrCreate({
-                where: { organization_id, code: '2100' },
-                defaults: { name: 'Cheques Payable', type: 'liability' },
+                where: { organization_id, name: 'General Expenses' },
+                defaults: { code: '6000', type: 'expense' },
                 transaction: t
             });
 
@@ -323,6 +324,37 @@ const updateExpense = async (req, res, next) => {
             const branch_id = newBranchId || expense.branch_id;
             const payment_method = newPaymentMethod || expense.payment_method;
             const expense_date = newExpenseDate || expense.expense_date;
+
+            let targetAccountId;
+            let targetAccountName;
+            
+            const methodStr = (payment_method || 'cash').toLowerCase();
+            
+            if (methodStr === 'bank' || methodStr === 'bank_transfer' || methodStr === 'card' || methodStr === 'credit_card') {
+                const [bankAccount] = await Account.findOrCreate({
+                    where: { organization_id, name: 'Bank Account' },
+                    defaults: { code: '1010', type: 'asset' },
+                    transaction: t
+                });
+                targetAccountId = bankAccount.id;
+                targetAccountName = 'Bank Account';
+            } else if (methodStr === 'cheque') {
+                const [chequeAccount] = await Account.findOrCreate({
+                    where: { organization_id, name: 'Cheques Payable' },
+                    defaults: { code: '2110', type: 'liability' },
+                    transaction: t
+                });
+                targetAccountId = chequeAccount.id;
+                targetAccountName = 'Cheques Payable';
+            } else {
+                const [cashAccount] = await Account.findOrCreate({
+                    where: { organization_id, name: 'Cash on Hand' },
+                    defaults: { code: '1000', type: 'asset' },
+                    transaction: t
+                });
+                targetAccountId = cashAccount.id;
+                targetAccountName = 'Cash on Hand';
+            }
 
             // Debit Expense
             await accountingService.recordTransaction({
@@ -338,8 +370,7 @@ const updateExpense = async (req, res, next) => {
             }, t);
 
             // Credit Asset/Liability
-            const targetAccountId = payment_method === 'cheque' ? chequesPayableAccount.id : cashAccount.id;
-            const accountName = payment_method === 'cheque' ? 'Cheques Payable' : 'Cash';
+
 
             await accountingService.recordTransaction({
                 organization_id,
@@ -350,7 +381,7 @@ const updateExpense = async (req, res, next) => {
                 reference_type: 'Expense',
                 reference_id: expense.id,
                 transaction_date: expense_date,
-                description: `Payment for Updated Expense via ${accountName}`
+                description: `Payment for Updated Expense via ${targetAccountName}`
             }, t);
         }
 
@@ -394,7 +425,34 @@ const deleteExpense = async (req, res, next) => {
 
         const oldValues = expense.toJSON();
 
-        // 1. Delete associated transactions
+        // 1. Fetch transactions to reverse account balances
+        const transactions = await Transaction.findAll({
+            where: {
+                organization_id,
+                reference_type: 'Expense',
+                reference_id: expense.id
+            },
+            transaction: t
+        });
+
+        for (const tx of transactions) {
+            const account = await Account.findByPk(tx.account_id, { transaction: t });
+            if (account) {
+                const isIncrease = (
+                    (['asset', 'expense'].includes(account.type) && tx.type === 'debit') ||
+                    (['liability', 'equity', 'revenue'].includes(account.type) && tx.type === 'credit')
+                );
+
+                // Reverse the operation
+                if (isIncrease) {
+                    await account.decrement('balance', { by: tx.amount, transaction: t });
+                } else {
+                    await account.increment('balance', { by: tx.amount, transaction: t });
+                }
+            }
+        }
+
+        // 2. Delete associated transactions
         await Transaction.destroy({
             where: {
                 organization_id,
