@@ -498,13 +498,33 @@ const reportController = {
             });
             const totalOpeningBalance = shifts.reduce((sum, s) => sum + Number(s.opening_cash || 0), 0);
 
+            // Expenses
+            const expenseWhereClause = { organization_id };
+            if (branch_id && branch_id !== 'all') expenseWhereClause.branch_id = branch_id;
+            if (start_date && end_date) {
+                expenseWhereClause.expense_date = {
+                    [Op.between]: [start_date, end_date]
+                };
+            }
+            const expenses = await db.Expense.findAll({
+                where: expenseWhereClause,
+                attributes: ['amount', 'payment_method'],
+                raw: true
+            });
+            const totalExpense = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+            const totalCashExpense = expenses
+                .filter(e => e.payment_method && e.payment_method.toLowerCase() === 'cash')
+                .reduce((sum, e) => sum + Number(e.amount), 0);
+
             const cashSales = (paymentAmounts['cash'] || paymentAmounts['Cash'] || 0);
-            const cashInHand = totalOpeningBalance + cashSales - totalCashRefunded;
+            const cashInHand = totalOpeningBalance + cashSales - totalCashRefunded - totalCashExpense;
 
             summary.registerDetails = {
                 paymentAmounts,
                 totalRefund,
                 totalOpeningBalance,
+                totalExpense,
+                totalCashExpense,
                 cashInHand,
                 totalSales,
                 totalCreditSales
