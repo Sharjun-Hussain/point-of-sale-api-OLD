@@ -33,6 +33,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.DECIMAL(15, 2),
             defaultValue: 0.00
         },
+        manual_discount: {
+            type: DataTypes.DECIMAL(15, 2),
+            defaultValue: 0.00
+        },
         tax_amount: {
             type: DataTypes.DECIMAL(15, 2),
             defaultValue: 0.00

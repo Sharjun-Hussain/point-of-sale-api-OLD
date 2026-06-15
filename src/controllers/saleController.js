@@ -269,7 +269,7 @@ const createSale = async (req, res, next) => {
         console.log(`[Debug] createSale: Starting for Org=${organization_id}, User=${user_id}, Items Count=${items.length}`);
         
         for (const item of items) {
-            const { product_id, product_variant_id, product_batch_id, quantity: raw_quantity, discount_amount: claimed_discount, cooking_notes } = item;
+            const { product_id, product_variant_id, product_batch_id, quantity: raw_quantity, discount_amount: claimed_discount, manual_discount, cooking_notes } = item;
             const quantity = parseFloat(raw_quantity || 0);
 
             if (!product_id || quantity <= 0) continue;
@@ -353,6 +353,7 @@ const createSale = async (req, res, next) => {
                 unit_price,
                 mrp_price,
                 discount_amount: item_discount,
+                manual_discount: parseFloat(manual_discount || 0),
                 tax_amount: item_tax,
                 total_amount: taxable_amount + item_tax,
                 cooking_notes: cooking_notes || null
@@ -681,6 +682,7 @@ const createSale = async (req, res, next) => {
                         product_batch_id: d.batch_id,
                         quantity: d.quantity,
                         discount_amount: Number((pItem.discount_amount * ratio).toFixed(2)),
+                        manual_discount: Number(((pItem.manual_discount || 0) * ratio).toFixed(2)),
                         tax_amount: Number((pItem.tax_amount * ratio).toFixed(2)),
                         total_amount: Number((pItem.total_amount * ratio).toFixed(2))
                     }, { transaction: t });
