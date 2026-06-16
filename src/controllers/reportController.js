@@ -446,8 +446,10 @@ const reportController = {
             const paymentAmounts = {};
             let totalSales = 0;
             let totalCreditSales = 0;
+            let totalDiscount = 0;
             for (const sale of salesForRegister) {
                 totalSales += Number(sale.payable_amount);
+                totalDiscount += Number(sale.discount_amount || 0);
                 
                 if (sale.payment_status === 'unpaid' || sale.payment_status === 'partially_paid') {
                     const remaining = Number(sale.payable_amount) - Number(sale.paid_amount);
@@ -530,7 +532,8 @@ const reportController = {
                 totalCashExpense,
                 cashInHand,
                 totalSales,
-                totalCreditSales
+                totalCreditSales,
+                totalDiscount
             };
 
             // Pagination
