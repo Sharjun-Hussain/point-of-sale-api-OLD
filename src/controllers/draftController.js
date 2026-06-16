@@ -11,9 +11,9 @@ exports.saveDraft = async (req, res) => {
     }
 
     if (id) {
-      // Check if it exists
+      // Check if it exists across the organization
       const existing = await UserDraft.findOne({
-        where: { id, organization_id, user_id }
+        where: { id, organization_id }
       });
 
       if (existing) {
@@ -58,7 +58,7 @@ exports.getDrafts = async (req, res) => {
     const user_id = req.user.id;
     const { form_type } = req.query;
 
-    const where = { organization_id, user_id };
+    const where = { organization_id };
     if (form_type) {
       where.form_type = form_type;
     }
@@ -85,7 +85,7 @@ exports.deleteDraft = async (req, res) => {
     const user_id = req.user.id;
 
     const deleted = await UserDraft.destroy({
-      where: { id, organization_id, user_id }
+      where: { id, organization_id }
     });
 
     if (!deleted) {
