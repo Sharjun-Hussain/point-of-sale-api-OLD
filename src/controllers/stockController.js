@@ -179,19 +179,7 @@ const createStockAdjustment = async (req, res, next) => {
 
         const organization_id = req.user.organization_id;
 
-        // 1. Create Adjustment Record
-        const adjustment = await StockAdjustment.create({
-            organization_id,
-            branch_id,
-            product_id,
-            product_variant_id: product_variant_id || null,
-            quantity: qtyValue,
-            type,
-            reason,
-            user_id
-        }, { transaction: t });
-
-        // 2. Update Stock aggregate
+        // 1. Find or create the stock aggregate to get current stock
         const [stock, created] = await Stock.findOrCreate({
             where: {
                 organization_id,
@@ -203,8 +191,12 @@ const createStockAdjustment = async (req, res, next) => {
             transaction: t
         });
 
+        const previous_stock = parseFloat(stock.quantity);
+        let after_stock = previous_stock;
+
         let finalDeduction = 0;
         if (type === 'addition') {
+            after_stock = previous_stock + qtyValue;
             await stock.increment('quantity', { by: qtyValue, transaction: t });
 
             // Increment logic: Add to/Create a batch
@@ -221,10 +213,12 @@ const createStockAdjustment = async (req, res, next) => {
             }, { transaction: t });
 
         } else if (type === 'subtraction') {
+            after_stock = previous_stock - qtyValue;
             await stock.decrement('quantity', { by: qtyValue, transaction: t });
             finalDeduction = qtyValue;
         } else if (type === 'set_to') {
-            const diff = qtyValue - parseFloat(stock.quantity);
+            after_stock = qtyValue;
+            const diff = qtyValue - previous_stock;
             stock.quantity = qtyValue;
             await stock.save({ transaction: t });
 
@@ -245,6 +239,20 @@ const createStockAdjustment = async (req, res, next) => {
                 finalDeduction = Math.abs(diff);
             }
         }
+
+        // 2. Create Adjustment Record
+        const adjustment = await StockAdjustment.create({
+            organization_id,
+            branch_id,
+            product_id,
+            product_variant_id: product_variant_id || null,
+            quantity: qtyValue,
+            type,
+            previous_stock,
+            after_stock,
+            reason,
+            user_id
+        }, { transaction: t });
 
         // Handle Batch Deduction for subtractions
         if (finalDeduction > 0) {

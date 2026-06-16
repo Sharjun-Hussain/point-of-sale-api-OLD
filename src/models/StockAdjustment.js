@@ -25,6 +25,14 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.ENUM('addition', 'subtraction', 'set_to'),
             allowNull: false
         },
+        previous_stock: {
+            type: DataTypes.DECIMAL(15, 2),
+            allowNull: true
+        },
+        after_stock: {
+            type: DataTypes.DECIMAL(15, 2),
+            allowNull: true
+        },
         reason: {
             type: DataTypes.STRING,
             allowNull: true

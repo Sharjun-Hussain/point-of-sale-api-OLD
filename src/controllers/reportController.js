@@ -2501,13 +2501,13 @@ const reportController = {
                     { 
                         model: db.Product, as: 'product', 
                         where: Object.keys(productWhere).length > 0 ? productWhere : undefined,
-                        attributes: ['name', 'code', 'brand_id', 'main_category_id'],
+                        attributes: ['name', 'code', 'brand_id', 'main_category_id', 'barcode'],
                         include: [
                             { model: db.Brand, as: 'brand', attributes: ['name'] },
                             { model: db.MainCategory, as: 'main_category', attributes: ['name'] }
                         ]
                     },
-                    { model: db.ProductVariant, as: 'variant', attributes: ['name', 'sku', 'price', 'cost_price'] },
+                    { model: db.ProductVariant, as: 'variant', attributes: ['name', 'sku', 'price', 'cost_price', 'barcode'] },
                     { model: db.User, as: 'adjusted_by_user', attributes: ['name'] },
                     { model: db.Branch, as: 'branch', attributes: ['name'] }
                 ],
@@ -2518,9 +2518,12 @@ const reportController = {
                 id: adj.id,
                 date: adj.created_at,
                 item_code: adj.variant?.sku || adj.product?.code,
+                barcode: adj.variant?.barcode || adj.product?.barcode || adj.variant?.sku || adj.product?.code,
                 item_name: adj.product?.name + (adj.variant?.name ? ` (${adj.variant.name})` : ''),
                 sale_price: Number(adj.variant?.price || 0),
                 cost_price: Number(adj.variant?.cost_price || 0),
+                previous_stock: adj.previous_stock !== null ? Number(adj.previous_stock) : null,
+                after_stock: adj.after_stock !== null ? Number(adj.after_stock) : null,
                 quantity: Number(adj.quantity),
                 type: adj.type,
                 reason: adj.reason,
