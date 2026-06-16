@@ -498,13 +498,15 @@ const updateProduct = async (req, res, next) => {
     const t = await sequelize.transaction();
     try {
         const { id } = req.params;
-        const {
+        let {
             name, code, description, sku, barcode,
             main_category_id, sub_category_id, brand_id,
             unit_id, measurement_id, container_id, supplier_id, is_variant,
             product_type, can_be_manufactured,
             variants, product_attributes, suppliers // Added suppliers
         } = req.body;
+
+        is_variant = is_variant === 'true' || is_variant === true || is_variant === '1';
 
         const organization_id = req.user.organization_id;
 
@@ -600,7 +602,7 @@ const updateProduct = async (req, res, next) => {
         } else if (!is_variant) {
             // Update the DEFAULT variant
             const { 
-                price, wholesale_price, cost_price, mrp_price, sku: variant_sku, barcode: variant_barcode, stock_quantity 
+                price, wholesale_price, cost_price, mrp_price, sku: variant_sku, barcode: variant_barcode, stock_quantity, batch_number, expiry_date 
             } = req.body;
 
             let defaultVariant = await ProductVariant.findOne({
@@ -633,9 +635,56 @@ const updateProduct = async (req, res, next) => {
                 }, { transaction: t });
             }
 
-            // Handle stock initialization if provided in update (only if positive)
+            // Update the existing batch if batch_number or expiry_date are provided/cleared
+            if (batch_number !== undefined || expiry_date !== undefined) {
+                const batch = await ProductBatch.findOne({
+                    where: { product_variant_id: defaultVariant.id, organization_id },
+                    order: [['created_at', 'DESC']],
+                    transaction: t
+                });
+
+                if (batch) {
+                    const batchUpdates = {};
+                    if (batch_number !== undefined) {
+                        batchUpdates.batch_number = batch_number || batch.batch_number;
+                    }
+                    if (expiry_date !== undefined) {
+                        batchUpdates.expiry_date = expiry_date ? new Date(expiry_date) : null;
+                    }
+                    
+                    if (Object.keys(batchUpdates).length > 0) {
+                        await batch.update(batchUpdates, { transaction: t });
+                    }
+                } else if (batch_number || expiry_date) {
+                    // Create an empty batch just to hold the expiry/batch info if none exists
+                    await ProductBatch.create({
+                        organization_id,
+                        branch_id: req.body.branch_id || req.user.branch_id || null,
+                        product_id: id,
+                        product_variant_id: defaultVariant.id,
+                        batch_number: batch_number || `BT-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`,
+                        expiry_date: expiry_date ? new Date(expiry_date) : null,
+                        quantity: 0,
+                        cost_price: parseFloat(cost_price) || 0,
+                        selling_price: parseFloat(price) || 0,
+                        mrp_price: parseFloat(mrp_price) || 0,
+                        wholesale_price: parseFloat(wholesale_price) || 0,
+                        purchase_date: new Date(),
+                        is_active: true
+                    }, { transaction: t });
+                }
+            }
+
+            // Handle stock initialization if provided in update (only if positive and no existing stock)
             if (parseFloat(stock_quantity) > 0) {
-                await initializeStock(id, defaultVariant.id, stock_quantity, cost_price || defaultVariant.cost_price, price || defaultVariant.price, wholesale_price || defaultVariant.wholesale_price, mrp_price || defaultVariant.mrp_price, defaultVariant.sku, req.body.branch_id || req.user.branch_id, req.user.id, organization_id, t);
+                const existingStockCount = await Stock.count({
+                    where: { product_variant_id: defaultVariant.id, organization_id },
+                    transaction: t
+                });
+                
+                if (existingStockCount === 0) {
+                    await initializeStock(id, defaultVariant.id, stock_quantity, cost_price || defaultVariant.cost_price, price || defaultVariant.price, wholesale_price || defaultVariant.wholesale_price, mrp_price || defaultVariant.mrp_price, defaultVariant.sku, req.body.branch_id || req.user.branch_id, req.user.id, organization_id, t);
+                }
             }
         }
 
