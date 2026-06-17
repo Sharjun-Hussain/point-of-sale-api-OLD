@@ -1347,8 +1347,11 @@ const reportController = {
                 where[Op.or] = [
                     { '$product.name$': { [Op.like]: `%${search}%` } },
                     { '$product.code$': { [Op.like]: `%${search}%` } },
+                    { '$product.sku$': { [Op.like]: `%${search}%` } },
                     { '$product.barcode$': { [Op.like]: `%${search}%` } },
+                    { '$variant.name$': { [Op.like]: `%${search}%` } },
                     { '$variant.sku$': { [Op.like]: `%${search}%` } },
+                    { '$variant.code$': { [Op.like]: `%${search}%` } },
                     { '$variant.barcode$': { [Op.like]: `%${search}%` } }
                 ];
             }
@@ -1395,7 +1398,7 @@ const reportController = {
                         model: db.Product,
                         as: 'product',
                         where: Object.keys(productWhere).length > 0 ? productWhere : undefined,
-                        attributes: ['name', 'code', 'barcode'],
+                        attributes: ['name', 'code', 'sku', 'barcode'],
                         include: [
                             { model: db.MainCategory, as: 'main_category', attributes: ['name'] }
                         ]
@@ -1405,7 +1408,7 @@ const reportController = {
                         as: 'variant', 
                         // required: false → LEFT JOIN to preserve Stock rows where product_variant_id IS NULL
                         required: false,
-                        attributes: ['name', 'sku', 'cost_price', 'price', 'low_stock_threshold', 'barcode'] 
+                        attributes: ['name', 'code', 'sku', 'cost_price', 'price', 'low_stock_threshold', 'barcode'] 
                     },
                     {
                         model: db.Branch,
