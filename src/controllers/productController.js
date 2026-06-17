@@ -322,7 +322,7 @@ const createProduct = async (req, res, next) => {
                     }
                 }
 
-                // --- STOCK: Initialize Stock if provided ---
+                // --- STOCK: Always ensure a Stock row exists, initialize if quantity provided ---
                 if (parseFloat(v.stock_quantity) > 0) {
                     await initializeStock(
                         product.id, 
@@ -340,6 +340,17 @@ const createProduct = async (req, res, next) => {
                         v.batch_number,
                         v.expiry_date
                     );
+                } else {
+                    // Always create a 0-quantity stock row so variant appears in Inventory Management
+                    const firstBranch = await Branch.findOne({ where: { organization_id }, transaction: t });
+                    const branch_id = req.body.branch_id || req.user.branch_id || firstBranch?.id;
+                    if (branch_id) {
+                        await Stock.findOrCreate({
+                            where: { organization_id, branch_id, product_id: product.id, product_variant_id: variant.id },
+                            defaults: { quantity: 0 },
+                            transaction: t
+                        });
+                    }
                 }
             }
         } else if (!is_variant) {
@@ -596,6 +607,17 @@ const updateProduct = async (req, res, next) => {
 
                     if (parseFloat(variantData.stock_quantity) > 0) {
                         await initializeStock(id, variant.id, variantData.stock_quantity, variantData.cost_price, variantData.price, variantData.wholesale_price, variantData.mrp_price, variant.sku, req.body.branch_id || req.user.branch_id, req.user.id, organization_id, t);
+                    } else {
+                        // Always create a 0-quantity stock row so variant appears in Inventory Management
+                        const firstBranch = await Branch.findOne({ where: { organization_id }, transaction: t });
+                        const branch_id = req.body.branch_id || req.user.branch_id || firstBranch?.id;
+                        if (branch_id) {
+                            await Stock.findOrCreate({
+                                where: { organization_id, branch_id, product_id: id, product_variant_id: variant.id },
+                                defaults: { quantity: 0 },
+                                transaction: t
+                            });
+                        }
                     }
                 }
             }
@@ -967,7 +989,7 @@ const createVariant = async (req, res, next) => {
             }
         }
 
-        if (variant && parseFloat(stock_quantity) > 0) {
+        if (variant) {
             let branch_id = req.body.branch_id || req.user.branch_id;
             
             if (!branch_id && req.user.branches && req.user.branches.length > 0) {
@@ -982,52 +1004,56 @@ const createVariant = async (req, res, next) => {
             }
 
             if (!branch_id) {
-                const firstBranch = await Branch.findOne({ where: { organization_id } });
+                const firstBranch = await Branch.findOne({ where: { organization_id }, transaction: t });
                 if (firstBranch) branch_id = firstBranch.id;
             }
 
             if (branch_id) {
-                // 1. Create Opening Stock Header for this specific variant initialization
-                const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-                const reference_number = `OS-VAR-${variant.sku}-${dateStr}`;
+                if (parseFloat(stock_quantity) > 0) {
+                    // 1. Create Opening Stock Header for this specific variant initialization
+                    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+                    const reference_number = `OS-VAR-${variant.sku}-${dateStr}`;
 
-                const opening = await StockOpening.create({
-                    organization_id,
-                    branch_id,
-                    user_id: req.user.id,
-                    reference_number,
-                    opening_date: new Date(),
-                    notes: `Opening stock for new variant: ${variant.sku}`,
-                    total_value: parseFloat(stock_quantity) * (parseFloat(cost_price) || 0)
-                }, { transaction: t });
+                    const opening = await StockOpening.create({
+                        organization_id,
+                        branch_id,
+                        user_id: req.user.id,
+                        reference_number,
+                        opening_date: new Date(),
+                        notes: `Opening stock for new variant: ${variant.sku}`,
+                        total_value: parseFloat(stock_quantity) * (parseFloat(cost_price) || 0)
+                    }, { transaction: t });
 
-                // 2. Create Product Batch
-                await ProductBatch.create({
-                    organization_id,
-                    branch_id,
-                    product_id: id,
-                    product_variant_id: variant.id,
-                    quantity: parseFloat(stock_quantity),
-                    cost_price: parseFloat(cost_price) || 0,
-                    selling_price: parseFloat(price) || 0,
-                    wholesale_price: parseFloat(wholesale_price) || 0,
-                    purchase_date: new Date(),
-                    is_active: true,
-                    opening_stock_id: opening.id
-                }, { transaction: t });
-
-                // 3. Update/Create Global Stock
-                const [stockRecord] = await Stock.findOrCreate({
-                    where: {
+                    // 2. Create Product Batch
+                    await ProductBatch.create({
                         organization_id,
                         branch_id,
                         product_id: id,
-                        product_variant_id: variant.id
-                    },
-                    defaults: { quantity: 0 },
-                    transaction: t
-                });
-                await stockRecord.increment('quantity', { by: parseFloat(stock_quantity), transaction: t });
+                        product_variant_id: variant.id,
+                        quantity: parseFloat(stock_quantity),
+                        cost_price: parseFloat(cost_price) || 0,
+                        selling_price: parseFloat(price) || 0,
+                        wholesale_price: parseFloat(wholesale_price) || 0,
+                        purchase_date: new Date(),
+                        is_active: true,
+                        opening_stock_id: opening.id
+                    }, { transaction: t });
+
+                    // 3. Update/Create Global Stock
+                    const [stockRecord] = await Stock.findOrCreate({
+                        where: { organization_id, branch_id, product_id: id, product_variant_id: variant.id },
+                        defaults: { quantity: 0 },
+                        transaction: t
+                    });
+                    await stockRecord.increment('quantity', { by: parseFloat(stock_quantity), transaction: t });
+                } else {
+                    // Always create a 0-quantity stock row so variant appears in Inventory Management
+                    await Stock.findOrCreate({
+                        where: { organization_id, branch_id, product_id: id, product_variant_id: variant.id },
+                        defaults: { quantity: 0 },
+                        transaction: t
+                    });
+                }
             }
         }
 
