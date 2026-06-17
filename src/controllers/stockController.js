@@ -76,6 +76,9 @@ const getAllStocks = async (req, res, next) => {
                 { '$product.name$': { [Op.like]: `%${product_name}%` } },
                 { '$product.code$': { [Op.like]: `%${product_name}%` } },
                 { '$product.barcode$': { [Op.like]: `%${product_name}%` } },
+                { '$product.sku$': { [Op.like]: `%${product_name}%` } },
+                { '$variant.name$': { [Op.like]: `%${product_name}%` } },
+                { '$variant.code$': { [Op.like]: `%${product_name}%` } },
                 { '$variant.sku$': { [Op.like]: `%${product_name}%` } },
                 { '$variant.barcode$': { [Op.like]: `%${product_name}%` } }
             ];
@@ -115,17 +118,7 @@ const getAllStocks = async (req, res, next) => {
                     model: ProductVariant,
                     as: 'variant',
                     required: false,
-                    // Multi-tenancy: filter org on variant, but also allow NULL (variant.id IS NULL)
-                    // because Stock rows for non-variant products have product_variant_id = NULL,
-                    // producing a LEFT JOIN row with all variant columns = NULL.
-                    // Op.or allows: (org matches) OR (no variant joined at all)
-                    where: {
-                        [Op.or]: [
-                            { organization_id: req.user.organization_id },
-                            { id: null }
-                        ]
-                    },
-                    attributes: ['id', 'name', 'sku', 'image', 'barcode'],
+                    attributes: ['id', 'name', 'sku', 'image', 'barcode', 'code'],
                     include: [
                         {
                             model: AttributeValue,
