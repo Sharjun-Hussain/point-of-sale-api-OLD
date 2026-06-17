@@ -2041,8 +2041,24 @@ const reportController = {
                 totalTax: 0,
                 totalDiscount: 0,
                 totalPaid: 0,
-                transactionCount: shift.sales?.length || 0
+                transactionCount: shift.sales?.length || 0,
+                totalExpense: 0
             };
+
+            // Calculate Expenses
+            const shiftExpenses = await db.Expense.findAll({
+                where: {
+                    user_id: shift.user_id,
+                    branch_id: shift.branch_id,
+                    created_at: {
+                        [db.Sequelize.Op.gte]: shift.opening_time,
+                        [db.Sequelize.Op.lte]: shift.closing_time || new Date()
+                    }
+                }
+            });
+            for (const exp of shiftExpenses) {
+                stats.totalExpense += Number(exp.amount);
+            }
 
             const paymentBreakdown = {};
 

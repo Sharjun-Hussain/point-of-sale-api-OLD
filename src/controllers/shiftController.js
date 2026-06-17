@@ -250,7 +250,32 @@ const closeShift = async (req, res, next) => {
             if (tx.type === 'payout') payouts += parseFloat(tx.amount);
         }
 
-        const expected_cash = parseFloat(shift.opening_cash) + cashSales - cashRefunds + payIns - drops - payouts;
+        // Subtract cash expenses issued during this shift
+        let cashExpenses = 0;
+        const shiftExpenses = await db.Expense.findAll({
+            where: {
+                user_id,
+                branch_id: shift.branch_id,
+                created_at: {
+                    [db.Sequelize.Op.gte]: shift.opening_time,
+                    [db.Sequelize.Op.lte]: new Date()
+                }
+            },
+            include: [{ model: db.ExpensePaymentMethod, as: 'payments' }],
+            transaction: t
+        });
+
+        for (const exp of shiftExpenses) {
+            if (exp.payments && exp.payments.length > 0) {
+                cashExpenses += exp.payments
+                    .filter(p => p.payment_method && p.payment_method.toLowerCase() === 'cash')
+                    .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+            } else if (exp.payment_method && exp.payment_method.toLowerCase() === 'cash') {
+                cashExpenses += parseFloat(exp.amount || 0);
+            }
+        }
+
+        const expected_cash = parseFloat(shift.opening_cash) + cashSales - cashRefunds + payIns - drops - payouts - cashExpenses;
         const variance = parseFloat(closing_cash) - expected_cash;
 
         shift.closing_cash = closing_cash;
