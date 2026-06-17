@@ -2,6 +2,7 @@ const { Setting, Product, ProductVariant, Organization, Branch, Stock, Brand } =
 const logger = require('../utils/logger');
 const tokenManager = require('./shopifyTokenManager');
 const { decrypt } = require('../utils/security');
+const { Op } = require('sequelize');
 
 class ShopifyService {
     /**
@@ -222,11 +223,11 @@ class ShopifyService {
 
         if (filters.search) {
             const searchVal = `%${filters.search}%`;
-            where[Setting.sequelize.Op.or] = [
-                { name: { [Setting.sequelize.Op.iLike]: searchVal } },
-                { sku: { [Setting.sequelize.Op.iLike]: searchVal } },
-                { code: { [Setting.sequelize.Op.iLike]: searchVal } },
-                { barcode: { [Setting.sequelize.Op.iLike]: searchVal } },
+            where[Op.or] = [
+                { name: { [Op.iLike]: searchVal } },
+                { sku: { [Op.iLike]: searchVal } },
+                { code: { [Op.iLike]: searchVal } },
+                { barcode: { [Op.iLike]: searchVal } },
                 // Match variants as well
                 Setting.sequelize.literal(`EXISTS (
                     SELECT 1 FROM product_variants 
