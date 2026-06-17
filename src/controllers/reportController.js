@@ -1340,11 +1340,11 @@ const reportController = {
 
             const { limit, offset } = getPagination(page, size);
 
-            const where = { organization_id };
-            if (branch_id && branch_id !== 'all') where.branch_id = branch_id;
+            const baseWhere = { organization_id };
+            if (branch_id && branch_id !== 'all') baseWhere.branch_id = branch_id;
 
             if (search) {
-                where[Op.or] = [
+                baseWhere[Op.or] = [
                     { '$product.name$': { [Op.like]: `%${search}%` } },
                     { '$product.code$': { [Op.like]: `%${search}%` } },
                     { '$product.sku$': { [Op.like]: `%${search}%` } },
@@ -1355,6 +1355,8 @@ const reportController = {
                     { '$variant.barcode$': { [Op.like]: `%${search}%` } }
                 ];
             }
+
+            const where = { ...baseWhere };
 
             // Status Filtering
             if (status === 'out') {
@@ -1406,7 +1408,6 @@ const reportController = {
                     { 
                         model: db.ProductVariant, 
                         as: 'variant', 
-                        // required: false → LEFT JOIN to preserve Stock rows where product_variant_id IS NULL
                         required: false,
                         attributes: ['name', 'code', 'sku', 'cost_price', 'price', 'low_stock_threshold', 'barcode'] 
                     },
@@ -1422,7 +1423,6 @@ const reportController = {
                         attributes: ['batch_number', 'expiry_date', 'quantity', 'cost_price', 'selling_price', 'mrp_price'],
                         where: {
                             ...batchFilterWhere,
-                            // Crucial: Only return batches for THIS specific stock row's branch/variant
                             branch_id: { [Op.eq]: Sequelize.col('Stock.branch_id') },
                             [Op.and]: [
                                 Sequelize.literal('`batches`.`product_variant_id` = `Stock`.`product_variant_id` OR (`batches`.`product_variant_id` IS NULL AND `Stock`.`product_variant_id` IS NULL)')
@@ -1437,18 +1437,28 @@ const reportController = {
                 order: [[{ model: db.Product, as: 'product' }, 'name', 'ASC']]
             });
 
-            // Calculate Global Stats for the top cards (only if first page or specifically requested)
-            const statsWhere = { organization_id };
-            if (branch_id && branch_id !== 'all') statsWhere.branch_id = branch_id;
-
-            const totalItems = await db.Stock.count({ where: statsWhere });
-            const totalQty = await db.Stock.sum('quantity', { where: statsWhere });
-            
+            // Calculate Stats for the top cards based on the search/category filters
             const allStocks = await db.Stock.findAll({ 
-                where: statsWhere, 
+                where: baseWhere, 
                 attributes: ['quantity'],
-                include: [{ model: db.ProductVariant, as: 'variant', required: false, attributes: ['low_stock_threshold'] }]
+                include: [
+                    { 
+                        model: db.ProductVariant, 
+                        as: 'variant', 
+                        required: false, 
+                        attributes: ['low_stock_threshold', 'name', 'sku', 'code', 'barcode'] 
+                    },
+                    {
+                        model: db.Product,
+                        as: 'product',
+                        where: Object.keys(productWhere).length > 0 ? productWhere : undefined,
+                        attributes: ['name', 'code', 'sku', 'barcode']
+                    }
+                ]
             });
+
+            const totalItems = allStocks.length;
+            const totalQty = allStocks.reduce((sum, s) => sum + Number(s.quantity), 0);
 
             const lowStockCount = allStocks.filter(s => {
                 const threshold = Number(s.variant?.low_stock_threshold || 10);
