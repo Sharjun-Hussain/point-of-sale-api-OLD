@@ -1928,21 +1928,22 @@ const reportController = {
         try {
             const organization_id = req.user.organization_id;
             const branch_id = req.user.branch_id;
+            const daysCount = parseInt(req.query.days) === 30 ? 30 : 7;
 
-            const weekAgo = new Date();
-            weekAgo.setDate(weekAgo.getDate() - 7);
-            weekAgo.setHours(0, 0, 0, 0);
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - (daysCount - 1));
+            startDate.setHours(0, 0, 0, 0);
 
             const filter = { organization_id, status: 'completed' };
             if (branch_id) {
                 filter.branch_id = branch_id;
             }
 
-            // 1. Daily Revenue (Last 7 Days)
+            // 1. Daily Revenue
             const dailyRevenue = await Sale.findAll({
                 where: {
                     ...filter,
-                    created_at: { [Op.gte]: weekAgo }
+                    created_at: { [Op.gte]: startDate }
                 },
                 attributes: [
                     [Sequelize.fn('DATE', Sequelize.col('created_at')), 'date'],
@@ -1981,7 +1982,9 @@ const reportController = {
 
             return successResponse(res, {
                 revenueHistory: dailyRevenue.map(r => ({
-                    date: new Date(r.date).toLocaleDateString('en-US', { weekday: 'short' }),
+                    date: daysCount === 30 
+                        ? new Date(r.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                        : new Date(r.date).toLocaleDateString('en-US', { weekday: 'short' }),
                     revenue: Number(r.revenue)
                 })),
                 categoryMix: categoryRevenue.map(c => ({
