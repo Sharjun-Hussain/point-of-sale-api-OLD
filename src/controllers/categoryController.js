@@ -29,6 +29,14 @@ const getActiveMainCategoriesList = async (req, res, next) => {
 const createMainCategory = async (req, res, next) => {
     try {
         const organization_id = req.user.organization_id;
+        if (req.body.name) req.body.name = req.body.name.trim();
+        const { name } = req.body;
+
+        const existingCategories = await MainCategory.findAll({ attributes: ['id', 'name'], where: { organization_id } });
+        if (name && existingCategories.some(c => c.name.toLowerCase() === name.toLowerCase())) {
+            return errorResponse(res, 'A main category with this name already exists', 400);
+        }
+
         const category = await MainCategory.create({ ...req.body, organization_id });
 
         // Log category creation
@@ -53,6 +61,15 @@ const updateMainCategory = async (req, res, next) => {
             where: { id: req.params.id, organization_id: req.user.organization_id }
         });
         if (!category) return errorResponse(res, 'Not found', 404);
+
+        if (req.body.name) {
+            req.body.name = req.body.name.trim();
+            const nameLower = req.body.name.toLowerCase();
+            const existingCategories = await MainCategory.findAll({ attributes: ['id', 'name'], where: { organization_id: req.user.organization_id } });
+            if (existingCategories.some(c => c.id !== category.id && c.name.toLowerCase() === nameLower)) {
+                return errorResponse(res, 'A main category with this name already exists', 400);
+            }
+        }
 
         const oldValues = { name: category.name };
         await category.update(req.body);
@@ -151,6 +168,14 @@ const getActiveSubCategoriesList = async (req, res, next) => {
 const createSubCategory = async (req, res, next) => {
     try {
         const organization_id = req.user.organization_id;
+        if (req.body.name) req.body.name = req.body.name.trim();
+        const { name, main_category_id } = req.body;
+
+        const existingCategories = await SubCategory.findAll({ attributes: ['id', 'name'], where: { organization_id, main_category_id } });
+        if (name && existingCategories.some(c => c.name.toLowerCase() === name.toLowerCase())) {
+            return errorResponse(res, 'A sub category with this name already exists in this main category', 400);
+        }
+
         const category = await SubCategory.create({ ...req.body, organization_id });
 
         // Log subcategory creation
@@ -175,6 +200,18 @@ const updateSubCategory = async (req, res, next) => {
             where: { id: req.params.id, organization_id: req.user.organization_id }
         });
         if (!category) return errorResponse(res, 'Not found', 404);
+
+        if (req.body.name || req.body.main_category_id) {
+            if (req.body.name) req.body.name = req.body.name.trim();
+            const nameToCheck = req.body.name || category.name;
+            const nameLower = nameToCheck.toLowerCase();
+            const mainCatIdToCheck = req.body.main_category_id || category.main_category_id;
+            
+            const existingCategories = await SubCategory.findAll({ attributes: ['id', 'name'], where: { organization_id: req.user.organization_id, main_category_id: mainCatIdToCheck } });
+            if (existingCategories.some(c => c.id !== category.id && c.name.toLowerCase() === nameLower)) {
+                return errorResponse(res, 'A sub category with this name already exists in this main category', 400);
+            }
+        }
 
         const oldValues = { name: category.name, main_category_id: category.main_category_id };
         await category.update(req.body);

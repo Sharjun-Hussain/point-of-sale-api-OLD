@@ -46,7 +46,22 @@ const getActiveBrandsList = async (req, res, next) => {
 const createBrand = async (req, res, next) => {
     try {
         const organization_id = req.user.organization_id;
+        if (req.body.name) {
+            req.body.name = req.body.name.trim();
+        }
         const { name, description } = req.body;
+
+        const existingBrands = await Brand.findAll({
+            attributes: ['id', 'name'],
+            where: { organization_id }
+        });
+
+        const nameLower = name.toLowerCase();
+        const existingBrand = existingBrands.find(b => b.name.toLowerCase() === nameLower);
+        if (existingBrand) {
+            return errorResponse(res, 'A brand with this name already exists', 400);
+        }
+
         const brand = await Brand.create({ name, description, organization_id });
 
         // Log brand creation
@@ -73,6 +88,22 @@ const updateBrand = async (req, res, next) => {
             where: { id: req.params.id, organization_id: req.user.organization_id }
         });
         if (!brand) return errorResponse(res, 'Brand not found', 404);
+
+        if (req.body.name) {
+            req.body.name = req.body.name.trim();
+            const nameLower = req.body.name.toLowerCase();
+            const existingBrands = await Brand.findAll({
+                attributes: ['id', 'name'],
+                where: { organization_id: req.user.organization_id }
+            });
+            
+            const existingBrand = existingBrands.find(b => 
+                b.id !== brand.id && b.name.toLowerCase() === nameLower
+            );
+            if (existingBrand) {
+                return errorResponse(res, 'A brand with this name already exists', 400);
+            }
+        }
 
         const oldValues = { name: brand.name, description: brand.description };
         await brand.update(req.body);
