@@ -1,4 +1,4 @@
-const { Setting, Product, ProductVariant, Organization, Branch, Stock, Brand } = require('../models');
+const { Setting, Product, ProductVariant, Organization, Branch, Stock, Brand, AttributeValue, Attribute, SubCategory } = require('../models');
 const logger = require('../utils/logger');
 const tokenManager = require('./shopifyTokenManager');
 const { decrypt } = require('../utils/security');
@@ -439,7 +439,7 @@ class ShopifyService {
                 },
                 include: [
                     {
-                        model: Setting.sequelize.models.Stock,
+                    model: Stock,
                         as: 'stocks',
                         where: {
                             organization_id: organizationId,
@@ -777,16 +777,16 @@ class ShopifyService {
             const product = await Product.findByPk(productId, {
                 include: [
                     { model: Brand, as: 'brand' },
-                    { model: Setting.sequelize.models.SubCategory, as: 'sub_category' },
+                    { model: SubCategory, as: 'sub_category' },
                     { 
                         model: ProductVariant, 
                         as: 'variants',
                         where: { is_active: true, organization_id: organizationId },
                         required: false,
                         include: [{
-                            model: Setting.sequelize.models.AttributeValue,
+                            model: AttributeValue,
                             as: 'attribute_values',
-                            include: [{ model: Setting.sequelize.models.Attribute, as: 'attribute' }]
+                            include: [{ model: Attribute, as: 'attribute' }]
                         }]
                     }
                 ]
@@ -1053,7 +1053,7 @@ class ShopifyService {
 
             const variant = await ProductVariant.findByPk(variantId, {
                 include: [{
-                    model: Setting.sequelize.models.Stock,
+                    model: Stock,
                     as: 'stocks',
                     where: {
                         organization_id: organizationId,
