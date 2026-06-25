@@ -2962,7 +2962,7 @@ const reportController = {
     },
     getPurchaseHistoryReport: async (req, res, next) => {
         try {
-            const { start_date, end_date, branch_id, supplier_id, status, search, page = 1, limit = 10 } = req.query;
+            const { start_date, end_date, branch_id, supplier_id, status, search, product_search, page = 1, limit = 10 } = req.query;
             const organization_id = req.user.organization_id;
 
             const whereClause = { organization_id };
@@ -2990,6 +2990,25 @@ const reportController = {
 
             if (search) {
                 whereClause.po_number = { [Op.like]: `%${search}%` };
+            }
+
+            if (product_search) {
+                const searchStr = `%${product_search.replace(/'/g, "''")}%`;
+                whereClause.id = {
+                    [Op.in]: db.sequelize.literal(`(
+                        SELECT purchase_order_items.purchase_order_id FROM purchase_order_items 
+                        INNER JOIN products ON purchase_order_items.product_id = products.id
+                        LEFT JOIN product_variants ON purchase_order_items.product_variant_id = product_variants.id
+                        WHERE (
+                            products.name LIKE '${searchStr}' 
+                            OR products.code LIKE '${searchStr}'
+                            OR products.barcode LIKE '${searchStr}'
+                            OR products.sku LIKE '${searchStr}'
+                            OR product_variants.barcode LIKE '${searchStr}'
+                            OR product_variants.sku LIKE '${searchStr}'
+                        )
+                    )`)
+                };
             }
 
             const { count, rows: purchaseOrders } = await PurchaseOrder.findAndCountAll({

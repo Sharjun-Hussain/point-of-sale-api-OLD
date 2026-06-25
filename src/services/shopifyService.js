@@ -761,7 +761,9 @@ class ShopifyService {
     }
 
     /**
-     * Create Product on Shopify with all its active variants as selectable options.
+     * Create Product on Shopify using the GraphQL productSet mutation.
+     * Per Shopify docs: https://shopify.dev/docs/api/admin-graphql/latest/mutations/productSet
+     * This is the recommended approach for syncing products from an external source (POS).
      */
     async createShopifyProduct(organizationId, productId) {
         try {
@@ -775,6 +777,7 @@ class ShopifyService {
             const product = await Product.findByPk(productId, {
                 include: [
                     { model: Brand, as: 'brand' },
+                    { model: Setting.sequelize.models.SubCategory, as: 'sub_category' },
                     { 
                         model: ProductVariant, 
                         as: 'variants',
@@ -793,115 +796,216 @@ class ShopifyService {
             const variants = product.variants || [];
             if (variants.length === 0) throw new Error('Product must have at least one variant to sync with Shopify');
 
-            // 1. Build Options and Variants Payload
-            const optionsMap = new Map();
+            // ─── 1. Build productOptions and variants for GraphQL productSet ───
+            // New Shopify product model: productOptions[].values[] + variants[].optionValues[]
+            // Ref: https://shopify.dev/docs/api/admin-graphql/latest/mutations/productSet
+
+            const optionsMap = new Map(); // optionName → Set<value>
             const shopifyVariants = [];
 
             for (const v of variants) {
                 const sku = v.sku || v.barcode || product.code;
-                if (!sku) throw new Error(`Variant ${v.name} is missing a SKU or Barcode`);
+                if (!sku) throw new Error(`Variant "${v.name}" is missing a SKU or Barcode`);
 
-                const shopifyVariant = {
-                    sku: sku,
-                    price: v.price,
-                    inventory_management: 'shopify',
-                    inventory_policy: 'deny'
-                };
+                const variantOptionValues = [];
 
                 if (v.attribute_values && v.attribute_values.length > 0) {
-                    v.attribute_values.slice(0, 3).forEach((av, idx) => {
-                        const attrName = av.attribute?.name || `Option ${idx + 1}`;
-                        optionsMap.set(attrName, true);
-                        shopifyVariant[`option${idx + 1}`] = av.value;
+                    // Use real attribute names/values (e.g. Color=Red, Size=M)
+                    v.attribute_values.slice(0, 3).forEach((av) => {
+                        const optionName = av.attribute?.name || 'Option';
+                        const optionValue = av.value;
+                        if (!optionsMap.has(optionName)) optionsMap.set(optionName, new Set());
+                        optionsMap.get(optionName).add(optionValue);
+                        variantOptionValues.push({ optionName, name: optionValue });
                     });
                 } else {
-                    const fallbackOptionName = variants.length > 1 ? "Style" : "Title";
-                    optionsMap.set(fallbackOptionName, true);
-                    
-                    let optVal = v.name && v.name !== 'Default' ? v.name : `Variant ${v.sku}`;
-                    // Ensure uniqueness of the option value across variants
-                    if (shopifyVariants.some(sv => sv.option1 === optVal)) {
-                        optVal = `${optVal} (${v.sku})`;
+                    // Fallback: no attribute_values on this variant
+                    if (variants.length === 1) {
+                        // ── Single-variant (direct) product ──
+                        // Use Shopify's magic "Title"/"Default Title" pair.
+                        // Shopify storefront automatically HIDES this option selector,
+                        // so the product page shows NO clickable option buttons.
+                        const optionName = 'Title';
+                        const optionValue = 'Default Title';
+                        if (!optionsMap.has(optionName)) optionsMap.set(optionName, new Set());
+                        optionsMap.get(optionName).add(optionValue);
+                        variantOptionValues.push({ optionName, name: optionValue });
+                    } else {
+                        // ── Multi-variant product without attributes ──
+                        // Use "Style" as the option name so each variant name shows
+                        // as a visible, clickable button on the Shopify storefront.
+                        const fallbackOptionName = 'Style';
+                        let optionValue = v.name && v.name !== 'Default' ? v.name : `Variant ${sku}`;
+                        // Ensure uniqueness across variants
+                        const isDuplicate = shopifyVariants.some(sv =>
+                            sv._optionValues?.some(ov => ov.name === optionValue && ov.optionName === fallbackOptionName)
+                        );
+                        if (isDuplicate) optionValue = `${optionValue} (${sku})`;
+                        if (!optionsMap.has(fallbackOptionName)) optionsMap.set(fallbackOptionName, new Set());
+                        optionsMap.get(fallbackOptionName).add(optionValue);
+                        variantOptionValues.push({ optionName: fallbackOptionName, name: optionValue });
                     }
-                    shopifyVariant.option1 = optVal;
                 }
 
-                shopifyVariants.push(shopifyVariant);
+                // Build cost per item value (only include if cost_price > 0)
+                const costPrice = parseFloat(v.cost_price || 0);
+                const inventoryItem = {
+                    tracked: true,
+                    requiresShipping: false,          // ← No shipping setup needed
+                    ...(costPrice > 0 && {
+                        unitCost: {
+                            amount: String(costPrice.toFixed(2)),
+                            currencyCode: 'LKR'
+                        }
+                    })
+                };
+
+                shopifyVariants.push({
+                    _optionValues: variantOptionValues, // internal, stripped before send
+                    optionValues: variantOptionValues,
+                    sku,
+                    price: String(parseFloat(v.price || 0).toFixed(2)),
+                    taxable: false,                   // ← Unticks "Charge tax on this product"
+                    inventoryItem,
+                    inventoryPolicy: 'DENY'
+                });
             }
 
-            const optionsArray = Array.from(optionsMap.keys()).map(name => ({ name }));
-            if (optionsArray.length === 0) optionsArray.push({ name: "Title" });
+            // Build productOptions array
+            const productOptions = Array.from(optionsMap.entries()).map(([name, valuesSet], idx) => ({
+                name,
+                position: idx + 1,
+                values: Array.from(valuesSet).map(val => ({ name: val }))
+            }));
+            if (productOptions.length === 0) {
+                productOptions.push({ name: 'Title', position: 1, values: [{ name: 'Default Title' }] });
+            }
 
-            // Note: We bypass the "check if SKU exists" logic here for brevity and assume it's a new product push.
-            // If the user pushes again, Shopify allows duplicates, or we can later implement matching by handle.
+            // Strip internal _optionValues key before sending to API
+            const cleanVariants = shopifyVariants.map(({ _optionValues, ...rest }) => rest);
 
-            const shopifyPayload = {
-                product: {
+            // ─── 2. Execute GraphQL productSet mutation ───
+            const graphqlQuery = `
+                mutation productSet($input: ProductSetInput!, $synchronous: Boolean!) {
+                    productSet(synchronous: $synchronous, input: $input) {
+                        product {
+                            id
+                            title
+                            handle
+                            variants(first: 100) {
+                                nodes {
+                                    id
+                                    sku
+                                    inventoryItem {
+                                        id
+                                    }
+                                }
+                            }
+                        }
+                        userErrors {
+                            field
+                            message
+                            code
+                        }
+                    }
+                }
+            `;
+
+            // Map POS sub-category → Shopify productType (priority: sub_category > product_type > fallback)
+            const shopifyProductType = product.sub_category?.name
+                || product.product_type
+                || 'POS Sync';
+
+            const graphqlVariables = {
+                synchronous: true,
+                input: {
                     title: product.name,
-                    body_html: product.description || 'Synced from Inzeedo POS',
+                    descriptionHtml: product.description || 'Synced from Inzeedo POS',
                     vendor: product.brand?.name || 'Inzeedo POS',
-                    product_type: product.product_type || 'POS Sync',
-                    status: 'active',
-                    options: optionsArray,
-                    variants: shopifyVariants
+                    productType: shopifyProductType,
+                    status: 'ACTIVE',
+                    productOptions,
+                    variants: cleanVariants
                 }
             };
 
-            const response = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/products.json`, {
+            logger.info(`Shopify productSet: "${product.name}" → productType = "${shopifyProductType}" (sub_category: "${product.sub_category?.name || 'none'}")`);
+
+            const graphqlUrl = `https://${cleanShopUrl}/admin/api/2024-10/graphql.json`;
+            const response = await fetch(graphqlUrl, {
                 method: 'POST',
                 headers: {
                     'X-Shopify-Access-Token': access_token,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(shopifyPayload),
-                signal: AbortSignal.timeout(15000)
+                body: JSON.stringify({ query: graphqlQuery, variables: graphqlVariables }),
+                signal: AbortSignal.timeout(30000)
             });
 
             if (!response.ok) {
-                const err = await response.json().catch(() => ({}));
-                throw new Error(`Shopify API Error: ${JSON.stringify(err.errors || 'Unknown error')}`);
+                const errText = await response.text().catch(() => 'Unknown HTTP error');
+                throw new Error(`Shopify GraphQL HTTP ${response.status}: ${errText}`);
             }
 
-            const data = await response.json();
-            const createdShopifyProduct = data.product;
+            const result = await response.json();
 
-            // 3. Push Current Local Stock to the new SKUs
-            if (createdShopifyProduct && createdShopifyProduct.variants && config.location_id) {
-                for (const createdVariant of createdShopifyProduct.variants) {
-                    if (createdVariant.inventory_item_id) {
-                        // Find local variant by SKU
-                        const localV = variants.find(v => (v.sku || v.barcode || product.code) === createdVariant.sku);
-                        if (localV) {
-                            try {
-                                const totalStock = await this._getLocalStockTotal(organizationId, localV.id);
-                                await fetch(`https://${cleanShopUrl}/admin/api/2024-10/inventory_levels/set.json`, {
-                                    method: 'POST',
-                                    headers: { 'X-Shopify-Access-Token': access_token, 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                        location_id: config.location_id,
-                                        inventory_item_id: createdVariant.inventory_item_id,
-                                        available: Math.max(0, Math.floor(totalStock))
-                                    })
-                                });
-                            } catch (stockErr) {
-                                logger.error(`Shopify: Initial stock push failed for SKU ${createdVariant.sku}: ${stockErr.message}`);
-                            }
-                        }
+            // Surface GraphQL protocol-level errors
+            if (result.errors?.length > 0) {
+                throw new Error(`Shopify GraphQL Error: ${result.errors.map(e => e.message).join(', ')}`);
+            }
+
+            const userErrors = result?.data?.productSet?.userErrors || [];
+            if (userErrors.length > 0) {
+                const msg = userErrors.map(e => `[${(e.field || []).join('.')}] ${e.message}`).join('; ');
+                throw new Error(`Shopify productSet failed: ${msg}`);
+            }
+
+            const createdShopifyProduct = result?.data?.productSet?.product;
+            if (!createdShopifyProduct) {
+                throw new Error('Shopify productSet returned no product. Verify your access scopes and input.');
+            }
+
+            // ─── 3. Push current local stock to new Shopify inventory items ───
+            if (createdShopifyProduct.variants?.nodes && config.location_id) {
+                for (const createdVariant of createdShopifyProduct.variants.nodes) {
+                    const inventoryGid = createdVariant.inventoryItem?.id;
+                    if (!inventoryGid) continue;
+                    // GID format: "gid://shopify/InventoryItem/12345" — extract numeric ID
+                    const numericInventoryItemId = inventoryGid.split('/').pop();
+                    const localV = variants.find(v => (v.sku || v.barcode || product.code) === createdVariant.sku);
+                    if (!localV) continue;
+                    try {
+                        const totalStock = await this._getLocalStockTotal(organizationId, localV.id);
+                        await fetch(`https://${cleanShopUrl}/admin/api/2024-10/inventory_levels/set.json`, {
+                            method: 'POST',
+                            headers: { 'X-Shopify-Access-Token': access_token, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                location_id: config.location_id,
+                                inventory_item_id: numericInventoryItemId,
+                                available: Math.max(0, Math.floor(totalStock))
+                            }),
+                            signal: AbortSignal.timeout(10000)
+                        });
+                        logger.info(`Shopify: Set stock for SKU "${createdVariant.sku}" → qty ${totalStock}`);
+                    } catch (stockErr) {
+                        logger.error(`Shopify: Stock push failed for SKU "${createdVariant.sku}": ${stockErr.message}`);
                     }
                 }
             }
 
-            // Mark as enabled locally for Product and all Variants
+            // ─── 4. Mark product and variants as sync-enabled locally ───
             await product.update({ shopify_sync_enabled: true });
             await ProductVariant.update(
                 { shopify_sync_enabled: true },
                 { where: { product_id: product.id, organization_id: organizationId } }
             );
 
+            logger.info(`Shopify productSet: Created "${product.name}" → GID ${createdShopifyProduct.id}`);
+
             return {
                 action: 'created',
-                message: 'New product with variants created on Shopify successfully.',
-                product: data.product
+                message: 'Product synced to Shopify successfully via GraphQL productSet.',
+                product: createdShopifyProduct
             };
         } catch (error) {
             logger.error(`Create Shopify Product Error: ${error.message}`);
