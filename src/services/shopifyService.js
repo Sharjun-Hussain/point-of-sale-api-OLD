@@ -439,7 +439,7 @@ class ShopifyService {
                 },
                 include: [
                     {
-                    model: Stock,
+                        model: Stock,
                         as: 'stocks',
                         where: {
                             organization_id: organizationId,
@@ -778,8 +778,8 @@ class ShopifyService {
                 include: [
                     { model: Brand, as: 'brand' },
                     { model: SubCategory, as: 'sub_category' },
-                    { 
-                        model: ProductVariant, 
+                    {
+                        model: ProductVariant,
                         as: 'variants',
                         where: { is_active: true, organization_id: organizationId },
                         required: false,
@@ -847,26 +847,21 @@ class ShopifyService {
                     }
                 }
 
-                // Build cost per item value (only include if cost_price > 0)
+                // NOTE: unitCost is NOT valid in InventoryItemInput for productSet.
+                // It must be set via inventoryItemUpdate after product creation.
                 const costPrice = parseFloat(v.cost_price || 0);
-                const inventoryItem = {
-                    tracked: true,
-                    requiresShipping: false,          // ← No shipping setup needed
-                    ...(costPrice > 0 && {
-                        unitCost: {
-                            amount: String(costPrice.toFixed(2)),
-                            currencyCode: 'LKR'
-                        }
-                    })
-                };
 
                 shopifyVariants.push({
                     _optionValues: variantOptionValues, // internal, stripped before send
+                    _costPrice: costPrice,              // internal, used post-creation
                     optionValues: variantOptionValues,
                     sku,
                     price: String(parseFloat(v.price || 0).toFixed(2)),
-                    taxable: false,                   // ← Unticks "Charge tax on this product"
-                    inventoryItem,
+                    taxable: false,                    // ← Unticks "Charge tax on this product"
+                    inventoryItem: {
+                        tracked: false,
+                        requiresShipping: false        // ← No shipping setup needed
+                    },
                     inventoryPolicy: 'DENY'
                 });
             }
@@ -881,8 +876,12 @@ class ShopifyService {
                 productOptions.push({ name: 'Title', position: 1, values: [{ name: 'Default Title' }] });
             }
 
-            // Strip internal _optionValues key before sending to API
-            const cleanVariants = shopifyVariants.map(({ _optionValues, ...rest }) => rest);
+            // Strip internal keys before sending to API
+            const cleanVariants = shopifyVariants.map(({ _optionValues, _costPrice, ...rest }) => rest);
+
+            // Build a costPrice lookup map: sku → costPrice (for post-creation unitCost update)
+            const costPriceBySku = {};
+            shopifyVariants.forEach(sv => { if (sv._costPrice > 0) costPriceBySku[sv.sku] = sv._costPrice; });
 
             // ─── 2. Execute GraphQL productSet mutation ───
             const graphqlQuery = `
@@ -965,15 +964,18 @@ class ShopifyService {
                 throw new Error('Shopify productSet returned no product. Verify your access scopes and input.');
             }
 
-            // ─── 3. Push current local stock to new Shopify inventory items ───
+            // ─── 3. Push stock + set cost per item for each created Shopify variant ───
             if (createdShopifyProduct.variants?.nodes && config.location_id) {
                 for (const createdVariant of createdShopifyProduct.variants.nodes) {
                     const inventoryGid = createdVariant.inventoryItem?.id;
                     if (!inventoryGid) continue;
+
                     // GID format: "gid://shopify/InventoryItem/12345" — extract numeric ID
                     const numericInventoryItemId = inventoryGid.split('/').pop();
                     const localV = variants.find(v => (v.sku || v.barcode || product.code) === createdVariant.sku);
                     if (!localV) continue;
+
+                    // 3a. Set inventory stock level
                     try {
                         const totalStock = await this._getLocalStockTotal(organizationId, localV.id);
                         await fetch(`https://${cleanShopUrl}/admin/api/2024-10/inventory_levels/set.json`, {
@@ -989,6 +991,44 @@ class ShopifyService {
                         logger.info(`Shopify: Set stock for SKU "${createdVariant.sku}" → qty ${totalStock}`);
                     } catch (stockErr) {
                         logger.error(`Shopify: Stock push failed for SKU "${createdVariant.sku}": ${stockErr.message}`);
+                    }
+
+                    // 3b. Set cost per item (unitCost) via inventoryItemUpdate — separate call required
+                    const costPrice = costPriceBySku[createdVariant.sku];
+                    if (costPrice > 0) {
+                        try {
+                            const costMutation = `
+                                mutation inventoryItemUpdate($id: ID!, $input: InventoryItemUpdateInput!) {
+                                    inventoryItemUpdate(id: $id, input: $input) {
+                                        inventoryItem { id unitCost { amount currencyCode } }
+                                        userErrors { field message }
+                                    }
+                                }
+                            `;
+                            const costRes = await fetch(graphqlUrl, {
+                                method: 'POST',
+                                headers: { 'X-Shopify-Access-Token': access_token, 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    query: costMutation,
+                                    variables: {
+                                        id: inventoryGid,
+                                        input: {
+                                            cost: String(costPrice.toFixed(2))
+                                        }
+                                    }
+                                }),
+                                signal: AbortSignal.timeout(10000)
+                            });
+                            const costResult = await costRes.json();
+                            const costErrors = costResult?.data?.inventoryItemUpdate?.userErrors || [];
+                            if (costErrors.length > 0) {
+                                logger.error(`Shopify: unitCost update failed for SKU "${createdVariant.sku}": ${costErrors.map(e => e.message).join(', ')}`);
+                            } else {
+                                logger.info(`Shopify: Set unitCost for SKU "${createdVariant.sku}" → LKR ${costPrice.toFixed(2)}`);
+                            }
+                        } catch (costErr) {
+                            logger.error(`Shopify: unitCost push failed for SKU "${createdVariant.sku}": ${costErr.message}`);
+                        }
                     }
                 }
             }
