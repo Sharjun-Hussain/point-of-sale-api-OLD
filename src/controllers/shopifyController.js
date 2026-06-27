@@ -178,19 +178,21 @@ const updateProductStatus = async (req, res, next) => {
 
 const deleteProduct = async (req, res, next) => {
     try {
-        const { product_id, variant_id } = req.body;
-        await shopifyService.deleteShopifyProduct(req.user.organization_id, product_id, variant_id || null);
+        const { product_id, local_product_id } = req.body;
+        // local_product_id = the POS product UUID — needed to clear shopify_sync_enabled flag locally
+        await shopifyService.deleteShopifyProduct(req.user.organization_id, product_id, local_product_id || null);
         return successResponse(res, null, 'Product deleted from Shopify');
     } catch (error) { next(error); }
 };
 
 const bulkDeleteProducts = async (req, res, next) => {
     try {
-        const { product_ids, variant_ids = [] } = req.body;
+        const { product_ids, local_product_ids = [] } = req.body;
         if (!Array.isArray(product_ids) || product_ids.length === 0) {
             return errorResponse(res, 'product_ids must be a non-empty array', 400);
         }
-        const results = await shopifyService.bulkDeleteShopifyProducts(req.user.organization_id, product_ids, variant_ids);
+        // local_product_ids = array of POS product UUIDs — needed to clear shopify_sync_enabled flags
+        const results = await shopifyService.bulkDeleteShopifyProducts(req.user.organization_id, product_ids, local_product_ids);
         return successResponse(res, results, `Bulk delete complete: ${results.deleted} deleted, ${results.failed} failed`);
     } catch (error) { next(error); }
 };

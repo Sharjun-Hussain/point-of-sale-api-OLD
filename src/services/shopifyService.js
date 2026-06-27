@@ -859,7 +859,7 @@ class ShopifyService {
                     price: String(parseFloat(v.price || 0).toFixed(2)),
                     taxable: false,                    // ← Unticks "Charge tax on this product"
                     inventoryItem: {
-                        tracked: false,
+                        tracked: true,
                         requiresShipping: false        // ← No shipping setup needed
                     },
                     inventoryPolicy: 'DENY'
