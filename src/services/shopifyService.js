@@ -408,6 +408,87 @@ class ShopifyService {
     }
 
     /**
+     * Refresh sync status — cross-check local synced products against Shopify.
+     * Any product marked shopify_sync_enabled=true locally but whose SKU
+     * no longer exists on Shopify gets automatically unlinked.
+     */
+    async refreshSyncStatus(organizationId) {
+        const config = await this._getFullConfig(organizationId);
+        if (!config) throw new Error('Shopify not configured');
+
+        const access_token = await tokenManager.getValidToken(organizationId);
+        const cleanShopUrl = config.shop_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+
+        // 1. Fetch all Shopify product SKUs (paginated)
+        const shopifySkus = new Set();
+        let nextPageInfo = null;
+        do {
+            let url = `https://${cleanShopUrl}/admin/api/2024-10/variants.json?limit=250&fields=sku`;
+            if (nextPageInfo) url += `&page_info=${nextPageInfo}`;
+
+            const res = await fetch(url, {
+                headers: { 'X-Shopify-Access-Token': access_token },
+                signal: AbortSignal.timeout(20000)
+            });
+            if (!res.ok) throw new Error(`Shopify API error ${res.status}`);
+
+            const linkHeader = res.headers.get('link') || '';
+            const nextMatch = linkHeader.match(/<[^>]*page_info=([^&>]+)[^>]*>; rel="next"/);
+            nextPageInfo = nextMatch ? nextMatch[1] : null;
+
+            const json = await res.json();
+            (json.variants || []).forEach(v => { if (v.sku) shopifySkus.add(v.sku.trim()); });
+        } while (nextPageInfo);
+
+        logger.info(`Shopify refreshSyncStatus: Found ${shopifySkus.size} SKUs on Shopify`);
+
+        // 2. Get all locally synced variants
+        const syncedVariants = await ProductVariant.findAll({
+            where: { shopify_sync_enabled: true, organization_id: organizationId },
+            attributes: ['id', 'product_id', 'sku', 'barcode']
+        });
+
+        // 3. Find which ones no longer exist on Shopify
+        const orphanVariantIds = [];
+        const orphanProductIds = new Set();
+
+        for (const v of syncedVariants) {
+            const sku = v.sku || v.barcode;
+            if (!sku || !shopifySkus.has(sku.trim())) {
+                orphanVariantIds.push(v.id);
+                orphanProductIds.add(v.product_id);
+            }
+        }
+
+        if (orphanVariantIds.length === 0) {
+            logger.info('Shopify refreshSyncStatus: All synced products are still on Shopify. Nothing to clean up.');
+            return { unlinked: 0, checked: syncedVariants.length };
+        }
+
+        // 4. Unlink orphan variants and their parent products
+        await ProductVariant.update(
+            { shopify_sync_enabled: false },
+            { where: { id: orphanVariantIds, organization_id: organizationId } }
+        );
+
+        // Only unlink parent product if ALL its variants are now unlinked
+        for (const productId of orphanProductIds) {
+            const stillSynced = await ProductVariant.count({
+                where: { product_id: productId, shopify_sync_enabled: true, organization_id: organizationId }
+            });
+            if (stillSynced === 0) {
+                await Product.update(
+                    { shopify_sync_enabled: false },
+                    { where: { id: productId, organization_id: organizationId } }
+                );
+            }
+        }
+
+        logger.info(`Shopify refreshSyncStatus: Auto-unlinked ${orphanVariantIds.length} orphan variant(s) across ${orphanProductIds.size} product(s)`);
+        return { unlinked: orphanVariantIds.length, checked: syncedVariants.length };
+    }
+
+    /**
      * Push ALL local inventory to Shopify
      */
     async pushAllInventory(organizationId) {

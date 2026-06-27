@@ -208,6 +208,16 @@ const getProductDetails = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const refreshSyncStatus = async (req, res, next) => {
+    try {
+        const result = await shopifyService.refreshSyncStatus(req.user.organization_id);
+        const msg = result.unlinked > 0
+            ? `Sync refreshed: ${result.unlinked} orphan product(s) auto-unlinked (checked ${result.checked})`
+            : `All ${result.checked} synced product(s) confirmed active on Shopify. Nothing to clean up.`;
+        return successResponse(res, result, msg);
+    } catch (error) { next(error); }
+};
+
 const disconnectStore = async (req, res, next) => {
     try {
         await shopifyService.disconnect(req.user.organization_id);
@@ -233,5 +243,6 @@ module.exports = {
     updateProductStatus,
     deleteProduct,
     bulkDeleteProducts,
+    refreshSyncStatus,
     disconnectStore
 };
