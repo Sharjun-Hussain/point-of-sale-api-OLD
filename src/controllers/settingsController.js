@@ -480,8 +480,8 @@ const signHardwareRequest = async (req, res, next) => {
         }
 
         // 2. Generate Signature
-        // Using SHA1 to match the frontend QZ Tray configuration
-        const sign = crypto.createSign('RSA-SHA1');
+        // Using SHA512 for modern QZ Tray compatibility
+        const sign = crypto.createSign('RSA-SHA512');
         sign.update(toSign);
         const signature = sign.sign(privateKey, 'base64');
 
