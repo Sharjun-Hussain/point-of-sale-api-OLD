@@ -38,7 +38,7 @@ const login = async (req, res, next) => {
                 {
                     model: Organization,
                     as: 'organization',
-                    attributes: ['id', 'name', 'logo', 'business_type', 'business_mode', 'is_active', 'subscription_status', 'subscription_expiry_date', 'is_master']
+                    attributes: ['id', 'name', 'logo', 'business_type', 'business_mode', 'is_active', 'subscription_status', 'subscription_expiry_date', 'is_master', 'address', 'city', 'state', 'zip_code', 'phone', 'email']
                 }
             ]
         });
@@ -149,7 +149,10 @@ const login = async (req, res, next) => {
                     name: user.organization.name,
                     logo: user.organization.logo,
                     business_type: user.organization.business_type,
-                    business_mode: user.organization.business_mode
+                    business_mode: user.organization.business_mode,
+                    address: [user.organization.address, user.organization.city, user.organization.state, user.organization.zip_code].filter(Boolean).join(', '),
+                    phone: user.organization.phone,
+                    email: user.organization.email
                 } : null,
                 roles: user.roles,
                 branches: allBranches,
@@ -323,7 +326,10 @@ const me = async (req, res) => {
                 name: user.organization.name,
                 logo: user.organization.logo,
                 business_type: user.organization.business_type,
-                business_mode: user.organization.business_mode
+                business_mode: user.organization.business_mode,
+                address: [user.organization.address, user.organization.city, user.organization.state, user.organization.zip_code].filter(Boolean).join(', '),
+                phone: user.organization.phone,
+                email: user.organization.email
             } : null,
             roles: user.roles,
             branches: allBranches,
