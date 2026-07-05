@@ -1,5 +1,5 @@
 const db = require('../models');
-const { Sale, SaleItem, SalePayment, Product, ProductVariant, Stock, ProductBatch, Transaction, Account, Customer, Branch, User, SaleEmployee, Cheque, Organization } = db;
+const { Sale, SaleItem, SalePayment, Product, ProductVariant, Stock, ProductBatch, Transaction, Account, Customer, Branch, User, SaleEmployee, Cheque, Organization, Distributor } = db;
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
 const auditService = require('../services/auditService');
@@ -72,7 +72,7 @@ const getAllSales = async (req, res, next) => {
             offset,
             include: [
                 { model: Customer, as: 'customer', attributes: ['name', 'phone'] },
-                { model: db.Distributor, as: 'distributor', attributes: ['name', 'phone'] },
+                { model: Distributor, as: 'distributor', attributes: ['name', 'phone', 'email', 'address', 'company_name'] },
                 { model: Branch, as: 'branch', attributes: ['name'] },
                 { model: User, as: 'cashier', attributes: ['name'] },
                 { model: User, as: 'sellers', attributes: ['name', 'id'], through: { attributes: [] } },
@@ -115,7 +115,7 @@ const getSaleById = async (req, res, next) => {
             where: { id, organization_id: req.user.organization_id },
             include: [
                 { model: Customer, as: 'customer' },
-                { model: db.Distributor, as: 'distributor' },
+                { model: Distributor, as: 'distributor' },
                 { model: Branch, as: 'branch' },
                 { model: User, as: 'cashier' },
                 {
@@ -413,11 +413,13 @@ const createSale = async (req, res, next) => {
             total_paid = amount;
         }
 
-        // Rule: Guest/Walk-in must pay in full (SKIP for drafts & e-commerce source orders)
+        // Rule: Guest/Walk-in must pay in full (SKIP for drafts & e-commerce source orders & manufacturing dispatches)
         // We use the frontend's provided payable_amount if available to avoid tax/rounding mismatches
         const effective_payable_amount = (parseFloat(payload_payable_amount) || final_payable_amount);
+        
+        const isManufacturer = organization && (organization.business_type?.toLowerCase() === 'manufacturing' || organization.business_type?.toLowerCase() === 'manufacturer');
 
-        if (payload_status !== 'draft' && req.body.source !== 'ecommerce' && !customer_id && total_paid < effective_payable_amount) {
+        if (!isManufacturer && payload_status !== 'draft' && req.body.source !== 'ecommerce' && !customer_id && !distributor_id && total_paid < effective_payable_amount) {
             if ((effective_payable_amount - total_paid) > 1.0) {
                 console.warn(`[createSale] 400 Error: Guest must pay in full. Provided Total: ${payload_payable_amount}, Calculated: ${final_payable_amount}, Paid: ${total_paid}`);
                 await t.rollback();
@@ -445,7 +447,7 @@ const createSale = async (req, res, next) => {
                    return errorResponse(res, `Customer has no credit limit enabled. Full payment required.`, 400);
                 }
             } else if (distributor_id) {
-                const distributor = await db.Distributor.findByPk(distributor_id, { transaction: t });
+                const distributor = await Distributor.findByPk(distributor_id, { transaction: t });
                 if (distributor && distributor.credit_limit > 0) {
                     const currentBalance = await accountingService.getDistributorBalance(organization_id, distributor_id, t);
                     if ((currentBalance + newCreditAmount) > parseFloat(distributor.credit_limit)) {
@@ -558,7 +560,7 @@ const createSale = async (req, res, next) => {
                 status: 'pending',
                 payee_payor_name: payee_payor_name || 
                                   (sale.customer_id ? (await Customer.findOne({ where: { id: sale.customer_id, organization_id }, transaction: t })).name : 
-                                  (sale.distributor_id ? (await db.Distributor.findOne({ where: { id: sale.distributor_id, organization_id }, transaction: t })).name : 'Guest')),
+                                  (sale.distributor_id ? (await Distributor.findOne({ where: { id: sale.distributor_id, organization_id }, transaction: t })).name : 'Guest')),
                 reference_type: 'sale',
                 reference_id: sale.id
             }, { transaction: t });
@@ -802,8 +804,8 @@ const createSale = async (req, res, next) => {
             include: [
                 { model: User, as: 'sellers', attributes: ['id', 'name', 'email'] },
                 { model: User, as: 'cashier', attributes: ['id', 'name'] },
-                { model: Customer, as: 'customer', attributes: ['id', 'name', 'phone'] },
-                { model: db.Distributor, as: 'distributor', attributes: ['id', 'name', 'phone'] },
+                { model: Customer, as: 'customer', attributes: ['id', 'name', 'phone', 'email', 'address'] },
+                { model: Distributor, as: 'distributor', attributes: ['id', 'name', 'phone', 'email', 'address', 'company_name'] },
                 {
                     model: SaleItem,
                     as: 'items',

@@ -139,10 +139,26 @@ const getProductByBarcode = async (req, res, next) => {
 
 const getAllProducts = async (req, res, next) => {
     try {
-        const { page, size, name, category_id, is_variant, sort_by, order: sort_order } = req.query;
+        const { page, size, name, category_id, is_variant, sort_by, order: sort_order, type } = req.query;
         const { limit, offset } = getPagination(page, size);
 
         const where = { organization_id: req.user.organization_id };
+        const org = await Organization.findByPk(req.user.organization_id);
+        const isManufacturer = org && org.business_type && (org.business_type.toLowerCase() === 'manufacturing' || org.business_type.toLowerCase() === 'manufacturer');
+        
+        if (type) {
+            if (type === 'raw_material') where.product_type = 'Raw Material';
+            else if (type === 'finished_good') where.product_type = 'Finished Good';
+            else if (type === 'standard') where.product_type = 'Standard';
+            else if (type === 'product_hub') {
+                if (isManufacturer) {
+                    where.product_type = { [Op.in]: ['Finished Good', 'Standard', 'Service', 'Semi-Finished'] };
+                }
+                // For non-manufacturers, we don't filter by product_type so they see their entire catalog.
+            }
+            else where.product_type = type;
+        }
+
         logger.info(`[Debug] getAllProducts: org=${where.organization_id}, is_variant=${is_variant}`);
         if (name) {
             where[Op.or] = [
@@ -754,45 +770,118 @@ const updateProduct = async (req, res, next) => {
 };
 
 const deleteProduct = async (req, res, next) => {
+    const t = await sequelize.transaction();
     try {
         const { id } = req.params;
+        const organization_id = req.user.organization_id;
+
         const product = await Product.findOne({
-            where: { id, organization_id: req.user.organization_id }
+            where: { id, organization_id }
         });
         if (!product) {
+            await t.rollback();
             return errorResponse(res, 'Product not found', 404);
         }
 
-        // Log product deletion
+        // 1. Safety Check: Prevent deletion if there are existing transactions
+        // In a true ERP, we check EVERYTHING. Hard deleting master data is dangerous.
+        const modelsToCheck = [
+            { model: sequelize.models.SaleItem, name: 'Sales' },
+            { model: sequelize.models.PurchaseOrderItem, name: 'Purchase Orders' },
+            { model: sequelize.models.GRNItem, name: 'GRNs (Goods Received)' },
+            { model: sequelize.models.SaleReturnItem, name: 'Sale Returns' },
+            { model: sequelize.models.PurchaseReturnItem, name: 'Purchase Returns' },
+            { model: sequelize.models.StockTransferItem, name: 'Stock Transfers' },
+            { model: sequelize.models.Recipe, name: 'Recipes (BOM)' },
+            { model: sequelize.models.StockAdjustment, name: 'Stock Adjustments' }
+        ];
+
+        for (const { model, name } of modelsToCheck) {
+            if (model) {
+                // findOne is safe and fast (LIMIT 1). We run sequentially to avoid overloading the single transaction connection.
+                const exists = await model.findOne({ 
+                    where: { product_id: id },
+                    attributes: ['id'],
+                    transaction: t
+                });
+                if (exists) {
+                    await t.rollback();
+                    return errorResponse(res, `Cannot delete product: It is linked to existing ${name}. Please deactivate it instead.`, 400);
+                }
+            }
+        }
+
+        // 2. Log product deletion before we destroy the data
         const { ipAddress, userAgent } = auditService.getRequestContext(req);
         await auditService.logDelete(
-            req.user?.organization_id,
+            organization_id,
             req.user?.id,
             'Product',
             product.id,
-            {
-                name: product.name,
-                code: product.code,
-                sku: product.sku
-            },
+            { name: product.name, code: product.code, sku: product.sku },
             ipAddress,
             userAgent
         );
 
-        // This is a hard delete, consider soft delete by adding deleted_at to model
-        await product.destroy();
+        // 3. Manually cascade delete to prevent orphaned variants and stock
+        // First get variant IDs so we can wipe their attribute-value links.
+        // Must include the transaction so this read is consistent with the deletes.
+        const variants = await ProductVariant.findAll({
+            where: { product_id: id, organization_id },
+            attributes: ['id'],
+            transaction: t
+        });
+        const variantIds = variants.map(v => v.id);
 
-        return successResponse(res, null, 'Product deleted successfully');
+        if (variantIds.length > 0) {
+            await VariantAttributeValue.destroy({ where: { product_variant_id: variantIds }, transaction: t });
+        }
+        
+        // Clean up pivot tables if they exist
+        if (sequelize.models.ProductAttribute) {
+            await sequelize.models.ProductAttribute.destroy({ where: { product_id: id }, transaction: t });
+        }
+        if (sequelize.models.ProductSupplier) {
+            await sequelize.models.ProductSupplier.destroy({ where: { product_id: id }, transaction: t });
+        }
+
+        // Delete other core relations
+        await ProductBatch.destroy({ where: { product_id: id }, transaction: t });
+        await Stock.destroy({ where: { product_id: id }, transaction: t });
+        await ProductVariant.destroy({ where: { product_id: id, organization_id }, transaction: t });
+
+        // 4. Delete the product itself
+        await product.destroy({ transaction: t });
+
+        await t.commit();
+        return successResponse(res, null, 'Product and all associated variants deleted successfully');
     } catch (error) {
+        await t.rollback();
         next(error);
     }
 };
 
 const getActiveProductsList = async (req, res, next) => {
     try {
-        const { branch_id } = req.query;
+        const { branch_id, type } = req.query;
+        const where = { is_active: true, organization_id: req.user.organization_id };
+        const org = await Organization.findByPk(req.user.organization_id);
+        const isManufacturer = org && org.business_type && (org.business_type.toLowerCase() === 'manufacturing' || org.business_type.toLowerCase() === 'manufacturer');
+        
+        if (type) {
+            if (type === 'raw_material') where.product_type = 'Raw Material';
+            else if (type === 'finished_good') where.product_type = 'Finished Good';
+            else if (type === 'standard') where.product_type = 'Standard';
+            else if (type === 'product_hub') {
+                if (isManufacturer) {
+                    where.product_type = { [Op.in]: ['Finished Good', 'Standard', 'Service', 'Semi-Finished'] };
+                }
+            }
+            else where.product_type = type;
+        }
+
         const products = await Product.findAll({
-            where: { is_active: true, organization_id: req.user.organization_id },
+            where,
             attributes: ['id', 'name', 'sku', 'barcode', 'code', 'image', 'main_category_id', 'is_variant', 'product_type', 'can_be_manufactured'],
             include: [
                 { model: MainCategory, as: 'main_category', attributes: ['id', 'name'] },
@@ -822,24 +911,34 @@ const getActiveProductsList = async (req, res, next) => {
         });
 
         // Map through and calculate stock_quantity dynamically
-        const mappedProducts = products.map(product => {
-            const p = product.toJSON();
-            if (p.variants) {
-                p.variants = p.variants.map(variant => {
-                    let calculatedStock = 0;
-                    if (variant.stocks && variant.stocks.length > 0) {
-                        if (branch_id && branch_id !== 'all') {
-                            const branchStock = variant.stocks.find(s => String(s.branch_id) === String(branch_id));
-                            calculatedStock = branchStock ? parseFloat(branchStock.quantity) : 0;
-                        } else {
-                            calculatedStock = variant.stocks.reduce((acc, s) => acc + parseFloat(s.quantity), 0);
+        const mappedProducts = products
+            .map(product => {
+                const p = product.toJSON();
+                if (p.variants) {
+                    p.variants = p.variants.map(variant => {
+                        let calculatedStock = 0;
+                        if (variant.stocks && variant.stocks.length > 0) {
+                            if (branch_id && branch_id !== 'all') {
+                                const branchStock = variant.stocks.find(s => String(s.branch_id) === String(branch_id));
+                                calculatedStock = branchStock ? parseFloat(branchStock.quantity) : 0;
+                            } else {
+                                calculatedStock = variant.stocks.reduce((acc, s) => acc + parseFloat(s.quantity), 0);
+                            }
                         }
-                    }
-                    return { ...variant, stock_quantity: calculatedStock };
-                });
-            }
-            return p;
-        });
+                        return { ...variant, stock_quantity: calculatedStock };
+                    });
+                }
+                return p;
+            })
+            // CRITICAL FIX: Filter out variant-type products that have zero active variants.
+            // This prevents ghost products (whose variants were all deactivated or whose parent
+            // was deleted) from appearing in the POS product picker.
+            .filter(p => {
+                if (p.is_variant) {
+                    return p.variants && p.variants.length > 0;
+                }
+                return true; // Non-variant simple products always show
+            });
 
         return successResponse(res, mappedProducts, 'Active products fetched');
     } catch (error) {
@@ -856,8 +955,17 @@ const toggleProductStatus = async (req, res, next) => {
 
         const action = req.params.action || (product.is_active ? 'deactivate' : 'activate');
         const oldStatus = product.is_active;
-        product.is_active = (action === 'activate');
+        const newStatus = (action === 'activate');
+
+        product.is_active = newStatus;
         await product.save();
+
+        // CASCADE: Also update all child variants to match parent status.
+        // This ensures suspended products don't leak active variants into the POS.
+        await ProductVariant.update(
+            { is_active: newStatus },
+            { where: { product_id: product.id, organization_id: req.user.organization_id } }
+        );
 
         // Log product status toggle
         const { ipAddress, userAgent } = auditService.getRequestContext(req);
@@ -867,10 +975,10 @@ const toggleProductStatus = async (req, res, next) => {
             'Product',
             product.id,
             { is_active: oldStatus },
-            { is_active: product.is_active },
+            { is_active: newStatus },
             ipAddress,
             userAgent,
-            { action: `Product ${action}d` }
+            { action: `Product ${action}d (variants cascade updated)` }
         );
 
         return successResponse(res, product, `Product ${action}d successfully`);
