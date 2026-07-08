@@ -506,10 +506,12 @@ const reportController = {
             if (start_date && end_date) shiftWhereClause.opening_time = whereClause.created_at;
             const shifts = await db.Shift.findAll({
                 where: shiftWhereClause,
-                attributes: ['opening_cash', 'opening_time', 'closing_time'],
+                attributes: ['opening_cash', 'closing_cash', 'expected_cash', 'variance', 'opening_time', 'closing_time'],
                 raw: true
             });
             const totalOpeningBalance = shifts.reduce((sum, s) => sum + Number(s.opening_cash || 0), 0);
+            const totalClosingCash = shifts.reduce((sum, s) => sum + Number(s.closing_cash || 0), 0);
+            const totalVariance = shifts.reduce((sum, s) => sum + Number(s.variance || 0), 0);
             const firstShiftOpen = shifts.length > 0 ? new Date(Math.min(...shifts.map(s => new Date(s.opening_time).getTime()))) : null;
             const lastShiftClose = shifts.filter(s => s.closing_time).length > 0 ? new Date(Math.max(...shifts.map(s => s.closing_time ? new Date(s.closing_time).getTime() : 0))) : null;
 
@@ -544,6 +546,8 @@ const reportController = {
                 shiftEnd: lastShiftClose,
                 totalRefund,
                 totalOpeningBalance,
+                totalClosingCash,
+                totalVariance,
                 totalExpense,
                 totalCashExpense,
                 cashInHand,
