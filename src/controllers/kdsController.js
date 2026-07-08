@@ -5,24 +5,32 @@ const { Op } = require('sequelize');
 // Fetch all active cooking tickets in the kitchen
 const getActiveTickets = async (req, res, next) => {
     try {
-        const branch_id = req.user.branch_id;
+        const branch_id = req.query.branch_id || req.headers['x-branch-id'] || req.user.branch_id;
         const organization_id = req.user.organization_id;
 
-        const tickets = await Sale.findAll({
-            where: {
-                organization_id,
-                branch_id,
-                status: 'completed', // In Inzeedo's structure, a pending dine-in sale is saved as draft or active
-                // We fetch active food orders where KOT status is actively in the cooking flow
-                kot_status: {
-                    [Op.in]: ['pending', 'sent_to_kitchen', 'preparing', 'ready']
-                }
+        const whereClause = {
+            organization_id,
+            status: {
+                [Op.in]: ['draft', 'active', 'completed']
             },
+            kot_status: {
+                [Op.in]: ['pending', 'sent_to_kitchen', 'preparing', 'ready']
+            }
+        };
+
+        if (branch_id) {
+            whereClause.branch_id = branch_id;
+        }
+
+        const tickets = await Sale.findAll({
+            where: whereClause,
             include: [
                 {
                     model: SaleItem,
                     as: 'items',
-                    include: [{ model: Product, as: 'product', attributes: ['name', 'code'] }]
+                    include: [
+                        { model: Product, as: 'product', attributes: ['name', 'code'] }
+                    ]
                 },
                 {
                     model: DiningTable,

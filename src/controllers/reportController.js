@@ -396,7 +396,10 @@ const reportController = {
                         model: Product,
                         as: 'product',
                         where: productWhere,
-                        attributes: ['name', 'code', 'image']
+                        attributes: ['name', 'code', 'image'],
+                        include: [
+                            { model: db.MainCategory, as: 'main_category', attributes: ['name'] }
+                        ]
                     },
                     {
                         model: ProductVariant,
@@ -416,7 +419,7 @@ const reportController = {
                     [Sequelize.fn('SUM', Sequelize.col('SaleItem.quantity')), 'total_quantity'],
                     [Sequelize.fn('SUM', Sequelize.col('SaleItem.total_amount')), 'total_revenue']
                 ],
-                group: ['product_id', 'product_variant_id', 'product_batch_id', 'product.id', 'variant.id', 'batch.id'],
+                group: ['product_id', 'product_variant_id', 'product_batch_id', 'product.id', 'variant.id', 'batch.id', 'product->main_category.id'],
                 order: [[Sequelize.literal('total_revenue'), 'DESC']],
                 raw: true,
                 nest: true
@@ -444,6 +447,7 @@ const reportController = {
             });
 
             const paymentAmounts = {};
+            const paymentCounts = {};
             let totalSales = 0;
             let totalCreditSales = 0;
             let totalDiscount = 0;
@@ -455,6 +459,7 @@ const reportController = {
                     const remaining = Number(sale.payable_amount) - Number(sale.paid_amount);
                     if (remaining > 0) {
                         paymentAmounts['Credit'] = (paymentAmounts['Credit'] || 0) + remaining;
+                        paymentCounts['Credit'] = (paymentCounts['Credit'] || 0) + 1;
                         totalCreditSales += remaining;
                     }
                 }
@@ -465,12 +470,18 @@ const reportController = {
                         const method = pmt.payment_method || 'Other';
                         const effective = Math.max(0, Math.min(Number(pmt.amount), remaining));
                         paymentAmounts[method] = (paymentAmounts[method] || 0) + effective;
+                        if (effective > 0) {
+                            paymentCounts[method] = (paymentCounts[method] || 0) + 1;
+                        }
                         remaining -= effective;
                     }
                 } else {
                     const method = sale.payment_method || 'Other';
                     const effective = Math.max(0, Math.min(Number(sale.paid_amount), Number(sale.payable_amount)));
                     paymentAmounts[method] = (paymentAmounts[method] || 0) + effective;
+                    if (effective > 0) {
+                        paymentCounts[method] = (paymentCounts[method] || 0) + 1;
+                    }
                 }
             }
 
@@ -495,10 +506,12 @@ const reportController = {
             if (start_date && end_date) shiftWhereClause.opening_time = whereClause.created_at;
             const shifts = await db.Shift.findAll({
                 where: shiftWhereClause,
-                attributes: ['opening_cash'],
+                attributes: ['opening_cash', 'opening_time', 'closing_time'],
                 raw: true
             });
             const totalOpeningBalance = shifts.reduce((sum, s) => sum + Number(s.opening_cash || 0), 0);
+            const firstShiftOpen = shifts.length > 0 ? new Date(Math.min(...shifts.map(s => new Date(s.opening_time).getTime()))) : null;
+            const lastShiftClose = shifts.filter(s => s.closing_time).length > 0 ? new Date(Math.max(...shifts.map(s => s.closing_time ? new Date(s.closing_time).getTime() : 0))) : null;
 
             // Expenses
             const expenseWhereClause = { organization_id };
@@ -526,6 +539,9 @@ const reportController = {
 
             summary.registerDetails = {
                 paymentAmounts,
+                paymentCounts,
+                shiftStart: firstShiftOpen,
+                shiftEnd: lastShiftClose,
                 totalRefund,
                 totalOpeningBalance,
                 totalExpense,

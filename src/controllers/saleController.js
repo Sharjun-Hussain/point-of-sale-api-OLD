@@ -491,7 +491,7 @@ const createSale = async (req, res, next) => {
             redeemed_points: redeemedPoints,
             dining_type: dining_type || 'takeaway',
             dining_table_id: dining_table_id || null,
-            kot_status: dining_type === 'dine_in' ? 'sent_to_kitchen' : 'pending',
+            kot_status: req.body.send_to_kitchen === false ? null : (dining_type === 'dine_in' ? 'sent_to_kitchen' : 'pending'),
             waiter_id: waiter_id || null
         }, { transaction: t });
 
