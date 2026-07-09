@@ -27,6 +27,7 @@ const { scheduleSubscriptionCheck } = require('./src/jobs/subscriptionScheduler'
 const { scheduleExpiryWatcher } = require('./src/jobs/expiryWatcher');
 const { scheduleInventoryWatcher } = require('./src/jobs/inventoryWatcher');
 const { scheduleBackupJob } = require('./src/jobs/backupScheduler');
+const { scheduleSuperAdminBackupJob } = require('./src/jobs/superAdminBackupScheduler');
 const cron = require('node-cron');
 const maintenanceService = require('./src/services/maintenanceService');
 
@@ -271,6 +272,7 @@ const startServer = async () => {
             await scheduleExpiryWatcher();
             await scheduleInventoryWatcher();
             await scheduleBackupJob();
+            await scheduleSuperAdminBackupJob();
 
             // 5. Telemetry: Record system metrics every 30 seconds
             await maintenanceService.recordSystemMetrics(); // Initial point on boot

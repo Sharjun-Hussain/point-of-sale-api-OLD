@@ -2,6 +2,7 @@ const models = require('../models');
 const fs = require('fs');
 const path = require('path');
 const archiver = require('archiver');
+archiver.registerFormat('zip-encrypted', require('archiver-zip-encrypted'));
 const mailer = require('../utils/mailer');
 const logger = require('../utils/logger');
 
@@ -122,6 +123,83 @@ class BackupService {
             logger.info(`[BACKUP] Automated backup dispatched to ${recipientEmail} for Org: ${org.name}`);
         } catch (error) {
             logger.error(`[BACKUP] Automated dispatch failed for Org: ${org.name} - ${error.message}`);
+        }
+    }
+    /**
+     * Generate an encrypted full SQL backup for the Super Admin
+     */
+    async generateSuperAdminBackup() {
+        const maintenanceService = require('./maintenanceService');
+        const { filepath, filename } = await maintenanceService.exportSql();
+        
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const zipFilename = `super_admin_backup_${timestamp}.zip`;
+        const uploadPath = process.env.UPLOAD_PATH || 'uploads/';
+        const backupDir = path.join(uploadPath, 'backups', 'superadmin');
+        
+        if (!fs.existsSync(backupDir)) {
+            fs.mkdirSync(backupDir, { recursive: true });
+        }
+
+        const zipPath = path.join(backupDir, zipFilename);
+        const output = fs.createWriteStream(zipPath);
+        
+        // Use zip-encrypted format
+        const archive = archiver('zip-encrypted', { 
+            zlib: { level: 9 }, 
+            encryptionMethod: 'aes256', 
+            password: 'Inzeedo@99' 
+        });
+
+        return new Promise((resolve, reject) => {
+            output.on('close', () => resolve({ zipPath, filename: zipFilename, originalSqlPath: filepath }));
+            archive.on('error', (err) => reject(err));
+            archive.pipe(output);
+
+            // Append the SQL file to the ZIP
+            archive.file(filepath, { name: filename });
+            archive.finalize();
+        });
+    }
+
+    /**
+     * Generate and send the encrypted super admin backup
+     */
+    async sendSuperAdminBackupEmail(email = 'mrjoon005@gmail.com') {
+        try {
+            logger.info(`[BACKUP] Initializing Super Admin automated SQL backup...`);
+            const { zipPath, filename, originalSqlPath } = await this.generateSuperAdminBackup();
+            
+            await mailer.sendEmail({
+                to: email,
+                subject: `🛡️ Critical Automated Database Backup - Inzeedo POS`,
+                html: `
+                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+                        <h2 style="color: #dc2626;">Super Admin SQL Backup</h2>
+                        <p>Hello Super Admin,</p>
+                        <p>Your daily automated full SQL database backup has been generated and securely encrypted.</p>
+                        <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                            <p style="margin: 0; font-size: 14px; color: #64748b;"><b>Filename:</b> ${filename}</p>
+                            <p style="margin: 5px 0 0 0; font-size: 14px; color: #64748b;"><b>Timestamp:</b> ${new Date().toUTCString()}</p>
+                        </div>
+                        <p style="font-size: 13px; color: #94a3b8;">This archive is encrypted with your designated master password.</p>
+                    </div>
+                `,
+                attachments: [
+                    {
+                        filename: filename,
+                        path: zipPath
+                    }
+                ]
+            });
+            
+            // Clean up the generated files after sending
+            if (fs.existsSync(originalSqlPath)) fs.unlinkSync(originalSqlPath);
+            if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
+
+            logger.info(`[BACKUP] Super Admin backup successfully dispatched to ${email}`);
+        } catch (error) {
+            logger.error(`[BACKUP] Super Admin dispatch failed - ${error.message}`);
         }
     }
 }
