@@ -76,6 +76,7 @@ const getAllSales = async (req, res, next) => {
                 { model: Branch, as: 'branch', attributes: ['name'] },
                 { model: User, as: 'cashier', attributes: ['name'] },
                 { model: User, as: 'sellers', attributes: ['name', 'id'], through: { attributes: [] } },
+                { model: db.DiningTable, as: 'table', attributes: ['table_number'] },
                 {
                     model: SaleItem,
                     as: 'items',
@@ -495,14 +496,21 @@ const createSale = async (req, res, next) => {
             waiter_id: waiter_id || null
         }, { transaction: t });
 
-        // Lock dining table if dining_type is dine_in
+        // Lock or Free dining table based on sale status
         if (dining_type === 'dine_in' && dining_table_id) {
             const table = await db.DiningTable.findByPk(dining_table_id, { transaction: t });
             if (table) {
-                await table.update({
-                    status: 'occupied',
-                    current_sale_id: sale.id
-                }, { transaction: t });
+                if (payload_status === 'completed') {
+                    await table.update({
+                        status: 'free',
+                        current_sale_id: null
+                    }, { transaction: t });
+                } else {
+                    await table.update({
+                        status: 'occupied',
+                        current_sale_id: sale.id
+                    }, { transaction: t });
+                }
             }
         }
 
@@ -910,8 +918,16 @@ const deleteSale = async (req, res, next) => {
 
         if (!sale) return errorResponse(res, 'Sale not found', 404);
 
-        // Optional: Only allow deleting drafts?
-        // if (sale.status !== 'draft') return errorResponse(res, 'Only draft sales can be deleted', 400);
+        // Release Table if linked
+        if (sale.dining_table_id) {
+            const table = await db.DiningTable.findByPk(sale.dining_table_id);
+            if (table && table.current_sale_id === sale.id) {
+                await table.update({
+                    status: 'free',
+                    current_sale_id: null
+                });
+            }
+        }
 
         // Log sale deletion
         const { ipAddress, userAgent } = auditService.getRequestContext(req);
