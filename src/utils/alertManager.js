@@ -112,16 +112,59 @@ const checkUnusualLoginActivity = async (user, ipAddress, userAgent) => {
 
         const subject = `🛡️ Security Alert: New Login for ${user.name}`;
         const html = `
-            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-                <h2 style="color: #f57c00;">Identity Access Notification</h2>
-                <p>A login was detected for your account with the following details:</p>
-                <table style="width: 100%; border-collapse: collapse;">
-                    <tr><td style="padding: 8px 0; font-weight: bold; width: 120px;">User:</td><td>${user.name}</td></tr>
-                    <tr><td style="padding: 8px 0; font-weight: bold;">IP Address:</td><td>${ipAddress}</td></tr>
-                    <tr><td style="padding: 8px 0; font-weight: bold;">Browser/OS:</td><td>${userAgent}</td></tr>
-                    <tr><td style="padding: 8px 0; font-weight: bold;">Time:</td><td>${new Date().toUTCString()}</td></tr>
-                </table>
-                <p style="margin-top: 20px; font-size: 12px; color: #666;">If this wasn't you, please secure your account immediately.</p>
+            <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; max-width: 600px; margin: 0 auto; padding: 0; background-color: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                <!-- Header section -->
+                <div style="background-color: #0f172a; padding: 40px 30px; text-align: center;">
+                    <div style="background: rgba(255,255,255,0.05); width: 56px; height: 56px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.1);">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                    </div>
+                    <h1 style="color: #f8fafc; font-size: 24px; font-weight: 700; margin: 0; letter-spacing: -0.025em;">New Login Detected</h1>
+                    <p style="color: #94a3b8; font-size: 14px; margin-top: 8px; margin-bottom: 0;">Security Alert</p>
+                </div>
+                
+                <!-- Body section -->
+                <div style="padding: 40px 30px;">
+                    <p style="margin-top: 0; color: #0f172a; font-weight: 600; font-size: 15px;">Hello ${user.name},</p>
+                    <p style="color: #475569; line-height: 1.6; font-size: 14px; margin-bottom: 30px;">We noticed a new login to your account. If this was you, you don't need to do anything. If not, please review the details below.</p>
+                    
+                    <div style="background-color: #f8fafc; padding: 0; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 30px; overflow: hidden;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 13px; font-weight: 600; width: 120px; background-color: #f1f5f9;">User</td>
+                                <td style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; font-weight: 500; font-size: 14px; color: #0f172a;">${user.name} (${user.email})</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 13px; font-weight: 600; background-color: #f1f5f9;">IP Address</td>
+                                <td style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; font-weight: 600; color: #0f172a; font-size: 14px;">${ipAddress}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 13px; font-weight: 600; background-color: #f1f5f9;">Device/Browser</td>
+                                <td style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; font-weight: 500; color: #0f172a; font-size: 14px;">${userAgent}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 16px 20px; color: #64748b; font-size: 13px; font-weight: 600; background-color: #f1f5f9;">Time</td>
+                                <td style="padding: 16px 20px; font-weight: 500; color: #0f172a; font-size: 14px;">${new Date().toUTCString()}</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <div style="background-color: #fffbeb; padding: 16px 20px; border-radius: 6px; border-left: 4px solid #f59e0b;">
+                        <p style="font-size: 13px; color: #b45309; margin: 0; line-height: 1.5;">
+                            <strong>Action Required:</strong> If you did not authorize this login, please secure your account immediately by resetting your password.
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Footer -->
+                <div style="background-color: #f8fafc; padding: 24px 30px; text-align: center; border-top: 1px solid #e2e8f0;">
+                    <p style="font-size: 12px; color: #64748b; margin: 0; line-height: 1.5;">
+                        This is an automated security notification from your SaaS platform.<br>
+                        Please do not reply to this email.
+                    </p>
+                    <p style="font-size: 11px; color: #94a3b8; margin-top: 16px; margin-bottom: 0; text-transform: uppercase; letter-spacing: 0.05em;">
+                        &copy; ${new Date().getFullYear()} Inzeedo POS Systems
+                    </p>
+                </div>
             </div>
         `;
 
@@ -162,26 +205,57 @@ const checkFailedLoginAlert = async (user, ipAddress, userAgent) => {
         const resetUrl = `${frontendUrls[0]}/reset-password?token=${token}`;
 
         const html = `
-            <div style="font-family: sans-serif; padding: 25px; border: 1px solid #fecaca; border-radius: 12px; max-width: 600px; margin: 0 auto; background-color: #fffafb;">
-                <h2 style="color: #dc2626; margin-top: 0;">Failed Login Detected</h2>
-                <p style="color: #4b5563;">An incorrect password was entered for your account. If this was not you, your account may be under attack.</p>
+            <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; max-width: 600px; margin: 0 auto; padding: 0; background-color: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                <!-- Header section -->
+                <div style="background-color: #dc2626; padding: 40px 30px; text-align: center;">
+                    <div style="background: rgba(255,255,255,0.1); width: 56px; height: 56px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.2);">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    </div>
+                    <h1 style="color: #ffffff; font-size: 24px; font-weight: 700; margin: 0; letter-spacing: -0.025em;">Failed Login Detected</h1>
+                    <p style="color: #fecaca; font-size: 14px; margin-top: 8px; margin-bottom: 0;">Critical Security Alert</p>
+                </div>
                 
-                <div style="background-color: #ffffff; padding: 15px; border: 1px solid #e5e7eb; border-radius: 8px; margin: 20px 0;">
-                    <table style="width: 100%; font-size: 13px;">
-                        <tr><td style="color: #6b7280; width: 100px; padding: 5px 0;">IP Address:</td><td style="font-weight: bold;">${ipAddress}</td></tr>
-                        <tr><td style="color: #6b7280; padding: 5px 0;">Device/Info:</td><td style="font-weight: bold;">${userAgent}</td></tr>
-                        <tr><td style="color: #6b7280; padding: 5px 0;">Timestamp:</td><td style="font-weight: bold;">${new Date().toUTCString()}</td></tr>
-                    </table>
-                </div>
+                <!-- Body section -->
+                <div style="padding: 40px 30px;">
+                    <p style="margin-top: 0; color: #0f172a; font-weight: 600; font-size: 15px;">Hello ${user.name},</p>
+                    <p style="color: #475569; line-height: 1.6; font-size: 14px; margin-bottom: 30px;">An incorrect password was entered for your account. If this was not you, your account may be targeted by an unauthorized party.</p>
+                    
+                    <div style="background-color: #f8fafc; padding: 0; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 30px; overflow: hidden;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 13px; font-weight: 600; width: 120px; background-color: #f1f5f9;">IP Address</td>
+                                <td style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; font-weight: 600; color: #0f172a; font-size: 14px;">${ipAddress}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 13px; font-weight: 600; background-color: #f1f5f9;">Device/Browser</td>
+                                <td style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; font-weight: 500; color: #0f172a; font-size: 14px;">${userAgent}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 16px 20px; color: #64748b; font-size: 13px; font-weight: 600; background-color: #f1f5f9;">Time</td>
+                                <td style="padding: 16px 20px; font-weight: 500; color: #0f172a; font-size: 14px;">${new Date().toUTCString()}</td>
+                            </tr>
+                        </table>
+                    </div>
 
-                <div style="text-align: center; margin-top: 30px;">
-                    <p style="font-size: 14px; font-weight: bold; color: #1f2937;">Is your account secure?</p>
-                    <a href="${resetUrl}" style="display: inline-block; background-color: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 10px;">Secure Account & Reset Password</a>
-                </div>
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <a href="${resetUrl}" style="display: inline-block; background-color: #dc2626; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; transition: background-color 0.2s;">Secure Account & Reset Password &rarr;</a>
+                    </div>
 
-                <p style="margin-top: 25px; font-size: 11px; color: #9ca3af; text-align: center;">
-                    If this was you, you can safely ignore this email.
-                </p>
+                    <p style="font-size: 12px; color: #64748b; text-align: center;">
+                        If this was you attempting to log in and you simply forgot your password, you can use the button above to reset it.
+                    </p>
+                </div>
+                
+                <!-- Footer -->
+                <div style="background-color: #f8fafc; padding: 24px 30px; text-align: center; border-top: 1px solid #e2e8f0;">
+                    <p style="font-size: 12px; color: #64748b; margin: 0; line-height: 1.5;">
+                        This is an automated security notification from your SaaS platform.<br>
+                        Please do not reply to this email.
+                    </p>
+                    <p style="font-size: 11px; color: #94a3b8; margin-top: 16px; margin-bottom: 0; text-transform: uppercase; letter-spacing: 0.05em;">
+                        &copy; ${new Date().getFullYear()} Inzeedo POS Systems
+                    </p>
+                </div>
             </div>
         `;
 
