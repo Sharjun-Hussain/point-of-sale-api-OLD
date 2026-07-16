@@ -1829,7 +1829,7 @@ const reportController = {
                 filter.branch_id = branch_id;
             }
 
-            // 1. Today's Revenue
+            // 1. Today's Revenue & Sales Count
             const todayRevenue = await Sale.sum('payable_amount', {
                 where: {
                     ...filter,
@@ -1837,6 +1837,22 @@ const reportController = {
                     created_at: { [Op.between]: [todayStart, todayEnd] }
                 }
             }) || 0;
+
+            const todaySalesCount = await Sale.count({
+                where: {
+                    ...filter,
+                    status: 'completed',
+                    created_at: { [Op.between]: [todayStart, todayEnd] }
+                }
+            });
+
+            // Today's Shifts Count
+            const todayShiftsCount = await db.Shift.count({
+                where: {
+                    ...filter,
+                    created_at: { [Op.between]: [todayStart, todayEnd] }
+                }
+            });
 
             const lastMonthRevenue = await Sale.sum('payable_amount', {
                 where: {
@@ -1921,7 +1937,14 @@ const reportController = {
             return successResponse(res, {
                 todayRevenue: {
                     value: todayRevenue,
-                    ...revenueTrend
+                    trend: revenueTrend.trend,
+                    change: revenueTrend.change
+                },
+                todaySales: {
+                    value: todaySalesCount
+                },
+                todayShifts: {
+                    value: todayShiftsCount
                 },
                 pendingInvoices: {
                     value: pendingInvoices,
