@@ -105,6 +105,13 @@ const getActiveShift = async (req, res, next) => {
             return errorResponse(res, 'No active shift found', 404);
         }
 
+        const sales = await db.Sale.findAll({ where: { shift_id: shift.id, status: 'completed' } });
+        const total_sales_count = sales.length;
+        const total_sales_amount = sales.reduce((sum, sale) => sum + Number(sale.payable_amount), 0);
+
+        shift.dataValues.total_sales_count = total_sales_count;
+        shift.dataValues.total_sales_amount = total_sales_amount;
+
         return successResponse(res, shift, 'Active shift fetched successfully');
     } catch (error) {
         next(error);

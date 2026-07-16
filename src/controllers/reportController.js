@@ -362,6 +362,9 @@ const reportController = {
             if (branch_id && branch_id !== 'all') {
                 whereClause.branch_id = branch_id;
             }
+            if (req.query.shift_id && req.query.shift_id !== 'all') {
+                whereClause.shift_id = req.query.shift_id;
+            }
 
             const productWhere = {};
             if (main_category_id && main_category_id !== 'all') {
@@ -1800,10 +1803,19 @@ const reportController = {
             const organization_id = req.user.organization_id;
             const branch_id = req.user.branch_id;
 
-            const todayStart = new Date();
+            let todayStart = new Date();
             todayStart.setHours(0, 0, 0, 0);
-            const todayEnd = new Date();
+            let todayEnd = new Date();
             todayEnd.setHours(23, 59, 59, 999);
+
+            if (req.query.start_date) {
+                todayStart = new Date(req.query.start_date);
+            }
+            if (req.query.end_date) {
+                todayEnd = new Date(req.query.end_date);
+            } else if (req.query.start_date) {
+                todayEnd = new Date();
+            }
 
             // Date range for "Last Month" (to calculate trends - simple version)
             const lastMonthStart = new Date();
