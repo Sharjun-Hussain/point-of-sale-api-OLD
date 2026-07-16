@@ -886,6 +886,7 @@ const getActiveProductsList = async (req, res, next) => {
             include: [
                 { model: MainCategory, as: 'main_category', attributes: ['id', 'name'] },
                 { model: Brand, as: 'brand', attributes: ['id', 'name'] },
+                { model: Unit, as: 'unit', attributes: ['id', 'name', 'short_name'] },
                 {
                     model: ProductVariant,
                     as: 'variants',

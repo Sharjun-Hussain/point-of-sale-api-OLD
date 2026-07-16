@@ -46,7 +46,7 @@ module.exports = (sequelize, DataTypes) => {
             defaultValue: false
         },
         stock_quantity: {
-            type: DataTypes.DECIMAL(15, 2),
+            type: DataTypes.DECIMAL(15, 4),
             defaultValue: 0.00
         },
         low_stock_threshold: {

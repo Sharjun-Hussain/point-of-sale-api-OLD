@@ -10,6 +10,7 @@ const {
     Attribute,
     AttributeValue,
     User,
+    Unit,
     sequelize
 } = require('../models');
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
@@ -112,7 +113,10 @@ const getAllStocks = async (req, res, next) => {
                     model: Product,
                     as: 'product',
                     where: { organization_id: req.user.organization_id },
-                    attributes: ['id', 'name', 'code', 'image', 'barcode']
+                    attributes: ['id', 'name', 'code', 'image', 'barcode'],
+                    include: [
+                        { model: Unit, as: 'unit', attributes: ['short_name'] }
+                    ]
                 },
                 {
                     model: ProductVariant,

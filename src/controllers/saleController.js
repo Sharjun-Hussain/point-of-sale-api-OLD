@@ -1,5 +1,5 @@
 const db = require('../models');
-const { Sale, SaleItem, SalePayment, Product, ProductVariant, Stock, ProductBatch, Transaction, Account, Customer, Branch, User, SaleEmployee, Cheque, Organization, Distributor } = db;
+const { Sale, SaleItem, SalePayment, Product, ProductVariant, Stock, ProductBatch, Transaction, Account, Customer, Branch, User, SaleEmployee, Cheque, Organization, Distributor, Recipe, RecipeItem } = db;
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseHandler');
 const { getPagination } = require('../utils/pagination');
 const auditService = require('../services/auditService');
@@ -603,6 +603,72 @@ const createSale = async (req, res, next) => {
             for (const key in stockUpdates) {
                 const pItem = stockUpdates[key];
                 
+                // --- BACKFLUSHING (MTO) CHECK ---
+                const recipeWhere = { product_id: pItem.product_id, organization_id, is_active: true };
+                if (pItem.product_variant_id) recipeWhere.product_variant_id = pItem.product_variant_id;
+                
+                const recipe = await Recipe.findOne({
+                    where: recipeWhere,
+                    include: [{ model: RecipeItem, as: 'items' }],
+                    transaction: t
+                });
+
+                if (recipe && recipe.items && recipe.items.length > 0) {
+                    // 1. Create SaleItem for finished product
+                    await SaleItem.create({
+                        sale_id: sale.id,
+                        organization_id,
+                        ...pItem,
+                        product_batch_id: null,
+                        quantity: pItem.quantity,
+                        discount_amount: pItem.discount_amount,
+                        manual_discount: pItem.manual_discount,
+                        tax_amount: pItem.tax_amount,
+                        total_amount: pItem.total_amount
+                    }, { transaction: t });
+
+                    // 2. Deduct Raw Materials from Stock
+                    for (const rItem of recipe.items) {
+                        const rawQtyToDeduct = (parseFloat(rItem.quantity) / parseFloat(recipe.batch_size)) * parseFloat(pItem.quantity);
+                        
+                        const rmStockWhere = { 
+                            branch_id, 
+                            product_id: rItem.raw_material_id,
+                            product_variant_id: rItem.raw_material_variant_id || null
+                        };
+                        const [rmStock] = await Stock.findOrCreate({
+                            where: rmStockWhere,
+                            defaults: { ...rmStockWhere, organization_id, quantity: 0 },
+                            transaction: t
+                        });
+                        await rmStock.decrement('quantity', { by: rawQtyToDeduct, transaction: t });
+
+                        let remainingRMDeduction = rawQtyToDeduct;
+                        if (remainingRMDeduction > 0) {
+                            const rmBatches = await ProductBatch.findAll({
+                                where: {
+                                    organization_id,
+                                    branch_id,
+                                    product_id: rItem.raw_material_id,
+                                    product_variant_id: rItem.raw_material_variant_id || null,
+                                    quantity: { [Op.gt]: 0 }
+                                },
+                                order: [['expiry_date', 'ASC'], ['created_at', 'ASC']],
+                                transaction: t
+                            });
+
+                            for (const batch of rmBatches) {
+                                if (remainingRMDeduction <= 0) break;
+                                const available = parseFloat(batch.quantity);
+                                const deduction = Math.min(available, remainingRMDeduction);
+                                await batch.decrement('quantity', { by: deduction, transaction: t });
+                                remainingRMDeduction -= deduction;
+                            }
+                        }
+                    }
+                    continue; // Skip standard deduction
+                }
+
                 // A. Update Global Stock (Atomic)
                 const stockWhere = { 
                     branch_id, 
@@ -1015,9 +1081,62 @@ const settleTableSale = async (req, res, next) => {
             }, { transaction: t });
         }
 
-        // Deduct stocks using FIFO
+        // Deduct stocks using FIFO or Backflush Recipes
         for (const item of sale.items) {
             const qtyToDeduct = parseFloat(item.quantity);
+
+            // --- BACKFLUSHING (MTO) CHECK ---
+            const recipeWhere = { product_id: item.product_id, organization_id, is_active: true };
+            if (item.product_variant_id) recipeWhere.product_variant_id = item.product_variant_id;
+            
+            const recipe = await Recipe.findOne({
+                where: recipeWhere,
+                include: [{ model: RecipeItem, as: 'items' }],
+                transaction: t
+            });
+
+            if (recipe && recipe.items && recipe.items.length > 0) {
+                // Deduct Raw Materials from Stock
+                for (const rItem of recipe.items) {
+                    const rawQtyToDeduct = (parseFloat(rItem.quantity) / parseFloat(recipe.batch_size)) * qtyToDeduct;
+                    
+                    const rmStockWhere = { 
+                        branch_id: sale.branch_id, 
+                        product_id: rItem.raw_material_id,
+                        product_variant_id: rItem.raw_material_variant_id || null
+                    };
+                    const [rmStock] = await Stock.findOrCreate({
+                        where: rmStockWhere,
+                        defaults: { ...rmStockWhere, organization_id, quantity: 0 },
+                        transaction: t
+                    });
+                    await rmStock.decrement('quantity', { by: rawQtyToDeduct, transaction: t });
+
+                    let remainingRMDeduction = rawQtyToDeduct;
+                    if (remainingRMDeduction > 0) {
+                        const rmBatches = await ProductBatch.findAll({
+                            where: {
+                                organization_id,
+                                branch_id: sale.branch_id,
+                                product_id: rItem.raw_material_id,
+                                product_variant_id: rItem.raw_material_variant_id || null,
+                                quantity: { [Op.gt]: 0 }
+                            },
+                            order: [['expiry_date', 'ASC'], ['created_at', 'ASC']],
+                            transaction: t
+                        });
+
+                        for (const batch of rmBatches) {
+                            if (remainingRMDeduction <= 0) break;
+                            const available = parseFloat(batch.quantity);
+                            const deduction = Math.min(available, remainingRMDeduction);
+                            await batch.decrement('quantity', { by: deduction, transaction: t });
+                            remainingRMDeduction -= deduction;
+                        }
+                    }
+                }
+                continue; // Skip standard deduction
+            }
 
             // Decrement global stock
             const stock = await Stock.findOne({

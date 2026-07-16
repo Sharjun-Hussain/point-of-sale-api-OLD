@@ -22,7 +22,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: true
         },
         quantity: {
-            type: DataTypes.DECIMAL(15, 3),
+            type: DataTypes.DECIMAL(15, 4),
             allowNull: false
         },
         wastage_type: {

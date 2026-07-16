@@ -18,7 +18,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: true
         },
         quantity: {
-            type: DataTypes.DECIMAL(15, 2),
+            type: DataTypes.DECIMAL(15, 4),
             allowNull: false
         },
         type: {
