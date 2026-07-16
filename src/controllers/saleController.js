@@ -441,11 +441,6 @@ const createSale = async (req, res, next) => {
                         await t.rollback();
                         return errorResponse(res, `Credit limit exceeded. Current Balance: ${currentBalance.toFixed(2)}, Limit: ${parseFloat(customer.credit_limit).toFixed(2)}`, 400);
                     }
-                } else if (customer && (!customer.credit_limit || customer.credit_limit <= 0)) {
-                   // If credit limit is 0, they MUST pay in full
-                   console.warn(`[createSale] 400 Error: Customer has no credit limit. Must pay in full. Expected: ${effective_payable_amount}, Paid: ${total_paid}`);
-                   await t.rollback();
-                   return errorResponse(res, `Customer has no credit limit enabled. Full payment required.`, 400);
                 }
             } else if (distributor_id) {
                 const distributor = await Distributor.findByPk(distributor_id, { transaction: t });
