@@ -912,11 +912,58 @@ const createSale = async (req, res, next) => {
             }
         );
 
-        // --- 10. TRIGGER ALERTS ---
+        // --- 10. TRIGGER ALERTS & NOTIFICATIONS ---
         if (sale.status === 'completed') {
             // High Sales Alert
             checkHighSalesAlert(createdSale).catch(err => console.error('[ALERTS] High sales trigger failed:', err));
             
+            // Order SMS Notification
+            if (customer_id) {
+                const textLkService = require('../services/textLkService');
+                const googleDriveService = require('../services/googleDriveService');
+                const { generateInvoiceBuffer } = require('../services/invoiceGenerator');
+                const { decrypt } = require('../utils/security');
+                
+                db.Setting.findOne({
+                    where: { organization_id, category: 'textlk_crm', branch_id: null }
+                }).then(async (setting) => {
+                    if (setting) {
+                        const config = typeof setting.settings_data === 'string' ? JSON.parse(setting.settings_data) : setting.settings_data;
+                        if (config.enableOrderSms && createdSale.customer?.phone) {
+                            let invoiceLink = '';
+                            if (config.enableInvoiceAttachment && config.googleDriveRefreshToken) {
+                                try {
+                                    const pdfBuffer = await generateInvoiceBuffer(createdSale, organization);
+                                    const driveResponse = await googleDriveService.uploadPdf(
+                                        decrypt(config.googleDriveRefreshToken),
+                                        pdfBuffer,
+                                        `Invoice_${createdSale.invoice_number}.pdf`
+                                    );
+                                    invoiceLink = driveResponse.webViewLink;
+                                } catch (e) {
+                                    console.error('[SMS] Failed to upload invoice to Drive:', e);
+                                }
+                            }
+
+                            const message = config.orderSmsTemplate
+                                .replace(/{customer_name}/g, createdSale.customer.name || '')
+                                .replace(/{invoice_number}/g, createdSale.invoice_number || '')
+                                .replace(/{total_amount}/g, parseFloat(createdSale.payable_amount).toFixed(2))
+                                .replace(/{invoice_link}/g, invoiceLink);
+
+                            try {
+                                await textLkService.sendSms(organization_id, {
+                                    recipient: createdSale.customer.phone,
+                                    message: message
+                                });
+                            } catch (e) {
+                                console.error('[SMS] Failed to send order SMS:', e);
+                            }
+                        }
+                    }
+                }).catch(err => console.error('[SMS] Failed to fetch settings:', err));
+            }
+
             // Low Stock Alerts (per item)
             for (const pItem of processedItems) {
                 const stockWhere = { organization_id, branch_id, product_id: pItem.product_id };

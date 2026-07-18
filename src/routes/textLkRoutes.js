@@ -9,6 +9,8 @@ router.use(auth);
 
 router.get('/config', textLkController.getConfig);
 router.post('/config', checkPermission('system:settings'), textLkController.saveConfig);
+router.get('/drive/auth-url', checkPermission('system:settings'), textLkController.getDriveAuthUrl);
+router.post('/drive/callback', checkPermission('system:settings'), textLkController.driveCallback);
 router.post('/test', checkPermission('system:settings'), textLkController.testConnection);
 router.get('/stats', textLkController.getStats);
 router.get('/contacts', textLkController.getContacts);

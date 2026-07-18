@@ -1,4 +1,5 @@
 const textLkService = require('../services/textLkService');
+const googleDriveService = require('../services/googleDriveService');
 const { Setting, Organization, Customer, TextLkTemplate, TextLkCampaign } = require('../models');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const { encrypt, isMasked, MASK } = require('../utils/security');
@@ -26,14 +27,15 @@ const getConfig = async (req, res, next) => {
 
         return successResponse(res, {
             enabled: org?.textlk_enabled || false,
-            config: config
+            config: config,
+            googleDriveConnected: !!config.googleDriveRefreshToken
         }, 'Text.lk configuration fetched');
     } catch (error) { next(error); }
 };
 
 const saveConfig = async (req, res, next) => {
     try {
-        const { apiKey, senderId, enabled } = req.body;
+        const { apiKey, senderId, enabled, enableOrderSms, orderSmsTemplate, enableInvoiceAttachment } = req.body;
 
         // 1. Update Organization toggle
         await Organization.update(
@@ -52,7 +54,13 @@ const saveConfig = async (req, res, next) => {
 
         const currentData = setting ? (typeof setting.settings_data === 'string' ? JSON.parse(setting.settings_data) : setting.settings_data) : {};
         
-        const settingsData = { ...currentData, senderId };
+        const settingsData = { 
+            ...currentData, 
+            senderId,
+            enableOrderSms: !!enableOrderSms,
+            orderSmsTemplate: orderSmsTemplate || 'Hi {customer_name}, your order {invoice_number} is successful. Total: {total_amount}',
+            enableInvoiceAttachment: !!enableInvoiceAttachment
+        };
 
         if (apiKey && apiKey !== MASK) {
             settingsData.apiKey = encrypt(apiKey);
@@ -72,6 +80,51 @@ const saveConfig = async (req, res, next) => {
 
         return successResponse(res, { ...settingsData, apiKey: MASK }, 'Text.lk configuration saved');
     } catch (error) { next(error); }
+};
+
+const getDriveAuthUrl = async (req, res, next) => {
+    try {
+        const url = googleDriveService.getAuthUrl();
+        return successResponse(res, { url }, 'Auth URL generated');
+    } catch (error) { next(error); }
+};
+
+const driveCallback = async (req, res, next) => {
+    try {
+        const { code } = req.body;
+        if (!code) return errorResponse(res, 'Code is required', 400);
+
+        const tokens = await googleDriveService.getTokens(code);
+        
+        if (tokens.refresh_token) {
+            let setting = await Setting.findOne({
+                where: {
+                    organization_id: req.user.organization_id,
+                    category: 'textlk_crm',
+                    branch_id: null
+                }
+            });
+
+            const currentData = setting ? (typeof setting.settings_data === 'string' ? JSON.parse(setting.settings_data) : setting.settings_data) : {};
+            const settingsData = { ...currentData, googleDriveRefreshToken: encrypt(tokens.refresh_token) };
+
+            if (setting) {
+                await setting.update({ settings_data: settingsData });
+            } else {
+                await Setting.create({
+                    organization_id: req.user.organization_id,
+                    category: 'textlk_crm',
+                    settings_data: settingsData
+                });
+            }
+            return successResponse(res, null, 'Google Drive connected successfully');
+        } else {
+            return errorResponse(res, 'Could not obtain refresh token. Please revoke access in your Google account and try again.', 400);
+        }
+    } catch (error) { 
+        logger.error(`Drive Callback Error: ${error.message}`);
+        return errorResponse(res, 'Failed to authenticate with Google Drive', 500); 
+    }
 };
 
 const testConnection = async (req, res, next) => {
@@ -330,5 +383,7 @@ module.exports = {
     deleteTemplate,
     getCampaigns,
     createCampaign,
-    getStats
+    getStats,
+    getDriveAuthUrl,
+    driveCallback
 };
