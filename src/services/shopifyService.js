@@ -941,7 +941,7 @@ class ShopifyService {
                     taxable: false,                    // ← Unticks "Charge tax on this product"
                     inventoryItem: {
                         tracked: true,
-                        requiresShipping: false        // ← No shipping setup needed
+                        requiresShipping: true         // ← Physical product requires shipping
                     },
                     inventoryPolicy: 'DENY'
                 });
