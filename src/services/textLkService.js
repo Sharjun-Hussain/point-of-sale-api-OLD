@@ -75,7 +75,14 @@ class TextLkService {
     async sendSms(organizationId, payload) {
         try {
             const config = await this._getFullConfig(organizationId);
-            if (!config || !config.enabled) return null;
+            if (!config) {
+                logger.error('[TextLk] sendSms: No config found for org ' + organizationId);
+                return null;
+            }
+            if (!config.enabled) {
+                logger.error('[TextLk] sendSms: Text.lk is DISABLED in settings for org ' + organizationId);
+                return null;
+            }
 
             // Auto-format phone number for Sri Lanka (e.g., 0771234567 -> 94771234567)
             let formattedRecipient = payload.recipient;
@@ -86,6 +93,16 @@ class TextLkService {
                 }
             }
 
+            const requestBody = {
+                recipient: formattedRecipient,
+                sender_id: config.senderId || payload.sender_id,
+                type: 'plain',
+                message: payload.message,
+            };
+
+            logger.info(`[TextLk] sendSms: Sending to ${formattedRecipient} via sender "${requestBody.sender_id}"`);
+            logger.info(`[TextLk] sendSms: API Key starts with: ${config.apiKey ? config.apiKey.substring(0, 8) + '...' : 'MISSING'}`);
+
             const response = await fetch(`${this.baseUrl}/sms/send`, {
                 method: 'POST',
                 headers: {
@@ -93,24 +110,20 @@ class TextLkService {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify({
-                    recipient: formattedRecipient,
-                    sender_id: config.senderId || payload.sender_id,
-                    type: 'plain',
-                    message: payload.message,
-                    template_id: payload.template_id // Optional
-                }),
+                body: JSON.stringify(requestBody),
                 signal: AbortSignal.timeout(15000)
             });
 
             const data = await response.json();
+            logger.info(`[TextLk] sendSms: HTTP ${response.status}, Response: ${JSON.stringify(data)}`);
+
             if (!response.ok || data.status === 'error') {
                 throw new Error(data.message || 'Failed to send SMS');
             }
 
             return data;
         } catch (error) {
-            logger.error(`Text.lk Send SMS Error: ${error.message}`);
+            logger.error(`[TextLk] sendSms ERROR: ${error.message}`);
             throw error;
         }
     }
