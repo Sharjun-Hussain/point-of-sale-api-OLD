@@ -11,13 +11,16 @@ class TextLkService {
      * Get full config including credentials
      */
     async _getFullConfig(organizationId) {
-        const setting = await Setting.findOne({
-            where: {
-                organization_id: organizationId,
-                category: 'textlk_crm',
-                branch_id: null
-            }
-        });
+        const [setting, organization] = await Promise.all([
+            Setting.findOne({
+                where: {
+                    organization_id: organizationId,
+                    category: 'textlk_crm',
+                    branch_id: null
+                }
+            }),
+            Organization.findByPk(organizationId, { attributes: ['textlk_enabled'] })
+        ]);
 
         if (!setting) return null;
 
@@ -32,6 +35,8 @@ class TextLkService {
         }
 
         const config = { ...rawData };
+        // Correctly pull enabled flag from Organization table
+        config.enabled = organization?.textlk_enabled === true;
         if (config.apiKey) config.apiKey = decrypt(config.apiKey);
 
         return config;
