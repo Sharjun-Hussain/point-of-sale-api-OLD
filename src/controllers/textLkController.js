@@ -35,7 +35,7 @@ const getConfig = async (req, res, next) => {
 
 const saveConfig = async (req, res, next) => {
     try {
-        const { apiKey, senderId, enabled, enableOrderSms, orderSmsTemplate, enableInvoiceAttachment } = req.body;
+        const { apiKey, senderId, enabled, enableOrderSms, orderSmsTemplate, distributorSmsTemplate, enableInvoiceAttachment } = req.body;
 
         // 1. Update Organization toggle
         await Organization.update(
@@ -59,6 +59,7 @@ const saveConfig = async (req, res, next) => {
             senderId,
             enableOrderSms: !!enableOrderSms,
             orderSmsTemplate: orderSmsTemplate || 'Hi {customer_name}, your order {invoice_number} is successful. Total: {total_amount}',
+            distributorSmsTemplate: distributorSmsTemplate || 'Hi {customer_name}, your wholesale order {invoice_number} is successful. Total: {total_amount}',
             enableInvoiceAttachment: !!enableInvoiceAttachment
         };
 

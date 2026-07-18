@@ -77,6 +77,15 @@ class TextLkService {
             const config = await this._getFullConfig(organizationId);
             if (!config || !config.enabled) return null;
 
+            // Auto-format phone number for Sri Lanka (e.g., 0771234567 -> 94771234567)
+            let formattedRecipient = payload.recipient;
+            if (formattedRecipient) {
+                formattedRecipient = formattedRecipient.replace(/\D/g, ''); // Remove non-digits like spaces or dashes
+                if (formattedRecipient.startsWith('0') && formattedRecipient.length === 10) {
+                    formattedRecipient = '94' + formattedRecipient.substring(1);
+                }
+            }
+
             const response = await fetch(`${this.baseUrl}/sms/send`, {
                 method: 'POST',
                 headers: {
@@ -85,8 +94,9 @@ class TextLkService {
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify({
-                    recipient: payload.recipient,
+                    recipient: formattedRecipient,
                     sender_id: config.senderId || payload.sender_id,
+                    type: 'plain',
                     message: payload.message,
                     template_id: payload.template_id // Optional
                 }),
