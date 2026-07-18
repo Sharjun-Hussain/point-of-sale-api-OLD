@@ -918,7 +918,7 @@ const createSale = async (req, res, next) => {
             checkHighSalesAlert(createdSale).catch(err => console.error('[ALERTS] High sales trigger failed:', err));
             
             // Order SMS Notification
-            if (customer_id) {
+            if (customer_id || distributor_id) {
                 const textLkService = require('../services/textLkService');
                 const googleDriveService = require('../services/googleDriveService');
                 const { generateInvoiceBuffer } = require('../services/invoiceGenerator');
@@ -929,7 +929,12 @@ const createSale = async (req, res, next) => {
                 }).then(async (setting) => {
                     if (setting) {
                         const config = typeof setting.settings_data === 'string' ? JSON.parse(setting.settings_data) : setting.settings_data;
-                        if (config.enableOrderSms && createdSale.customer?.phone) {
+                        
+                        // Determine recipient details
+                        const recipientPhone = customer_id ? createdSale.customer?.phone : createdSale.distributor?.phone;
+                        const recipientName = customer_id ? createdSale.customer?.name : createdSale.distributor?.name;
+                        
+                        if (config.enableOrderSms && recipientPhone) {
                             let invoiceLink = '';
                             if (config.enableInvoiceAttachment && config.googleDriveRefreshToken) {
                                 try {
@@ -946,14 +951,14 @@ const createSale = async (req, res, next) => {
                             }
 
                             const message = config.orderSmsTemplate
-                                .replace(/{customer_name}/g, createdSale.customer.name || '')
+                                .replace(/{customer_name}/g, recipientName || '')
                                 .replace(/{invoice_number}/g, createdSale.invoice_number || '')
                                 .replace(/{total_amount}/g, parseFloat(createdSale.payable_amount).toFixed(2))
                                 .replace(/{invoice_link}/g, invoiceLink);
 
                             try {
                                 await textLkService.sendSms(organization_id, {
-                                    recipient: createdSale.customer.phone,
+                                    recipient: recipientPhone,
                                     message: message
                                 });
                             } catch (e) {
