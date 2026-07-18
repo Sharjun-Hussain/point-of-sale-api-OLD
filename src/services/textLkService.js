@@ -104,7 +104,7 @@ class TextLkService {
             });
 
             const data = await response.json();
-            if (!response.ok) {
+            if (!response.ok || data.status === 'error') {
                 throw new Error(data.message || 'Failed to send SMS');
             }
 

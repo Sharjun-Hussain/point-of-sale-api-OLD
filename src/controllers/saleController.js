@@ -950,7 +950,10 @@ const createSale = async (req, res, next) => {
                                 }
                             }
 
-                            const templateToUse = distributor_id ? (config.distributorSmsTemplate || config.orderSmsTemplate) : config.orderSmsTemplate;
+                            const templateToUse = distributor_id 
+                                ? (config.distributorSmsTemplate || config.orderSmsTemplate || 'Order {invoice_number} is successful. Total: {total_amount}') 
+                                : (config.orderSmsTemplate || 'Order {invoice_number} is successful. Total: {total_amount}');
+                            
                             const message = templateToUse
                                 .replace(/{customer_name}/g, recipientName || '')
                                 .replace(/{invoice_number}/g, createdSale.invoice_number || '')
