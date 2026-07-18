@@ -927,6 +927,7 @@ const createSale = async (req, res, next) => {
                 db.Setting.findOne({
                     where: { organization_id, category: 'textlk_crm', branch_id: null }
                 }).then(async (setting) => {
+                    console.log(`[SMS DEBUG] Found textlk_crm setting for org ${organization_id}:`, !!setting);
                     if (setting) {
                         const config = typeof setting.settings_data === 'string' ? JSON.parse(setting.settings_data) : setting.settings_data;
                         
@@ -934,19 +935,26 @@ const createSale = async (req, res, next) => {
                         const recipientPhone = customer_id ? createdSale.customer?.phone : createdSale.distributor?.phone;
                         const recipientName = customer_id ? createdSale.customer?.name : createdSale.distributor?.name;
                         
+                        console.log(`[SMS DEBUG] enableOrderSms: ${config.enableOrderSms}, recipientPhone: ${recipientPhone}`);
+                        
                         if (config.enableOrderSms && recipientPhone) {
                             let invoiceLink = '';
+                            console.log(`[SMS DEBUG] enableInvoiceAttachment: ${config.enableInvoiceAttachment}, hasDriveToken: ${!!config.googleDriveRefreshToken}`);
+                            
                             if (config.enableInvoiceAttachment && config.googleDriveRefreshToken) {
                                 try {
+                                    console.log('[SMS DEBUG] Starting PDF generation...');
                                     const pdfBuffer = await generateInvoiceBuffer(createdSale, organization);
+                                    console.log('[SMS DEBUG] Starting Drive upload...');
                                     const driveResponse = await googleDriveService.uploadPdf(
                                         decrypt(config.googleDriveRefreshToken),
                                         pdfBuffer,
                                         `Invoice_${createdSale.invoice_number}.pdf`
                                     );
                                     invoiceLink = driveResponse.webViewLink;
+                                    console.log('[SMS DEBUG] Drive upload successful! Link generated.');
                                 } catch (e) {
-                                    console.error('[SMS] Failed to upload invoice to Drive:', e);
+                                    console.error('[SMS DEBUG] Failed to upload invoice to Drive:', e);
                                 }
                             }
 
@@ -960,17 +968,21 @@ const createSale = async (req, res, next) => {
                                 .replace(/{total_amount}/g, parseFloat(createdSale.payable_amount).toFixed(2))
                                 .replace(/{invoice_link}/g, invoiceLink);
 
+                            console.log(`[SMS DEBUG] Final message to send: ${message}`);
+
                             try {
+                                console.log('[SMS DEBUG] Sending to Text.lk API...');
                                 await textLkService.sendSms(organization_id, {
                                     recipient: recipientPhone,
                                     message: message
                                 });
+                                console.log('[SMS DEBUG] Text.lk API returned SUCCESS!');
                             } catch (e) {
-                                console.error('[SMS] Failed to send order SMS:', e);
+                                console.error('[SMS DEBUG] Failed to send order SMS:', e);
                             }
                         }
                     }
-                }).catch(err => console.error('[SMS] Failed to fetch settings:', err));
+                }).catch(err => console.error('[SMS DEBUG] Failed to fetch settings:', err));
             }
 
             // Low Stock Alerts (per item)
