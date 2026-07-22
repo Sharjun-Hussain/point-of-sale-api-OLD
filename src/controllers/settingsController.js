@@ -87,6 +87,33 @@ const upload = multer({
     }
 }).single('logo');
 
+// Configure Multer for Generic Media Uploads
+const mediaStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const uploadPath = path.join(__dirname, '../../uploads/media');
+        if (!fs.existsSync(uploadPath)) {
+            fs.mkdirSync(uploadPath, { recursive: true });
+        }
+        cb(null, uploadPath);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'media-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const uploadMediaFiles = multer({
+    storage: mediaStorage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only images and videos are allowed'));
+        }
+    }
+}).single('media');
+
 /**
  * Get Business Profile Settings (Organization Model)
  */
@@ -318,6 +345,33 @@ const updateLogo = async (req, res, next) => {
 };
 
 /**
+ * Upload Media (Generic)
+ */
+const uploadMedia = async (req, res, next) => {
+    uploadMediaFiles(req, res, async (err) => {
+        if (err) return errorResponse(res, err.message, 400);
+        if (!req.file) return errorResponse(res, 'No file uploaded', 400);
+
+        try {
+            const mediaPath = `uploads/media/${req.file.filename}`;
+            
+            // Log media upload
+            const { ipAddress, userAgent } = auditService.getRequestContext(req);
+            await auditService.logCustom(
+                req.user.organization_id,
+                req.user.id,
+                'UPLOAD_MEDIA',
+                'General media file uploaded',
+                ipAddress,
+                userAgent
+            );
+
+            return successResponse(res, { url: mediaPath }, 'Media uploaded successfully');
+        } catch (error) { next(error); }
+    });
+};
+
+/**
  * Test Connection (Email or SMS)
  */
 const testConnection = async (req, res, next) => {
@@ -499,6 +553,7 @@ module.exports = {
     updateSettingsByCategory,
     getGlobalSettings,
     updateLogo,
+    uploadMedia,
     testConnection,
     signHardwareRequest
 };

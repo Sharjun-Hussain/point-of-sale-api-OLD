@@ -18,6 +18,7 @@ router.post('/hardware/sign', settingsController.signHardwareRequest);
 // Modular Settings
 router.get('/global', checkAnyPermission(['settings:general:update', 'system:settings']), settingsController.getGlobalSettings);
 router.post('/logo', checkPermission('settings:business:update'), settingsController.updateLogo);
+router.post('/upload-media', checkAnyPermission(['settings:general:update', 'settings:pos:update', 'settings:business:update', 'system:settings']), settingsController.uploadMedia);
 
 router.get('/:category', (req, res, next) => {
     const { category } = req.params;
