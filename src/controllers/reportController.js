@@ -38,7 +38,7 @@ const reportController = {
                 if (m.payment_method && m.payment_method !== 'split') allMethods.add(m.payment_method);
             });
             
-            ['cash', 'card', 'bank_transfer', 'cheque'].forEach(m => allMethods.add(m));
+            ['cash', 'card', 'online', 'qr', 'wallet', 'cheque'].forEach(m => allMethods.add(m));
             
             return successResponse(res, Array.from(allMethods).map(m => ({ id: m, name: m.charAt(0).toUpperCase() + m.slice(1) })), 'Payment methods fetched successfully');
         } catch (error) { next(error); }

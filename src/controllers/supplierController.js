@@ -1056,7 +1056,7 @@ const createSupplierPayment = async (req, res, next) => {
             let accountName = 'Cash in Hand';
             let accountType = 'asset';
 
-            if (method === 'bank' || method === 'bank_transfer' || method === 'card') {
+            if (method === 'bank' || method === 'bank_transfer' || method === 'online' || method === 'card') {
                 accountCode = '1020';
                 accountName = 'Bank';
             } else if (method === 'cheque') {

@@ -164,7 +164,7 @@ const createExpense = async (req, res, next) => {
             
             const method = (pmt.payment_method || 'cash').toLowerCase();
 
-            if (method === 'bank' || method === 'bank_transfer' || method === 'card' || method === 'credit_card') {
+            if (method === 'bank' || method === 'bank_transfer' || method === 'online' || method === 'card' || method === 'credit_card') {
                 const paymentAccount = await getOrCreateAccount(organization_id, 'Bank Account', '1010', 'asset', t);
                 accountName = 'Bank Account';
                 targetAccountId = paymentAccount.id;
@@ -326,7 +326,7 @@ const updateExpense = async (req, res, next) => {
             
             const methodStr = (payment_method || 'cash').toLowerCase();
             
-            if (methodStr === 'bank' || methodStr === 'bank_transfer' || methodStr === 'card' || methodStr === 'credit_card') {
+            if (methodStr === 'bank' || methodStr === 'bank_transfer' || methodStr === 'online' || methodStr === 'card' || methodStr === 'credit_card') {
                 const [bankAccount] = await Account.findOrCreate({
                     where: { organization_id, name: 'Bank Account' },
                     defaults: { code: '1010', type: 'asset' },
