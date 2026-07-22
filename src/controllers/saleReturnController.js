@@ -81,16 +81,35 @@ const createSaleReturn = async (req, res, next) => {
         const organization_id = req.user.organization_id;
         const user_id = req.user.id;
 
-        const sale = await Sale.findOne({
-            where: { id: sale_id, organization_id },
-            include: [{ model: SaleItem, as: 'items' }]
-        });
+        let sale = null;
+        let branch_id = req.user.branch_id;
 
-        if (!sale) return errorResponse(res, 'Original sale not found', 404);
-        if (!items || items.length === 0) return errorResponse(res, 'No items to return', 400);
+        if (sale_id) {
+            sale = await Sale.findOne({
+                where: { id: sale_id, organization_id },
+                include: [{ model: SaleItem, as: 'items' }]
+            });
 
-        // Fallback to sale branch if user has no specific branch (e.g. Admin)
-        const branch_id = req.user.branch_id || sale.branch_id;
+            if (!sale) {
+                await t.rollback();
+                return errorResponse(res, 'Original sale not found', 404);
+            }
+            branch_id = req.user.branch_id || sale.branch_id;
+        } else {
+            // Direct / Unlinked Return
+            if (!branch_id && req.user.branches && req.user.branches.length > 0) {
+                branch_id = req.user.branches[0].id;
+            }
+            if (!branch_id) {
+                await t.rollback();
+                return errorResponse(res, 'Branch ID is required for direct returns', 400); 
+            }
+        }
+
+        if (!items || items.length === 0) {
+            await t.rollback();
+            return errorResponse(res, 'No items to return', 400);
+        }
 
         // Generate Return Number
         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -100,42 +119,57 @@ const createSaleReturn = async (req, res, next) => {
         // Calculate Total Return Amount & Validate Quantities
         let total_return_amount = 0;
         for (const item of items) {
-            const saleItem = sale.items.find(si => si.product_id === item.product_id &&
-                (si.product_variant_id === item.product_variant_id || (!si.product_variant_id && !item.product_variant_id)));
+            if (sale) {
+                const saleItem = sale.items.find(si => si.product_id === item.product_id &&
+                    (si.product_variant_id === item.product_variant_id || (!si.product_variant_id && !item.product_variant_id)));
 
-            if (!saleItem) throw new Error(`Product ${item.product_id} was not part of original sale`);
+                if (!saleItem) throw new Error(`Product ${item.product_id} was not part of original sale`);
 
-            // Check previous returns for this item
-            const previousReturns = await SaleReturnItem.findAll({
-                include: [{
-                    model: SaleReturn,
-                    as: 'sale_return',
-                    where: { sale_id, organization_id }
-                }],
-                where: {
-                    product_id: item.product_id,
-                    product_variant_id: item.product_variant_id || null
-                },
-                transaction: t
-            });
+                // Check previous returns for this item
+                const previousReturns = await SaleReturnItem.findAll({
+                    include: [{
+                        model: SaleReturn,
+                        as: 'sale_return',
+                        where: { sale_id, organization_id }
+                    }],
+                    where: {
+                        product_id: item.product_id,
+                        product_variant_id: item.product_variant_id || null
+                    },
+                    transaction: t
+                });
 
-            const alreadyReturned = previousReturns.reduce((sum, r) => sum + parseFloat(r.quantity || 0), 0);
-            const remainingToReturn = parseFloat(saleItem.quantity) - alreadyReturned;
+                const alreadyReturned = previousReturns.reduce((sum, r) => sum + parseFloat(r.quantity || 0), 0);
+                const remainingToReturn = parseFloat(saleItem.quantity) - alreadyReturned;
 
-            if (parseFloat(item.quantity) > remainingToReturn) {
-                throw new Error(`Limit exceeded for product ${item.product_id}. Purchased: ${saleItem.quantity}, Already Returned: ${alreadyReturned}, Attempting: ${item.quantity}`);
+                if (parseFloat(item.quantity) > remainingToReturn) {
+                    throw new Error(`Limit exceeded for product ${item.product_id}. Purchased: ${saleItem.quantity}, Already Returned: ${alreadyReturned}, Attempting: ${item.quantity}`);
+                }
+
+                item.cached_unit_price = parseFloat(saleItem.unit_price);
+                total_return_amount += parseFloat(item.quantity) * parseFloat(saleItem.unit_price);
+            } else {
+                // Unlinked direct return price finding
+                let unit_price = 0;
+                if (item.product_variant_id) {
+                    const variant = await ProductVariant.findByPk(item.product_variant_id, { transaction: t });
+                    unit_price = parseFloat(variant?.price || 0);
+                } else {
+                    const product = await Product.findByPk(item.product_id, { transaction: t });
+                    unit_price = parseFloat(product?.price || 0);
+                }
+                item.cached_unit_price = unit_price;
+                total_return_amount += parseFloat(item.quantity) * unit_price;
             }
-
-            total_return_amount += parseFloat(item.quantity) * parseFloat(saleItem.unit_price);
         }
 
         // 1. Create Sale Return
         const saleReturn = await SaleReturn.create({
             organization_id,
             branch_id,
-            customer_id: sale.customer_id,
-            distributor_id: sale.distributor_id,
-            sale_id,
+            customer_id: sale?.customer_id || null,
+            distributor_id: sale?.distributor_id || null,
+            sale_id: sale_id || null,
             user_id,
             return_number,
             return_date: return_date || new Date(),
@@ -143,11 +177,11 @@ const createSaleReturn = async (req, res, next) => {
             refund_amount: refund_amount || 0,
             refund_method,
             status: 'completed',
-            notes
+            notes: notes || (sale_id ? null : 'Direct Sales Return (Unlinked)')
         }, { transaction: t });
 
         // --- LOYALTY POINTS DEDUCTION ---
-        if (sale.customer_id && sale.earned_points > 0) {
+        if (sale && sale.customer_id && sale.earned_points > 0) {
             const org = await db.Organization.findByPk(organization_id, { transaction: t });
             if (org && org.loyalty_enabled) {
                 // Deduct points proportionally to the return amount
@@ -165,18 +199,14 @@ const createSaleReturn = async (req, res, next) => {
 
         // 2. Process Items (Update Stock & Batches)
         for (const item of items) {
-            // ... (existing code for SaleReturnItem creation) ...
-            const saleItem = sale.items.find(si => si.product_id === item.product_id &&
-                (si.product_variant_id === item.product_variant_id || (!si.product_variant_id && !item.product_variant_id)));
-
             await SaleReturnItem.create({
                 organization_id,
                 sale_return_id: saleReturn.id,
                 product_id: item.product_id,
                 product_variant_id: item.product_variant_id || null,
                 quantity: item.quantity,
-                unit_price: saleItem.unit_price,
-                total_amount: parseFloat(item.quantity) * parseFloat(saleItem.unit_price),
+                unit_price: item.cached_unit_price,
+                total_amount: parseFloat(item.quantity) * item.cached_unit_price,
                 reason: item.reason
             }, { transaction: t });
 
@@ -189,8 +219,7 @@ const createSaleReturn = async (req, res, next) => {
                 await Stock.create({ ...stockWhere, quantity: item.quantity }, { transaction: t });
             }
 
-            // B. Increment Batch (Restore to Latest Batch)
-            // We assume the returned item goes back to the most recent batch (LIFO for returns)
+            // B. Increment Batch
             const latestBatch = await ProductBatch.findOne({
                 where: {
                     organization_id,
@@ -198,10 +227,7 @@ const createSaleReturn = async (req, res, next) => {
                     product_id: item.product_id,
                     product_variant_id: item.product_variant_id || null
                 },
-                order: [
-                    ['expiry_date', 'DESC'], // Put back into longest living batch? Or newest?
-                    ['created_at', 'DESC']   // Usually newest batch is best proxy
-                ],
+                order: [['expiry_date', 'DESC'], ['created_at', 'DESC']],
                 transaction: t
             });
 
@@ -211,47 +237,28 @@ const createSaleReturn = async (req, res, next) => {
         }
 
         // 3. Accounting & Payments
-        const [cashAccount] = await Account.findOrCreate({
-            where: { organization_id, code: '1000' },
-            defaults: { name: 'Cash', type: 'asset' },
-            transaction: t
-        });
-
-        const [arAccount] = await Account.findOrCreate({
-            where: { organization_id, code: '1100' },
-            defaults: { name: 'Accounts Receivable', type: 'asset' },
-            transaction: t
-        });
-
-        const [salesReturnAccount] = await Account.findOrCreate({
-            where: { organization_id, code: '4100' },
-            defaults: { name: 'Sales Returns & Allowances', type: 'revenue' }, // Contra-revenue
-            transaction: t
-        });
+        const [cashAccount] = await Account.findOrCreate({ where: { organization_id, code: '1000' }, defaults: { name: 'Cash', type: 'asset' }, transaction: t });
+        const [arAccount] = await Account.findOrCreate({ where: { organization_id, code: '1100' }, defaults: { name: 'Accounts Receivable', type: 'asset' }, transaction: t });
+        const [salesReturnAccount] = await Account.findOrCreate({ where: { organization_id, code: '4100' }, defaults: { name: 'Sales Returns & Allowances', type: 'revenue' }, transaction: t });
 
         // Debit Sales Return (Reduce Revenue)
         await accountingService.recordTransaction({
             organization_id,
             branch_id,
             account_id: salesReturnAccount.id,
-            customer_id: sale.customer_id,
-            distributor_id: sale.distributor_id,
+            customer_id: sale?.customer_id || null,
+            distributor_id: sale?.distributor_id || null,
             amount: total_return_amount,
             type: 'debit',
             reference_type: 'SaleReturn',
             reference_id: saleReturn.id,
             transaction_date: return_date || new Date(),
-            description: `Sales Return for Invoice ${sale.invoice_number}`
+            description: sale ? `Sales Return for Invoice ${sale.invoice_number}` : `Direct Sales Return ${return_number}`
         }, t);
 
-        // Process Refunds (Split Methods)
-        // If no refunds passed in body, fallback to legacy single method
         let refundPayments = req.body.refunds || [];
         if (refundPayments.length === 0 && (refund_amount > 0 || refund_method)) {
-            refundPayments.push({
-                payment_method: refund_method || 'cash',
-                amount: refund_amount || 0
-            });
+            refundPayments.push({ payment_method: refund_method || 'cash', amount: refund_amount || 0 });
         }
 
         for (const refund of refundPayments) {
@@ -266,11 +273,7 @@ const createSaleReturn = async (req, res, next) => {
                 targetAccountId = arAccount.id;
                 description = `AR Adjustment for Sales Return ${return_number}`;
             } else if (method === 'bank' || method === 'bank_transfer') {
-                const [bankAccount] = await Account.findOrCreate({
-                    where: { organization_id, code: '1020' },
-                    defaults: { name: 'Bank', type: 'asset' },
-                    transaction: t
-                });
+                const [bankAccount] = await Account.findOrCreate({ where: { organization_id, code: '1020' }, defaults: { name: 'Bank', type: 'asset' }, transaction: t });
                 targetAccountId = bankAccount.id;
             }
 
@@ -278,8 +281,8 @@ const createSaleReturn = async (req, res, next) => {
                 organization_id,
                 branch_id,
                 account_id: targetAccountId,
-                customer_id: sale.customer_id,
-                distributor_id: sale.distributor_id,
+                customer_id: sale?.customer_id || null,
+                distributor_id: sale?.distributor_id || null,
                 amount: amt,
                 type: 'credit',
                 reference_type: 'SaleReturn',
@@ -288,7 +291,6 @@ const createSaleReturn = async (req, res, next) => {
                 description
             }, t);
 
-            // Record Breakdown
             await db.SaleReturnPayment.create({
                 organization_id,
                 sale_return_id: saleReturn.id,
@@ -301,34 +303,23 @@ const createSaleReturn = async (req, res, next) => {
 
 
         // 4. Update Original Sale Status
-        // Calculate total qty purchased vs total qty returned
-        const totalPurchasedQty = sale.items.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0);
-        
-        const allReturnItems = await SaleReturnItem.findAll({
-            include: [{
-                model: SaleReturn,
-                as: 'sale_return',
-                where: { sale_id: sale.id, organization_id }
-            }],
-            transaction: t
-        });
-        
-        const totalReturnedQty = allReturnItems.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0);
-        
-        if (totalReturnedQty >= totalPurchasedQty) {
-            await sale.update({ 
-                return_status: 'full',
-                status: 'returned'
-            }, { transaction: t });
-        } else if (totalReturnedQty > 0) {
-            await sale.update({ 
-                return_status: 'partial'
-            }, { transaction: t });
+        if (sale) {
+            const totalPurchasedQty = sale.items.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0);
+            const allReturnItems = await SaleReturnItem.findAll({
+                include: [{ model: SaleReturn, as: 'sale_return', where: { sale_id: sale.id, organization_id } }],
+                transaction: t
+            });
+            const totalReturnedQty = allReturnItems.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0);
+            
+            if (totalReturnedQty >= totalPurchasedQty) {
+                await sale.update({ return_status: 'full', status: 'returned' }, { transaction: t });
+            } else if (totalReturnedQty > 0) {
+                await sale.update({ return_status: 'partial' }, { transaction: t });
+            }
         }
 
         await t.commit();
 
-        // Log sale return
         const { ipAddress, userAgent } = auditService.getRequestContext(req);
         await auditService.logCreate(
             organization_id,
@@ -337,7 +328,7 @@ const createSaleReturn = async (req, res, next) => {
             saleReturn.id,
             {
                 return_number: saleReturn.return_number,
-                invoice_number: sale.invoice_number,
+                invoice_number: sale?.invoice_number || null,
                 total_amount: saleReturn.total_amount,
                 refund_amount: saleReturn.refund_amount,
                 items_count: items.length
@@ -346,8 +337,7 @@ const createSaleReturn = async (req, res, next) => {
             userAgent
         );
 
-
-        // --- SHOPIFY & CUSTOM E-COMMERCE SYNC ---
+        // --- SHOPIFY SYNC ---
         (async () => {
             try {
                 const shopifyService = require('../services/shopifyService');
@@ -373,13 +363,11 @@ const createSaleReturn = async (req, res, next) => {
         })();
 
         return successResponse(res, saleReturn, 'Sale Return processed successfully', 201);
-
     } catch (error) {
         await t.rollback();
         next(error);
     }
 };
-
 module.exports = {
     getAllSaleReturns,
     getSaleReturnById,

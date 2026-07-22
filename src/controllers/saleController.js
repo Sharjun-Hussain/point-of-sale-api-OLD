@@ -62,7 +62,7 @@ const getAllSales = async (req, res, next) => {
             productFilterActive = true;
         }
         if (product_id && product_id !== 'all') {
-            productWhere.id = product_id;
+            itemWhere.product_id = product_id;
             productFilterActive = true;
         }
 
@@ -80,14 +80,15 @@ const getAllSales = async (req, res, next) => {
                 {
                     model: SaleItem,
                     as: 'items',
-                    required: productFilterActive, // Filter sales by these items
+                    required: productFilterActive,
+                    where: Object.keys(itemWhere).length > 0 ? itemWhere : undefined,
                     include: [
                         { 
                             model: Product, 
                             as: 'product', 
                             attributes: ['name', 'image', 'main_category_id', 'sub_category_id', 'supplier_id', 'brand_id'],
-                            where: productFilterActive ? productWhere : undefined,
-                            required: productFilterActive
+                            where: Object.keys(productWhere).length > 0 ? productWhere : undefined,
+                            required: Object.keys(productWhere).length > 0
                         },
                         { model: ProductVariant, as: 'variant', attributes: ['name', 'image', 'barcode', 'sku'] }
                     ]
