@@ -1020,6 +1020,8 @@ const createSale = async (req, res, next) => {
                         if (sku) {
                             await shopifyService.syncInventory(organization_id, sku, -pItem.quantity);
                             await customEcommerceService.syncInventory(organization_id, sku, -pItem.quantity);
+                        } else {
+                            console.warn(`[Shopify Sync] Skipped: Product ${pItem.product_id} / Variant ${pItem.product_variant_id} has no SKU or barcode — cannot sync to Shopify/eCommerce.`);
                         }
                     }
                 } catch (err) {

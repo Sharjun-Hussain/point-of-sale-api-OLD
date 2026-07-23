@@ -174,7 +174,25 @@ class ShopifyService {
             const config = await this._getFullConfig(organizationId);
             if (!config || !config.enabled || !config.location_id) return;
 
+            // Only sync variants explicitly marked as synced to Shopify.
+            // Avoids wasting Shopify API quota on products never pushed to Shopify.
+            const syncedVariant = await ProductVariant.findOne({
+                where: {
+                    [Op.or]: [{ sku }, { barcode: sku }],
+                    organization_id: organizationId,
+                    shopify_sync_enabled: true
+                }
+            });
+            if (!syncedVariant) {
+                logger.info(`Shopify Sync: SKU "${sku}" has no shopify_sync_enabled variant — skipping.`);
+                return;
+            }
+
             const access_token = await tokenManager.getValidToken(organizationId);
+            if (!access_token) {
+                logger.error(`Shopify Sync: Could not get a valid access token for org ${organizationId}. SKU "${sku}" not synced.`);
+                return;
+            }
             const cleanShopUrl = config.shop_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
             // 1. Find the inventory item ID for this SKU
@@ -183,15 +201,22 @@ class ShopifyService {
                 signal: AbortSignal.timeout(10000)
             });
 
-            if (!itemResponse.ok) return;
+            if (!itemResponse.ok) {
+                const errBody = await itemResponse.json().catch(() => ({}));
+                logger.error(`Shopify Sync: inventory_items lookup failed for SKU "${sku}". HTTP ${itemResponse.status}: ${JSON.stringify(errBody.errors || errBody)}`);
+                return;
+            }
 
             const itemData = await itemResponse.json();
             const shopifyItem = itemData.inventory_items?.[0];
 
-            if (!shopifyItem) return;
+            if (!shopifyItem) {
+                logger.warn(`Shopify Sync: SKU "${sku}" not found in Shopify inventory_items. Product may not have been pushed to Shopify yet.`);
+                return;
+            }
 
             // 2. Adjust inventory level
-            await fetch(`https://${cleanShopUrl}/admin/api/2024-10/inventory_levels/adjust.json`, {
+            const adjustRes = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/inventory_levels/adjust.json`, {
                 method: 'POST',
                 headers: {
                     'X-Shopify-Access-Token': access_token,
@@ -205,7 +230,13 @@ class ShopifyService {
                 signal: AbortSignal.timeout(10000)
             });
 
-            logger.info(`Shopify Sync: Adjusted SKU ${sku} by ${quantityChange}`);
+            if (!adjustRes.ok) {
+                const errBody = await adjustRes.json().catch(() => ({}));
+                logger.error(`Shopify Sync: inventory_levels/adjust failed for SKU "${sku}". HTTP ${adjustRes.status}: ${JSON.stringify(errBody.errors || errBody)}`);
+                return;
+            }
+
+            logger.info(`Shopify Sync: ✅ Adjusted SKU "${sku}" by ${quantityChange} at location ${config.location_id}`);
         } catch (error) {
             logger.error(`Shopify Sync Error: ${error.message}`);
         }
