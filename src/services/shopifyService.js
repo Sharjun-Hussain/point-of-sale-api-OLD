@@ -529,10 +529,12 @@ class ShopifyService {
 
             const { shop_url, location_id } = config;
             const cleanShopUrl = shop_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+            logger.info(`[PushAll] START — Org: ${organizationId}, Shop: ${cleanShopUrl}, Location: ${location_id}`);
 
             // Get a valid (auto-refreshed) token
             const access_token = await tokenManager.getValidToken(organizationId);
             if (!access_token) throw new Error('Could not obtain a valid Shopify access token. Please check your credentials.');
+            logger.info(`[PushAll] Token acquired ✅`);
 
             // Find Branch ID for stock filtering (Use config.pos_branch_id or fallback to main branch)
             let branchId = config.pos_branch_id;
@@ -543,6 +545,7 @@ class ShopifyService {
                 });
                 branchId = mainBranch ? mainBranch.id : null;
             }
+            logger.info(`[PushAll] Using Branch ID: ${branchId}`);
 
             const variants = await ProductVariant.findAll({
                 where: {
@@ -571,46 +574,74 @@ class ShopifyService {
                 ]
             });
 
+            logger.info(`[PushAll] Found ${variants.length} synced variant(s) in DB`);
+            variants.forEach(v => {
+                logger.info(`[PushAll]   → Variant ID: ${v.id} | variant_sync: ${v.shopify_sync_enabled} | product_sync: ${v.product?.shopify_sync_enabled} | SKU: "${v.sku}" | Barcode: "${v.barcode}" | product.code: "${v.product?.code}" | stocks: ${v.stocks?.length}`);
+            });
+
             const results = { total: variants.length, pushed: 0, failed: 0, skipped: 0 };
 
             for (const variant of variants) {
                 const sku = variant.sku || variant.barcode || variant.product?.code;
-                if (!sku) { results.skipped++; continue; }
+                if (!sku) {
+                    logger.warn(`[PushAll] Skipping variant ${variant.id} — no SKU/barcode/code found`);
+                    results.skipped++;
+                    continue;
+                }
 
                 const totalStock = variant.stocks.reduce((sum, s) => sum + parseFloat(s.quantity), 0);
+                logger.info(`[PushAll] Processing SKU="${sku}" | Local Stock: ${totalStock}`);
 
                 try {
-                    const itemResponse = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/inventory_items.json?sku=${encodeURIComponent(sku)}`, {
+                    const itemUrl = `https://${cleanShopUrl}/admin/api/2024-10/inventory_items.json?sku=${encodeURIComponent(sku)}`;
+                    logger.info(`[PushAll] Shopify lookup → GET ${itemUrl}`);
+                    const itemResponse = await fetch(itemUrl, {
                         headers: { 'X-Shopify-Access-Token': access_token },
                         signal: AbortSignal.timeout(10000)
                     });
                     const itemData = await itemResponse.json();
+                    logger.info(`[PushAll] Shopify item lookup response (status ${itemResponse.status}): ${JSON.stringify(itemData)}`);
                     const shopifyItem = itemData.inventory_items?.[0];
 
-                    if (!shopifyItem) { results.skipped++; continue; }
+                    if (!shopifyItem) {
+                        logger.warn(`[PushAll] SKU="${sku}" not found on Shopify — skipping`);
+                        results.skipped++;
+                        continue;
+                    }
 
                     // Set Stock
-                    await fetch(`https://${cleanShopUrl}/admin/api/2024-10/inventory_levels/set.json`, {
+                    const setPayload = {
+                        location_id: location_id,
+                        inventory_item_id: shopifyItem.id,
+                        available: Math.max(0, Math.floor(totalStock))
+                    };
+                    logger.info(`[PushAll] Setting stock → POST inventory_levels/set.json payload: ${JSON.stringify(setPayload)}`);
+                    const setResponse = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/inventory_levels/set.json`, {
                         method: 'POST',
                         headers: {
                             'X-Shopify-Access-Token': access_token,
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({
-                            location_id: location_id,
-                            inventory_item_id: shopifyItem.id,
-                            available: Math.max(0, Math.floor(totalStock))
-                        }),
+                        body: JSON.stringify(setPayload),
                         signal: AbortSignal.timeout(10000)
                     });
+                    const setData = await setResponse.json();
+                    logger.info(`[PushAll] Set stock response (status ${setResponse.status}): ${JSON.stringify(setData)}`);
 
-                    results.pushed++;
+                    if (!setResponse.ok) {
+                        logger.error(`[PushAll] ❌ Failed to set stock for SKU="${sku}": ${JSON.stringify(setData.errors || setData)}`);
+                        results.failed++;
+                    } else {
+                        logger.info(`[PushAll] ✅ SKU="${sku}" stock set to ${setPayload.available}`);
+                        results.pushed++;
+                    }
                 } catch (err) {
-                    logger.error(`Shopify Push Error (SKU: ${sku}): ${err.message}`);
+                    logger.error(`[PushAll] ❌ Exception for SKU="${sku}": ${err.message}`);
                     results.failed++;
                 }
             }
 
+            logger.info(`[PushAll] DONE — Results: ${JSON.stringify(results)}`);
             return results;
         } catch (error) {
             logger.error(`Shopify Bulk Push Error: ${error.message}`);
