@@ -195,22 +195,10 @@ class ShopifyService {
             }
             const cleanShopUrl = config.shop_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
-            // 1. Find the inventory item ID for this SKU
-            const itemResponse = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/inventory_items.json?sku=${encodeURIComponent(sku)}`, {
-                headers: { 'X-Shopify-Access-Token': access_token },
-                signal: AbortSignal.timeout(10000)
-            });
+            // 1. Find the inventory item ID for this SKU using GraphQL
+            const inventoryItemId = await this._getInventoryItemIdBySku(cleanShopUrl, access_token, sku);
 
-            if (!itemResponse.ok) {
-                const errBody = await itemResponse.json().catch(() => ({}));
-                logger.error(`Shopify Sync: inventory_items lookup failed for SKU "${sku}". HTTP ${itemResponse.status}: ${JSON.stringify(errBody.errors || errBody)}`);
-                return;
-            }
-
-            const itemData = await itemResponse.json();
-            const shopifyItem = itemData.inventory_items?.[0];
-
-            if (!shopifyItem) {
+            if (!inventoryItemId) {
                 logger.warn(`Shopify Sync: SKU "${sku}" not found in Shopify inventory_items. Product may not have been pushed to Shopify yet.`);
                 return;
             }
@@ -582,6 +570,10 @@ class ShopifyService {
             const results = { total: variants.length, pushed: 0, failed: 0, skipped: 0 };
 
             for (const variant of variants) {
+                // Shopify REST API limit is typically 2 requests per second.
+                // Add a small delay to prevent HTTP 429 Too Many Requests errors.
+                await new Promise(resolve => setTimeout(resolve, 600));
+
                 const sku = variant.sku || variant.barcode || variant.product?.code;
                 if (!sku) {
                     logger.warn(`[PushAll] Skipping variant ${variant.id} — no SKU/barcode/code found`);
@@ -593,17 +585,9 @@ class ShopifyService {
                 logger.info(`[PushAll] Processing SKU="${sku}" | Local Stock: ${totalStock}`);
 
                 try {
-                    const itemUrl = `https://${cleanShopUrl}/admin/api/2024-10/inventory_items.json?sku=${encodeURIComponent(sku)}`;
-                    logger.info(`[PushAll] Shopify lookup → GET ${itemUrl}`);
-                    const itemResponse = await fetch(itemUrl, {
-                        headers: { 'X-Shopify-Access-Token': access_token },
-                        signal: AbortSignal.timeout(10000)
-                    });
-                    const itemData = await itemResponse.json();
-                    logger.info(`[PushAll] Shopify item lookup response (status ${itemResponse.status}): ${JSON.stringify(itemData)}`);
-                    const shopifyItem = itemData.inventory_items?.[0];
+                    const inventoryItemId = await this._getInventoryItemIdBySku(cleanShopUrl, access_token, sku);
 
-                    if (!shopifyItem) {
+                    if (!inventoryItemId) {
                         logger.warn(`[PushAll] SKU="${sku}" not found on Shopify — skipping`);
                         results.skipped++;
                         continue;
@@ -612,7 +596,7 @@ class ShopifyService {
                     // Set Stock
                     const setPayload = {
                         location_id: location_id,
-                        inventory_item_id: shopifyItem.id,
+                        inventory_item_id: inventoryItemId,
                         available: Math.max(0, Math.floor(totalStock))
                     };
                     logger.info(`[PushAll] Setting stock → POST inventory_levels/set.json payload: ${JSON.stringify(setPayload)}`);
@@ -1317,6 +1301,50 @@ class ShopifyService {
         return results;
     }
 
+    /**
+     * Get inventory item ID by SKU using GraphQL API
+     * Returns the numeric legacy resource ID
+     */
+    async _getInventoryItemIdBySku(cleanShopUrl, accessToken, sku) {
+        const query = `
+          query searchVariant($query: String!) {
+            productVariants(first: 1, query: $query) {
+              edges {
+                node {
+                  inventoryItem {
+                    legacyResourceId
+                  }
+                }
+              }
+            }
+          }
+        `;
+        
+        // Escape single quotes for Shopify query syntax
+        const queryArg = `sku:'${sku.replace(/'/g, "\\'")}'`;
+        
+        try {
+            const response = await fetch(`https://${cleanShopUrl}/admin/api/2024-10/graphql.json`, {
+                method: 'POST',
+                headers: {
+                    'X-Shopify-Access-Token': accessToken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    query,
+                    variables: { query: queryArg }
+                }),
+                signal: AbortSignal.timeout(10000)
+            });
+
+            if (!response.ok) return null;
+            const json = await response.json();
+            return json.data?.productVariants?.edges?.[0]?.node?.inventoryItem?.legacyResourceId || null;
+        } catch (error) {
+            logger.error(`_getInventoryItemIdBySku Error for SKU ${sku}: ${error.message}`);
+            return null;
+        }
+    }
 
     /**
      * Disconnect Shopify store and clear settings
