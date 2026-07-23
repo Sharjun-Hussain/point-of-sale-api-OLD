@@ -538,11 +538,8 @@ class ShopifyService {
             const variants = await ProductVariant.findAll({
                 where: {
                     organization_id: organizationId,
-                    // Include variants that are directly enabled OR whose parent product is enabled
-                    [Op.or]: [
-                        { shopify_sync_enabled: true },
-                        { '$product.shopify_sync_enabled$': true }
-                    ]
+                    // Only sync variants that are directly enabled (link confirmed at variant level)
+                    shopify_sync_enabled: true
                 },
                 include: [
                     {
@@ -557,7 +554,9 @@ class ShopifyService {
                     {
                         model: Product,
                         as: 'product',
-                        required: true
+                        required: true,
+                        // Also confirm the parent product is marked as synced
+                        where: { shopify_sync_enabled: true }
                     }
                 ]
             });
