@@ -1003,7 +1003,8 @@ const reportController = {
             const { count, rows: returns } = await SaleReturn.findAndCountAll({
                 where: whereClause,
                 include: [
-                    { model: Customer, as: 'customer', attributes: ['name'] },
+                    { model: Customer, as: 'customer', attributes: ['name', 'phone', 'email'] },
+                    { model: db.Distributor, as: 'distributor', attributes: ['name', 'phone', 'email'] },
                     { model: Sale, as: 'sale', attributes: ['invoice_number'] },
                     { model: User, as: 'cashier', attributes: ['name'] },
                     {
