@@ -150,6 +150,7 @@ const reportController = {
                 where: whereClause,
                 include: [
                     { model: Customer, as: 'customer', attributes: ['name'] },
+                    { model: db.Distributor, as: 'distributor', attributes: ['name'] },
                     { model: User, as: 'cashier', attributes: ['name'] },
                     { model: db.SalePayment, as: 'payments' },
                     { 
@@ -301,7 +302,7 @@ const reportController = {
                     return {
                         id: s.invoice_number || s.id.substring(0, 8).toUpperCase(),
                         date: s.created_at,
-                        customer: s.customer ? s.customer.name : 'Walk-in',
+                        customer: s.customer?.name || s.distributor?.name || 'Walk-in',
                         total: Number(s.payable_amount), 
                         subtotal: Number(s.total_amount),
                         discount: Number(s.discount_amount),
@@ -2831,6 +2832,7 @@ const reportController = {
                             where: saleWhere,
                             include: [
                                 { model: db.Customer, as: 'customer', attributes: ['name'] },
+                                { model: db.Distributor, as: 'distributor', attributes: ['name'] },
                                 { model: db.User, as: 'cashier', attributes: ['name'] },
                                 { model: db.SalePayment, as: 'payments' }
                             ]
@@ -2862,7 +2864,7 @@ const reportController = {
                     category: item.product?.main_category?.name,
                     brand: item.product?.brand?.name,
                     supplier: item.product?.supplier?.name,
-                    customer: item.sale?.customer?.name || 'Walk-in',
+                    customer: item.sale?.customer?.name || item.sale?.distributor?.name || 'Walk-in',
                     cashier: item.sale?.cashier?.name,
                     netsale: Number(item.total_amount) // Simplification
                 }));
@@ -2874,6 +2876,7 @@ const reportController = {
                     where: saleWhere,
                     include: [
                         { model: db.Customer, as: 'customer', attributes: ['name'] },
+                        { model: db.Distributor, as: 'distributor', attributes: ['name'] },
                         { model: db.User, as: 'cashier', attributes: ['name'] },
                         { model: db.SalePayment, as: 'payments' }
                     ]
@@ -2883,7 +2886,7 @@ const reportController = {
                     id: s.id,
                     invoice_no: s.invoice_number,
                     date: s.created_at,
-                    customer: s.customer?.name || 'Walk-in',
+                    customer: s.customer?.name || s.distributor?.name || 'Walk-in',
                     total: Number(s.payable_amount),
                     discount: Number(s.discount_amount),
                     cashier: s.cashier?.name,
