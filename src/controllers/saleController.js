@@ -93,7 +93,8 @@ const getAllSales = async (req, res, next) => {
                         { model: ProductVariant, as: 'variant', attributes: ['name', 'image', 'barcode', 'sku'] }
                     ]
                 },
-                { model: SalePayment, as: 'payments' }
+                { model: SalePayment, as: 'payments' },
+                { model: db.SaleReturn, as: 'returns' }
             ],
             distinct: true, 
             order: [['created_at', 'DESC']]
@@ -134,7 +135,8 @@ const getSaleById = async (req, res, next) => {
                         { model: ProductVariant, as: 'variant', attributes: ['name', 'sku', 'barcode'] }
                     ]
                 },
-                { model: SalePayment, as: 'payments' }
+                { model: SalePayment, as: 'payments' },
+                { model: db.SaleReturn, as: 'returns' }
             ]
         });
 
